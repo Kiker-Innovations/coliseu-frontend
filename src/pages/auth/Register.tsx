@@ -4,6 +4,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { useState } from "react";
 import InputMask from "react-input-mask";
 import { Camera } from "lucide-react";
+import { BR } from "country-flag-icons/react/3x2";
 import { authService } from "@/services/auth.service";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -184,17 +185,7 @@ export default function Register() {
               <Label htmlFor="phone">Telefone</Label>
               <div className="relative">
                 <div className="absolute left-3 top-1/2 -translate-y-1/2 flex items-center gap-2 pointer-events-none z-10">
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    viewBox="0 0 60 42"
-                    className="w-6 h-4"
-                    aria-label="Bandeira do Brasil"
-                  >
-                    <title>Bandeira do Brasil</title>
-                    <rect width="60" height="42" fill="#009b3a" />
-                    <path d="M30 9 L53 21 L30 33 L7 21 Z" fill="#fedf00" />
-                    <circle cx="30" cy="21" r="6" fill="#002776" />
-                  </svg>
+                  <BR title="Brasil" className="w-6 h-4" />
                   <span className="text-muted-foreground text-sm">+55</span>
                 </div>
                 <InputMask
