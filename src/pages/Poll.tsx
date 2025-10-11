@@ -9,6 +9,9 @@ import { toast } from "sonner";
 export default function Poll() {
   const [selectedMonth, setSelectedMonth] = useState("2025-10");
   const [votes, setVotes] = useState<{ [key: number]: string }>({});
+  const [tempSelections, setTempSelections] = useState<{
+    [key: number]: string;
+  }>({});
 
   // Mock data
   const polls = [
@@ -80,7 +83,11 @@ export default function Poll() {
 
   const filteredPolls = polls.filter((poll) => poll.month === selectedMonth);
 
-  const handleVote = (pollId: number, optionId: string) => {
+  const handleSelection = (pollId: number, optionId: string) => {
+    setTempSelections({ ...tempSelections, [pollId]: optionId });
+  };
+
+  const handleConfirmVote = (pollId: number) => {
     const poll = polls.find((p) => p.id === pollId);
     if (!poll?.isActive) {
       toast.error("Esta enquete já foi encerrada!");
@@ -92,7 +99,12 @@ export default function Poll() {
       return;
     }
 
-    setVotes({ ...votes, [pollId]: optionId });
+    if (!tempSelections[pollId]) {
+      toast.error("Por favor, selecione uma opção antes de confirmar!");
+      return;
+    }
+
+    setVotes({ ...votes, [pollId]: tempSelections[pollId] });
     toast.success("Voto registrado com sucesso!");
   };
 
@@ -125,15 +137,21 @@ export default function Poll() {
         <Card>
           <CardContent className="pt-6">
             <div className="text-center">
-              <p className="text-sm text-muted-foreground mb-2">Enquetes do Mês</p>
-              <p className="text-4xl font-bold text-primary">{filteredPolls.length}</p>
+              <p className="text-sm text-muted-foreground mb-2">
+                Enquetes do Mês
+              </p>
+              <p className="text-4xl font-bold text-primary">
+                {filteredPolls.length}
+              </p>
             </div>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="pt-6">
             <div className="text-center">
-              <p className="text-sm text-muted-foreground mb-2">Enquetes Respondidas</p>
+              <p className="text-sm text-muted-foreground mb-2">
+                Enquetes Respondidas
+              </p>
               <p className="text-4xl font-bold text-accent">
                 {filteredPolls.filter((p) => hasVoted(p.id)).length}
               </p>
@@ -169,18 +187,26 @@ export default function Poll() {
               <div className="flex justify-between items-start">
                 <CardTitle className="text-xl flex items-center gap-2">
                   {poll.question}
-                  {hasVoted(poll.id) && <CheckCircle2 className="w-5 h-5 text-accent" />}
-                  {!poll.isActive && <Lock className="w-5 h-5 text-muted-foreground" />}
+                  {hasVoted(poll.id) && (
+                    <CheckCircle2 className="w-5 h-5 text-accent" />
+                  )}
+                  {!poll.isActive && (
+                    <Lock className="w-5 h-5 text-muted-foreground" />
+                  )}
                 </CardTitle>
                 <div className="text-right">
-                  <p className="text-sm text-muted-foreground">{poll.totalVotes} votos</p>
+                  <p className="text-sm text-muted-foreground">
+                    {poll.totalVotes} votos
+                  </p>
                 </div>
               </div>
             </CardHeader>
             <CardContent>
               <RadioGroup
-                value={votes[poll.id]}
-                onValueChange={(value) => handleVote(poll.id, value)}
+                value={
+                  hasVoted(poll.id) ? votes[poll.id] : tempSelections[poll.id]
+                }
+                onValueChange={(value) => handleSelection(poll.id, value)}
                 disabled={!poll.isActive || hasVoted(poll.id)}
               >
                 <div className="space-y-3">
@@ -197,7 +223,9 @@ export default function Poll() {
                       <Label
                         htmlFor={option.id}
                         className={`flex-1 cursor-pointer ${
-                          !poll.isActive || hasVoted(poll.id) ? "cursor-not-allowed" : ""
+                          !poll.isActive || hasVoted(poll.id)
+                            ? "cursor-not-allowed"
+                            : ""
                         }`}
                       >
                         {option.text}
@@ -206,6 +234,16 @@ export default function Poll() {
                   ))}
                 </div>
               </RadioGroup>
+
+              {poll.isActive && !hasVoted(poll.id) && (
+                <Button
+                  onClick={() => handleConfirmVote(poll.id)}
+                  disabled={!tempSelections[poll.id]}
+                  className="mt-4 w-full"
+                >
+                  Confirmar Voto
+                </Button>
+              )}
 
               {!poll.isActive && (
                 <div className="mt-4 p-3 bg-muted rounded-lg flex items-center gap-2 text-sm text-muted-foreground">

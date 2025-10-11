@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { Link } from "react-router-dom";
 import { authService } from "@/services/auth.service";
 import { Button } from "@/components/ui/button";
@@ -6,17 +7,26 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import coliseuIcon from "@/assets/coliseu-icon.png";
+import {
+  resetPasswordSchema,
+  type ResetPasswordSchema,
+} from "@/schemas/auth/reset-password.schema";
 
 export default function ResetPassword() {
-  const [email, setEmail] = useState("");
-  const [loading, setLoading] = useState(false);
+  const {
+    register,
+    handleSubmit,
+    formState: { errors, isSubmitting },
+  } = useForm<ResetPasswordSchema>({
+    resolver: zodResolver(resetPasswordSchema),
+    defaultValues: {
+      email: "",
+    },
+  });
 
-  const handleResetPassword = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-
+  const onSubmit = async (data: ResetPasswordSchema) => {
     try {
-      const { error } = await authService.resetPasswordForEmail(email);
+      const { error } = await authService.resetPasswordForEmail(data.email);
 
       if (error) throw error;
 
@@ -25,8 +35,6 @@ export default function ResetPassword() {
       );
     } catch (error: any) {
       toast.error(error.message || "Erro ao enviar email de recuperação");
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -69,25 +77,28 @@ export default function ResetPassword() {
             </p>
           </div>
 
-          <form onSubmit={handleResetPassword} className="space-y-6">
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
               <Input
                 id="email"
                 type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
+                {...register("email")}
                 className="h-12"
               />
+              {errors.email && (
+                <p className="text-sm text-destructive">
+                  {errors.email.message}
+                </p>
+              )}
             </div>
 
             <Button
               type="submit"
               className="w-full h-12 bg-primary hover:bg-primary/90"
-              disabled={loading}
+              disabled={isSubmitting}
             >
-              {loading ? "Enviando..." : "Enviar Email de Recuperação"}
+              {isSubmitting ? "Enviando..." : "Enviar Email de Recuperação"}
             </Button>
 
             <div className="text-center">

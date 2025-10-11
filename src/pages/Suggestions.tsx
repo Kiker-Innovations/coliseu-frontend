@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -6,63 +8,77 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Lightbulb, Edit, Trash2, Plus } from "lucide-react";
 import { toast } from "sonner";
+import {
+  suggestionSchema,
+  type SuggestionSchema,
+} from "@/schemas/suggestions/suggestion.schema";
 
 export default function Suggestions() {
   const [suggestions, setSuggestions] = useState([
-    { id: 1, title: "Reforma da Piscina", description: "Melhorar a área de lazer" },
-    { id: 2, title: "Nova Churrasqueira", description: "Expandir área gourmet" },
+    {
+      id: 1,
+      title: "Reforma da Piscina",
+      description: "Melhorar a área de lazer",
+    },
+    {
+      id: 2,
+      title: "Nova Churrasqueira",
+      description: "Expandir área gourmet",
+    },
   ]);
 
   const [isCreating, setIsCreating] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
-  const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
 
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+    reset,
+    setValue,
+    watch,
+  } = useForm<SuggestionSchema>({
+    resolver: zodResolver(suggestionSchema),
+    defaultValues: {
+      title: "",
+      description: "",
+    },
+  });
+
+  const description = watch("description");
   const canCreateMore = suggestions.length < 5;
 
-  const handleCreate = () => {
-    if (!title.trim() || !description.trim()) {
-      toast.error("Preencha todos os campos");
-      return;
+  const onSubmit = (data: SuggestionSchema) => {
+    if (editingId) {
+      setSuggestions(
+        suggestions.map((s) =>
+          s.id === editingId
+            ? { ...s, title: data.title, description: data.description }
+            : s
+        )
+      );
+      toast.success("Sugestão atualizada com sucesso!");
+      setEditingId(null);
+    } else {
+      const newSuggestion = {
+        id: Date.now(),
+        title: data.title,
+        description: data.description,
+      };
+      setSuggestions([...suggestions, newSuggestion]);
+      toast.success("Sugestão criada com sucesso!");
+      setIsCreating(false);
     }
-
-    const newSuggestion = {
-      id: Date.now(),
-      title: title.trim(),
-      description: description.trim(),
-    };
-
-    setSuggestions([...suggestions, newSuggestion]);
-    setTitle("");
-    setDescription("");
-    setIsCreating(false);
-    toast.success("Sugestão criada com sucesso!");
+    reset();
   };
 
   const handleEdit = (id: number) => {
     const suggestion = suggestions.find((s) => s.id === id);
     if (suggestion) {
-      setTitle(suggestion.title);
-      setDescription(suggestion.description);
+      setValue("title", suggestion.title);
+      setValue("description", suggestion.description);
       setEditingId(id);
     }
-  };
-
-  const handleUpdate = () => {
-    if (!title.trim() || !description.trim()) {
-      toast.error("Preencha todos os campos");
-      return;
-    }
-
-    setSuggestions(
-      suggestions.map((s) =>
-        s.id === editingId ? { ...s, title: title.trim(), description: description.trim() } : s
-      )
-    );
-    setTitle("");
-    setDescription("");
-    setEditingId(null);
-    toast.success("Sugestão atualizada com sucesso!");
   };
 
   const handleDelete = (id: number) => {
@@ -71,8 +87,7 @@ export default function Suggestions() {
   };
 
   const handleCancel = () => {
-    setTitle("");
-    setDescription("");
+    reset();
     setIsCreating(false);
     setEditingId(null);
   };
@@ -104,38 +119,48 @@ export default function Suggestions() {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="title">Título</Label>
-              <Input
-                id="title"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                placeholder="Ex: Reforma da Piscina"
-                maxLength={100}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="description">Descrição</Label>
-              <Textarea
-                id="description"
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                placeholder="Descreva sua sugestão em detalhes..."
-                rows={4}
-                maxLength={500}
-              />
-              <p className="text-sm text-muted-foreground text-right">
-                {description.length}/500
-              </p>
-            </div>
-            <div className="flex gap-2">
-              <Button onClick={editingId ? handleUpdate : handleCreate} className="flex-1">
-                {editingId ? "Atualizar" : "Criar"}
-              </Button>
-              <Button variant="outline" onClick={handleCancel}>
-                Cancelar
-              </Button>
-            </div>
+            <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="title">Título</Label>
+                <Input
+                  id="title"
+                  {...register("title")}
+                  placeholder="Ex: Reforma da Piscina"
+                  maxLength={100}
+                />
+                {errors.title && (
+                  <p className="text-sm text-destructive">
+                    {errors.title.message}
+                  </p>
+                )}
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="description">Descrição</Label>
+                <Textarea
+                  id="description"
+                  {...register("description")}
+                  placeholder="Descreva sua sugestão em detalhes..."
+                  rows={4}
+                  maxLength={500}
+                />
+                {errors.description && (
+                  <p className="text-sm text-destructive">
+                    {errors.description.message}
+                  </p>
+                )}
+                <p className="text-sm text-muted-foreground text-right">
+                  {description?.length || 0}/500
+                </p>
+              </div>
+              <div className="flex gap-2">
+                <Button type="submit" className="flex-1">
+                  {editingId ? "Atualizar" : "Criar"}
+                </Button>
+                <Button type="button" variant="outline" onClick={handleCancel}>
+                  Cancelar
+                </Button>
+              </div>
+            </form>
           </CardContent>
         </Card>
       )}
@@ -147,7 +172,9 @@ export default function Suggestions() {
             <CardContent className="py-12 text-center text-muted-foreground">
               <Lightbulb className="w-12 h-12 mx-auto mb-4 opacity-50" />
               <p>Você ainda não criou nenhuma sugestão.</p>
-              <p className="text-sm mt-2">Clique em "Nova Sugestão" para começar!</p>
+              <p className="text-sm mt-2">
+                Clique em "Nova Sugestão" para começar!
+              </p>
             </CardContent>
           </Card>
         ) : (
@@ -177,7 +204,9 @@ export default function Suggestions() {
                 </div>
               </CardHeader>
               <CardContent>
-                <p className="text-muted-foreground">{suggestion.description}</p>
+                <p className="text-muted-foreground">
+                  {suggestion.description}
+                </p>
               </CardContent>
             </Card>
           ))
