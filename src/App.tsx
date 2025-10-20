@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AppLayout } from "./components/layout/AppLayout";
 import { AppLayoutAdmin } from "./components/layout/AppLayoutAdmin";
+import { AppLayoutConcierge } from "./components/layout/AppLayoutConcierge";
 
 // Resident pages
 import Login from "./pages/resident/auth/Login";
@@ -29,6 +30,13 @@ import AdminPolls from "./pages/admin/Polls";
 import AdminCondominiumInfo from "./pages/admin/CondominiumInfo";
 import AdminFines from "./pages/admin/Fines";
 import AdminNotices from "./pages/admin/Notices";
+
+// Concierge pages
+import ConciergeLogin from "./pages/concierge/auth/Login";
+import ConciergeResetPassword from "./pages/concierge/auth/ResetPassword";
+import ConciergeDashboard from "./pages/concierge/Dashboard";
+import ConciergePackages from "./pages/concierge/Packages";
+import ConciergeFines from "./pages/concierge/Fines";
 
 const queryClient = new QueryClient();
 
@@ -78,6 +86,26 @@ const App = () => (
             />
             <Route path="/admin/fines" element={<AdminFines />} />
             <Route path="/admin/notices" element={<AdminNotices />} />
+          </Route>
+
+          {/* Concierge Routes */}
+          <Route
+            path="/concierge"
+            element={<Navigate to="/concierge/login" replace />}
+          />
+          <Route path="/concierge/login" element={<ConciergeLogin />} />
+          <Route
+            path="/concierge/reset-password"
+            element={<ConciergeResetPassword />}
+          />
+
+          <Route element={<AppLayoutConcierge />}>
+            <Route
+              path="/concierge/dashboard"
+              element={<ConciergeDashboard />}
+            />
+            <Route path="/concierge/packages" element={<ConciergePackages />} />
+            <Route path="/concierge/fines" element={<ConciergeFines />} />
           </Route>
 
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
