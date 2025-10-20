@@ -2,6 +2,13 @@ import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import SuggestionsSkeleton from "@/skeleton/resident/SuggestionsSkeleton";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,6 +23,7 @@ import {
 
 export default function Suggestions() {
   const [isLoading, setIsLoading] = useState(true);
+  const [selectedMonth, setSelectedMonth] = useState("2025-10");
   const [suggestions, setSuggestions] = useState([
     {
       id: 1,
@@ -101,25 +109,46 @@ export default function Suggestions() {
     setEditingId(null);
   };
 
+  const availableMonths = [
+    { value: "2025-10", label: "Outubro 2025" },
+    { value: "2025-09", label: "Setembro 2025" },
+    { value: "2025-08", label: "Agosto 2025" },
+    { value: "2025-07", label: "Julho 2025" },
+  ];
+
   if (isLoading) {
     return <SuggestionsSkeleton />;
   }
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <div>
+      <div className="flex justify-between items-center gap-4">
+        <div className="flex-1">
           <h1 className="text-3xl font-bold">Minhas Sugestões</h1>
           <p className="text-muted-foreground mt-1">
             Você pode criar até 5 sugestões ({suggestions.length}/5)
           </p>
         </div>
-        {canCreateMore && !isCreating && !editingId && (
-          <Button onClick={() => setIsCreating(true)} className="gap-2">
-            <Plus className="w-4 h-4" />
-            Nova Sugestão
-          </Button>
-        )}
+        <div className="flex items-center gap-4">
+          {canCreateMore && !isCreating && !editingId && (
+            <Button onClick={() => setIsCreating(true)} className="gap-2">
+              <Plus className="w-4 h-4" />
+              Nova Sugestão
+            </Button>
+          )}
+          <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+            <SelectTrigger className="w-[200px]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {availableMonths.map((month) => (
+                <SelectItem key={month.value} value={month.value}>
+                  {month.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
       {/* Create/Edit Form */}

@@ -17,6 +17,13 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   DollarSign,
   TrendingUp,
   TrendingDown,
@@ -43,6 +50,7 @@ export default function Financial() {
   const [isLoading, setIsLoading] = useState(true);
   const [isExpenseDialogOpen, setIsExpenseDialogOpen] = useState(false);
   const [editingExpenseId, setEditingExpenseId] = useState<number | null>(null);
+  const [selectedMonth, setSelectedMonth] = useState("2025-10");
 
   useEffect(() => {
     const loadData = async () => {
@@ -237,13 +245,34 @@ export default function Financial() {
     return <FinancialSkeleton />;
   }
 
+  const availableMonths = [
+    { value: "2025-10", label: "Outubro 2025" },
+    { value: "2025-09", label: "Setembro 2025" },
+    { value: "2025-08", label: "Agosto 2025" },
+    { value: "2025-07", label: "Julho 2025" },
+  ];
+
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold">Financeiro</h1>
-        <p className="text-muted-foreground">
-          Gerencie as informações financeiras do condomínio
-        </p>
+      <div className="flex justify-between items-center">
+        <div>
+          <h1 className="text-3xl font-bold">Financeiro</h1>
+          <p className="text-muted-foreground">
+            Gerencie as informações financeiras do condomínio
+          </p>
+        </div>
+        <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+          <SelectTrigger className="w-[200px]">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {availableMonths.map((month) => (
+              <SelectItem key={month.value} value={month.value}>
+                {month.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       <Tabs defaultValue="view" className="space-y-6">

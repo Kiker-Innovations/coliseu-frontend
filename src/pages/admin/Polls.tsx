@@ -16,6 +16,13 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   BarChart3,
   Clock,
   Calendar,
@@ -33,6 +40,7 @@ export default function Polls() {
   const [isLoading, setIsLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [pollOptions, setPollOptions] = useState<string[]>(["", ""]);
+  const [selectedMonth, setSelectedMonth] = useState("2025-10");
 
   useEffect(() => {
     const loadData = async () => {
@@ -92,6 +100,21 @@ export default function Polls() {
   const closedPolls = [
     {
       id: 3,
+      question: "Melhor dia para coleta seletiva?",
+      options: [
+        { text: "Segunda-feira", votes: 15, percentage: 24 },
+        { text: "Quarta-feira", votes: 42, percentage: 68 },
+        { text: "Sexta-feira", votes: 5, percentage: 8 },
+      ],
+      totalVotes: 62,
+      totalResidents: 80,
+      startDate: "2025-10-05T00:00:00",
+      endDate: "2025-10-10T23:59:59",
+      isActive: false,
+      result: "Quarta-feira",
+    },
+    {
+      id: 4,
       question: "Aprovam a troca da empresa de segurança?",
       options: [
         { text: "Sim", votes: 54, percentage: 81 },
@@ -105,7 +128,7 @@ export default function Polls() {
       result: "Aprovado",
     },
     {
-      id: 4,
+      id: 5,
       question: "Horário de silêncio deve começar às:",
       options: [
         { text: "21h", votes: 12, percentage: 17 },
@@ -178,17 +201,47 @@ export default function Polls() {
     }
   };
 
+  const availableMonths = [
+    { value: "2025-10", label: "Outubro 2025" },
+    { value: "2025-09", label: "Setembro 2025" },
+    { value: "2025-08", label: "Agosto 2025" },
+    { value: "2025-07", label: "Julho 2025" },
+  ];
+
+  // Filtrar enquetes por mês
+  const filteredActivePolls = activePolls.filter((poll) =>
+    poll.startDate.startsWith(selectedMonth)
+  );
+
+  const filteredClosedPolls = closedPolls.filter((poll) =>
+    poll.startDate.startsWith(selectedMonth)
+  );
+
   if (isLoading) {
     return <PollsSkeleton />;
   }
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold">Enquetes</h1>
-        <p className="text-muted-foreground">
-          Gerencie e acompanhe as enquetes do condomínio
-        </p>
+      <div className="flex justify-between items-center">
+        <div>
+          <h1 className="text-3xl font-bold">Enquetes</h1>
+          <p className="text-muted-foreground">
+            Gerencie e acompanhe as enquetes do condomínio
+          </p>
+        </div>
+        <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+          <SelectTrigger className="w-[200px]">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {availableMonths.map((month) => (
+              <SelectItem key={month.value} value={month.value}>
+                {month.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       <Tabs defaultValue="active" className="space-y-6">
@@ -208,7 +261,7 @@ export default function Polls() {
                     Enquetes Ativas
                   </p>
                   <p className="text-4xl font-bold text-primary">
-                    {activePolls.length}
+                    {filteredActivePolls.length}
                   </p>
                 </div>
               </CardContent>
@@ -220,7 +273,7 @@ export default function Polls() {
                     Total de Votos
                   </p>
                   <p className="text-4xl font-bold text-accent">
-                    {activePolls.reduce(
+                    {filteredActivePolls.reduce(
                       (sum, poll) => sum + poll.totalVotes,
                       0
                     )}
@@ -236,11 +289,11 @@ export default function Polls() {
                   </p>
                   <p className="text-4xl font-bold text-muted-foreground">
                     {Math.round(
-                      activePolls.reduce(
+                      filteredActivePolls.reduce(
                         (sum, poll) =>
                           sum + (poll.totalVotes / poll.totalResidents) * 100,
                         0
-                      ) / activePolls.length || 0
+                      ) / filteredActivePolls.length || 0
                     )}
                     %
                   </p>
@@ -250,43 +303,104 @@ export default function Polls() {
           </div>
 
           <div className="space-y-4">
-            {activePolls.map((poll) => (
-              <Card
-                key={poll.id}
-                className="border-2 border-primary/50 bg-primary/5"
-              >
+            {filteredActivePolls.length === 0 ? (
+              <Card>
+                <CardContent className="flex items-center justify-center h-32">
+                  <p className="text-muted-foreground">
+                    Nenhuma enquete ativa neste mês
+                  </p>
+                </CardContent>
+              </Card>
+            ) : (
+              filteredActivePolls.map((poll) => (
+                <Card
+                  key={poll.id}
+                  className="border-2 border-primary/50 bg-primary/5"
+                >
+                  <CardHeader>
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <CardTitle className="flex items-center gap-2">
+                          <BarChart3 className="w-5 h-5" />
+                          {poll.question}
+                        </CardTitle>
+                      </div>
+                      <Badge className="bg-green-500">Ativa</Badge>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                      <div className="flex items-center gap-1">
+                        <Calendar className="w-4 h-4" />
+                        <span>
+                          {new Date(poll.startDate).toLocaleDateString("pt-BR")}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <Clock className="w-4 h-4" />
+                        <span>{calculateTimeRemaining(poll.endDate)}</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <Users className="w-4 h-4" />
+                        <span>
+                          {poll.totalVotes} votos ({poll.totalResidents}{" "}
+                          condôminos)
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="space-y-3">
+                      {poll.options.map((option, idx) => (
+                        <div key={idx} className="space-y-1">
+                          <div className="flex justify-between text-sm">
+                            <span className="font-medium">{option.text}</span>
+                            <span className="text-muted-foreground">
+                              {option.votes} votos ({option.percentage}%)
+                            </span>
+                          </div>
+                          <Progress value={option.percentage} className="h-2" />
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              ))
+            )}
+          </div>
+        </TabsContent>
+
+        {/* Aba de Histórico */}
+        <TabsContent value="closed" className="space-y-4">
+          {filteredClosedPolls.length === 0 ? (
+            <Card>
+              <CardContent className="flex items-center justify-center h-32">
+                <p className="text-muted-foreground">
+                  Nenhuma enquete encerrada neste mês
+                </p>
+              </CardContent>
+            </Card>
+          ) : (
+            filteredClosedPolls.map((poll) => (
+              <Card key={poll.id}>
                 <CardHeader>
                   <div className="flex items-start justify-between">
                     <div>
                       <CardTitle className="flex items-center gap-2">
-                        <BarChart3 className="w-5 h-5" />
+                        <CheckCircle2 className="w-5 h-5 text-primary" />
                         {poll.question}
                       </CardTitle>
+                      <p className="text-sm text-muted-foreground mt-2">
+                        {new Date(poll.startDate).toLocaleDateString("pt-BR")}{" "}
+                        até {new Date(poll.endDate).toLocaleDateString("pt-BR")}
+                      </p>
                     </div>
-                    <Badge className="bg-green-500">Ativa</Badge>
+                    <Badge variant="secondary">
+                      <Lock className="w-3 h-3 mr-1" />
+                      Encerrada
+                    </Badge>
                   </div>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                    <div className="flex items-center gap-1">
-                      <Calendar className="w-4 h-4" />
-                      <span>
-                        {new Date(poll.startDate).toLocaleDateString("pt-BR")}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <Clock className="w-4 h-4" />
-                      <span>{calculateTimeRemaining(poll.endDate)}</span>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <Users className="w-4 h-4" />
-                      <span>
-                        {poll.totalVotes} votos ({poll.totalResidents}{" "}
-                        condôminos)
-                      </span>
-                    </div>
-                  </div>
-
                   <div className="space-y-3">
                     {poll.options.map((option, idx) => (
                       <div key={idx} className="space-y-1">
@@ -300,60 +414,21 @@ export default function Polls() {
                       </div>
                     ))}
                   </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </TabsContent>
 
-        {/* Aba de Histórico */}
-        <TabsContent value="closed" className="space-y-4">
-          {closedPolls.map((poll) => (
-            <Card key={poll.id}>
-              <CardHeader>
-                <div className="flex items-start justify-between">
-                  <div>
-                    <CardTitle className="flex items-center gap-2">
-                      <CheckCircle2 className="w-5 h-5 text-primary" />
-                      {poll.question}
-                    </CardTitle>
-                    <p className="text-sm text-muted-foreground mt-2">
-                      {new Date(poll.startDate).toLocaleDateString("pt-BR")} até{" "}
-                      {new Date(poll.endDate).toLocaleDateString("pt-BR")}
+                  <div className="pt-2 border-t">
+                    <p className="text-sm text-muted-foreground">
+                      Participação: {poll.totalVotes} de {poll.totalResidents}{" "}
+                      moradores (
+                      {Math.round(
+                        (poll.totalVotes / poll.totalResidents) * 100
+                      )}
+                      %)
                     </p>
                   </div>
-                  <Badge variant="secondary">
-                    <Lock className="w-3 h-3 mr-1" />
-                    Encerrada
-                  </Badge>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-3">
-                  {poll.options.map((option, idx) => (
-                    <div key={idx} className="space-y-1">
-                      <div className="flex justify-between text-sm">
-                        <span className="font-medium">{option.text}</span>
-                        <span className="text-muted-foreground">
-                          {option.votes} votos ({option.percentage}%)
-                        </span>
-                      </div>
-                      <Progress value={option.percentage} className="h-2" />
-                    </div>
-                  ))}
-                </div>
-
-                <div className="pt-2 border-t">
-                  <p className="text-sm text-muted-foreground">
-                    Participação: {poll.totalVotes} de {poll.totalResidents}{" "}
-                    moradores (
-                    {Math.round((poll.totalVotes / poll.totalResidents) * 100)}
-                    %)
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+                </CardContent>
+              </Card>
+            ))
+          )}
         </TabsContent>
 
         {/* Aba de Criação */}

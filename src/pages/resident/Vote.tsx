@@ -1,5 +1,12 @@
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import VoteSkeleton from "@/skeleton/resident/VoteSkeleton";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -10,6 +17,7 @@ import { toast } from "sonner";
 
 export default function Vote() {
   const [isLoading, setIsLoading] = useState(true);
+  const [selectedMonth, setSelectedMonth] = useState("2025-10");
   const [votesRemaining, setVotesRemaining] = useState(5);
   const [votedSuggestions, setVotedSuggestions] = useState<number[]>([]);
   const [selectedOffers, setSelectedOffers] = useState<{
@@ -166,6 +174,13 @@ export default function Vote() {
     toast.success("Oferta selecionada!");
   };
 
+  const availableMonths = [
+    { value: "2025-10", label: "Outubro 2025" },
+    { value: "2025-09", label: "Setembro 2025" },
+    { value: "2025-08", label: "Agosto 2025" },
+    { value: "2025-07", label: "Julho 2025" },
+  ];
+
   if (isLoading) {
     return <VoteSkeleton />;
   }
@@ -179,10 +194,18 @@ export default function Vote() {
             Vote nas melhores sugestões para o condomínio
           </p>
         </div>
-        <select className="px-4 py-2 border border-border rounded-md bg-card">
-          <option>Outubro 2025</option>
-          <option>Setembro 2025</option>
-        </select>
+        <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+          <SelectTrigger className="w-[200px]">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {availableMonths.map((month) => (
+              <SelectItem key={month.value} value={month.value}>
+                {month.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       <Tabs defaultValue="suggestions" className="w-full">
@@ -309,7 +332,7 @@ export default function Vote() {
                   <RadioGroup
                     value={selectedOffers[activity.id]?.toString()}
                     onValueChange={(value) =>
-                      handleOfferSelect(activity.id, parseInt(value))
+                      handleOfferSelect(activity.id, Number.parseInt(value))
                     }
                   >
                     <div className="space-y-4">

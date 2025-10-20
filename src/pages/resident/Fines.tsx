@@ -8,6 +8,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
+import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -23,6 +28,8 @@ import {
   CheckCircle2,
   Clock,
   XCircle,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -36,6 +43,7 @@ export default function Fines() {
   const [isContestDialogOpen, setIsContestDialogOpen] = useState(false);
   const [selectedFine, setSelectedFine] = useState<any>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
 
   useEffect(() => {
     const loadData = async () => {
@@ -102,7 +110,43 @@ export default function Fines() {
       relatedArea: "Estacionamento",
       canContest: true,
     },
+    {
+      id: 5,
+      title: "Festa após horário permitido",
+      description:
+        "Realização de festa com música alta após 23h, desrespeitando o horário de silêncio.",
+      value: 300,
+      issueDate: "2025-08-15T22:00:00",
+      dueDate: "2025-08-30",
+      status: "cancelled",
+      relatedArea: "Regulamento Interno",
+      canContest: false,
+      cancelledAt: "2025-08-25T10:00:00",
+      cancelReason:
+        "Contestação aprovada - constatado erro na aplicação da multa",
+    },
+    {
+      id: 6,
+      title: "Descarte incorreto de lixo",
+      description:
+        "Lixo descartado fora do horário estabelecido pelo condomínio.",
+      value: 80,
+      issueDate: "2025-07-10T14:00:00",
+      dueDate: "2025-07-25",
+      status: "paid",
+      relatedArea: "Áreas Comuns",
+      canContest: false,
+      paidAt: "2025-07-20T15:30:00",
+    },
   ];
+
+  // Separar multas ativas (pendentes e em análise) das encerradas (pagas e canceladas)
+  const activeFines = fines.filter(
+    (f) => f.status === "pending" || f.status === "contested"
+  );
+  const closedFines = fines.filter(
+    (f) => f.status === "paid" || f.status === "cancelled"
+  );
 
   const pendingFines = fines.filter((f) => f.status === "pending");
   const totalPending = pendingFines.reduce((sum, f) => sum + f.value, 0);
@@ -129,6 +173,13 @@ export default function Fines() {
           <Badge className="flex items-center gap-1 bg-green-600">
             <CheckCircle2 className="w-3 h-3" />
             Paga
+          </Badge>
+        );
+      case "cancelled":
+        return (
+          <Badge className="flex items-center gap-1 bg-gray-600">
+            <XCircle className="w-3 h-3" />
+            Cancelada
           </Badge>
         );
       default:
@@ -229,84 +280,199 @@ export default function Fines() {
         </Card>
       </div>
 
-      {/* Fines List */}
+      {/* Active Fines - Pendentes e Em Análise */}
       <div className="space-y-4">
-        {fines.map((fine) => (
-          <Card key={fine.id}>
-            <CardHeader>
-              <div className="flex items-start justify-between">
-                <div className="flex-1">
-                  <div className="flex items-center gap-2 mb-2">
-                    <AlertTriangle className="w-5 h-5 text-destructive" />
-                    <CardTitle>{fine.title}</CardTitle>
-                    {getStatusBadge(fine.status)}
-                  </div>
-                  <p className="text-sm text-muted-foreground">
-                    {fine.description}
-                  </p>
-                  <div className="flex items-center gap-4 mt-3 text-xs text-muted-foreground">
-                    <span>
-                      Emitida em:{" "}
-                      {new Date(fine.issueDate).toLocaleDateString("pt-BR")}
-                    </span>
-                    <span>
-                      Vencimento:{" "}
-                      {new Date(fine.dueDate).toLocaleDateString("pt-BR")}
-                    </span>
-                    <span>Área: {fine.relatedArea}</span>
-                  </div>
-                </div>
-                <div className="text-right">
-                  <p className="text-2xl font-bold text-destructive">
-                    R$ {fine.value.toLocaleString("pt-BR")}
-                  </p>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="flex gap-2">
-                {fine.status === "pending" && (
-                  <>
-                    <Button
-                      onClick={() => handlePayFine(fine.id)}
-                      className="bg-green-600 hover:bg-green-700"
-                    >
-                      <DollarSign className="w-4 h-4 mr-2" />
-                      Pagar Multa
-                    </Button>
-                    {fine.canContest && (
-                      <Button
-                        variant="outline"
-                        onClick={() => handleOpenContestDialog(fine)}
-                      >
-                        <FileText className="w-4 h-4 mr-2" />
-                        Contestar
-                      </Button>
-                    )}
-                  </>
-                )}
-                {fine.status === "contested" && (
-                  <div className="flex items-center gap-2 text-sm text-amber-600">
-                    <Clock className="w-4 h-4" />
-                    Contestação enviada em{" "}
-                    {fine.contestedAt &&
-                      new Date(fine.contestedAt).toLocaleDateString("pt-BR")}
-                    . Aguardando análise.
-                  </div>
-                )}
-                {fine.status === "paid" && (
-                  <div className="flex items-center gap-2 text-sm text-green-600">
-                    <CheckCircle2 className="w-4 h-4" />
-                    Paga em{" "}
-                    {fine.paidAt &&
-                      new Date(fine.paidAt).toLocaleDateString("pt-BR")}
-                  </div>
-                )}
-              </div>
+        <h2 className="text-2xl font-bold">Multas Ativas</h2>
+        {activeFines.length === 0 ? (
+          <Card>
+            <CardContent className="flex items-center justify-center h-32">
+              <p className="text-muted-foreground">
+                Nenhuma multa ativa no momento
+              </p>
             </CardContent>
           </Card>
-        ))}
+        ) : (
+          activeFines.map((fine) => (
+            <Card key={fine.id}>
+              <CardHeader>
+                <div className="flex items-start justify-between">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-2">
+                      <AlertTriangle className="w-5 h-5 text-destructive" />
+                      <CardTitle>{fine.title}</CardTitle>
+                      {getStatusBadge(fine.status)}
+                    </div>
+                    <p className="text-sm text-muted-foreground">
+                      {fine.description}
+                    </p>
+                    <div className="flex items-center gap-4 mt-3 text-xs text-muted-foreground">
+                      <span>
+                        Emitida em:{" "}
+                        {new Date(fine.issueDate).toLocaleDateString("pt-BR")}
+                      </span>
+                      <span>
+                        Vencimento:{" "}
+                        {new Date(fine.dueDate).toLocaleDateString("pt-BR")}
+                      </span>
+                      <span>Área: {fine.relatedArea}</span>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-2xl font-bold text-destructive">
+                      R$ {fine.value.toLocaleString("pt-BR")}
+                    </p>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="flex gap-2">
+                  {fine.status === "pending" && (
+                    <>
+                      <Button
+                        onClick={() => handlePayFine(fine.id)}
+                        className="bg-green-600 hover:bg-green-700"
+                      >
+                        <DollarSign className="w-4 h-4 mr-2" />
+                        Pagar Multa
+                      </Button>
+                      {fine.canContest && (
+                        <Button
+                          variant="outline"
+                          onClick={() => handleOpenContestDialog(fine)}
+                        >
+                          <FileText className="w-4 h-4 mr-2" />
+                          Contestar
+                        </Button>
+                      )}
+                    </>
+                  )}
+                  {fine.status === "contested" && (
+                    <div className="flex items-center gap-2 text-sm text-amber-600">
+                      <Clock className="w-4 h-4" />
+                      Contestação enviada em{" "}
+                      {fine.contestedAt &&
+                        new Date(fine.contestedAt).toLocaleDateString("pt-BR")}
+                      . Aguardando análise.
+                    </div>
+                  )}
+                  {fine.status === "paid" && (
+                    <div className="flex items-center gap-2 text-sm text-green-600">
+                      <CheckCircle2 className="w-4 h-4" />
+                      Paga em{" "}
+                      {fine.paidAt &&
+                        new Date(fine.paidAt).toLocaleDateString("pt-BR")}
+                    </div>
+                  )}
+                  {fine.status === "cancelled" && (
+                    <div className="flex items-start gap-2 text-sm text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-gray-900 p-3 rounded-lg">
+                      <XCircle className="w-4 h-4 mt-0.5" />
+                      <div>
+                        <p className="font-medium">Multa cancelada</p>
+                        {fine.cancelReason && (
+                          <p className="text-xs mt-1">{fine.cancelReason}</p>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          ))
+        )}
       </div>
+
+      {/* Historical Fines - Pagas e Canceladas (Colapsável) */}
+      <Collapsible open={isHistoryOpen} onOpenChange={setIsHistoryOpen}>
+        <Card>
+          <CollapsibleTrigger asChild>
+            <CardHeader className="cursor-pointer hover:bg-muted/50 transition-colors">
+              <div className="flex items-center justify-between">
+                <CardTitle className="flex items-center gap-2">
+                  Histórico de Multas ({closedFines.length})
+                </CardTitle>
+                {isHistoryOpen ? (
+                  <ChevronUp className="w-5 h-5" />
+                ) : (
+                  <ChevronDown className="w-5 h-5" />
+                )}
+              </div>
+            </CardHeader>
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            <CardContent className="space-y-4 pt-0">
+              {closedFines.length === 0 ? (
+                <p className="text-muted-foreground text-center py-4">
+                  Nenhuma multa no histórico
+                </p>
+              ) : (
+                closedFines.map((fine) => (
+                  <Card key={fine.id} className="border-muted">
+                    <CardHeader>
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-2">
+                            <AlertTriangle className="w-5 h-5 text-muted-foreground" />
+                            <CardTitle className="text-lg">
+                              {fine.title}
+                            </CardTitle>
+                            {getStatusBadge(fine.status)}
+                          </div>
+                          <p className="text-sm text-muted-foreground">
+                            {fine.description}
+                          </p>
+                          <div className="flex items-center gap-4 mt-3 text-xs text-muted-foreground">
+                            <span>
+                              Emitida em:{" "}
+                              {new Date(fine.issueDate).toLocaleDateString(
+                                "pt-BR"
+                              )}
+                            </span>
+                            <span>Área: {fine.relatedArea}</span>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-xl font-bold text-muted-foreground">
+                            R$ {fine.value.toLocaleString("pt-BR")}
+                          </p>
+                        </div>
+                      </div>
+                    </CardHeader>
+                    <CardContent>
+                      {fine.status === "paid" && (
+                        <div className="flex items-center gap-2 text-sm text-green-600">
+                          <CheckCircle2 className="w-4 h-4" />
+                          Paga em{" "}
+                          {fine.paidAt &&
+                            new Date(fine.paidAt).toLocaleDateString("pt-BR")}
+                        </div>
+                      )}
+                      {fine.status === "cancelled" && (
+                        <div className="flex items-start gap-2 text-sm text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-gray-900 p-3 rounded-lg">
+                          <XCircle className="w-4 h-4 mt-0.5" />
+                          <div>
+                            <p className="font-medium">
+                              Cancelada em{" "}
+                              {fine.cancelledAt &&
+                                new Date(fine.cancelledAt).toLocaleDateString(
+                                  "pt-BR"
+                                )}
+                            </p>
+                            {fine.cancelReason && (
+                              <p className="text-xs mt-1">
+                                {fine.cancelReason}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                ))
+              )}
+            </CardContent>
+          </CollapsibleContent>
+        </Card>
+      </Collapsible>
 
       {/* Contest Dialog */}
       <Dialog

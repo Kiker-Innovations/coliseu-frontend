@@ -45,7 +45,7 @@ import VotingSkeleton from "@/skeleton/admin/VotingSkeleton";
 
 export default function Voting() {
   const [isLoading, setIsLoading] = useState(true);
-  const [selectedMonth, setSelectedMonth] = useState<string>("2025-10");
+  const [selectedMonth, setSelectedMonth] = useState("2025-10");
   const [isTopicDialogOpen, setIsTopicDialogOpen] = useState(false);
   const [isScheduleDialogOpen, setIsScheduleDialogOpen] = useState(false);
   const [selectedTopicId, setSelectedTopicId] = useState<number | null>(null);
@@ -111,6 +111,20 @@ export default function Voting() {
   const pastVotings = [
     {
       id: 3,
+      title: "Instalação de Câmeras de Segurança",
+      startDate: "2025-10-01T00:00:00",
+      endDate: "2025-10-05T23:59:59",
+      totalVotes: 68,
+      totalResidents: 80,
+      result: "Aprovado",
+      options: [
+        { label: "Sim", votes: 55, percentage: 81 },
+        { label: "Não", votes: 13, percentage: 19 },
+      ],
+      status: "completed",
+    },
+    {
+      id: 4,
       title: "Troca de Elevadores",
       startDate: "2025-09-15T00:00:00",
       endDate: "2025-09-17T23:59:59",
@@ -124,7 +138,7 @@ export default function Voting() {
       status: "completed",
     },
     {
-      id: 4,
+      id: 5,
       title: "Pintura da Fachada",
       startDate: "2025-09-01T00:00:00",
       endDate: "2025-09-03T23:59:59",
@@ -212,13 +226,43 @@ export default function Voting() {
     return <VotingSkeleton />;
   }
 
+  const availableMonths = [
+    { value: "2025-10", label: "Outubro 2025" },
+    { value: "2025-09", label: "Setembro 2025" },
+    { value: "2025-08", label: "Agosto 2025" },
+    { value: "2025-07", label: "Julho 2025" },
+  ];
+
+  // Filtrar votações por mês
+  const filteredActiveVotings = activeVotings.filter((voting) =>
+    voting.startDate.startsWith(selectedMonth)
+  );
+
+  const filteredPastVotings = pastVotings.filter((voting) =>
+    voting.startDate.startsWith(selectedMonth)
+  );
+
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold">Votações</h1>
-        <p className="text-muted-foreground">
-          Gerencie e acompanhe as votações do condomínio
-        </p>
+      <div className="flex justify-between items-center">
+        <div>
+          <h1 className="text-3xl font-bold">Votações</h1>
+          <p className="text-muted-foreground">
+            Gerencie e acompanhe as votações do condomínio
+          </p>
+        </div>
+        <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+          <SelectTrigger className="w-[200px]">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {availableMonths.map((month) => (
+              <SelectItem key={month.value} value={month.value}>
+                {month.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       <Tabs defaultValue="view" className="space-y-6">
@@ -232,7 +276,7 @@ export default function Voting() {
           {/* Votações Ativas */}
           <div>
             <h2 className="text-2xl font-bold mb-4">Votações em Andamento</h2>
-            {activeVotings.length === 0 ? (
+            {filteredActiveVotings.length === 0 ? (
               <Card>
                 <CardContent className="flex items-center justify-center h-32">
                   <p className="text-muted-foreground">
@@ -242,7 +286,7 @@ export default function Voting() {
               </Card>
             ) : (
               <div className="grid grid-cols-1 gap-4">
-                {activeVotings.map((voting) => (
+                {filteredActiveVotings.map((voting) => (
                   <Card
                     key={voting.id}
                     className="border-2 border-primary/50 bg-primary/5"
@@ -315,84 +359,91 @@ export default function Voting() {
 
           {/* Votações Passadas */}
           <div>
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-2xl font-bold">Histórico de Votações</h2>
-              <Select value={selectedMonth} onValueChange={setSelectedMonth}>
-                <SelectTrigger className="w-[200px]">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="2025-10">Outubro 2025</SelectItem>
-                  <SelectItem value="2025-09">Setembro 2025</SelectItem>
-                  <SelectItem value="2025-08">Agosto 2025</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+            <h2 className="text-2xl font-bold mb-4">Histórico de Votações</h2>
 
             <div className="grid grid-cols-1 gap-4">
-              {pastVotings.map((voting) => (
-                <Card key={voting.id}>
-                  <CardHeader>
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <CardTitle className="flex items-center gap-2">
-                          {voting.result === "Aprovado" ? (
-                            <CheckCircle2 className="w-5 h-5 text-green-500" />
-                          ) : (
-                            <XCircle className="w-5 h-5 text-red-500" />
-                          )}
-                          {voting.title}
-                        </CardTitle>
-                        <p className="text-sm text-muted-foreground mt-2">
-                          {new Date(voting.startDate).toLocaleDateString(
-                            "pt-BR"
-                          )}{" "}
-                          até{" "}
-                          {new Date(voting.endDate).toLocaleDateString("pt-BR")}
-                        </p>
-                      </div>
-                      <Badge
-                        variant={
-                          voting.result === "Aprovado" ? "default" : "secondary"
-                        }
-                        className={
-                          voting.result === "Aprovado"
-                            ? "bg-green-500"
-                            : "bg-red-500"
-                        }
-                      >
-                        {voting.result}
-                      </Badge>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="space-y-3">
-                      {voting.options.map((option, idx) => (
-                        <div key={idx} className="space-y-1">
-                          <div className="flex justify-between text-sm">
-                            <span className="font-medium">{option.label}</span>
-                            <span className="text-muted-foreground">
-                              {option.votes} votos ({option.percentage}%)
-                            </span>
-                          </div>
-                          <Progress value={option.percentage} className="h-2" />
-                        </div>
-                      ))}
-                    </div>
-
-                    <div className="pt-2 border-t">
-                      <p className="text-sm text-muted-foreground">
-                        Participação: {voting.totalVotes} de{" "}
-                        {voting.totalResidents} moradores (
-                        {Math.round(
-                          (voting.totalVotes / voting.totalResidents) * 100
-                        )}
-                        %)
-                      </p>
-                    </div>
+              {filteredPastVotings.length === 0 ? (
+                <Card>
+                  <CardContent className="flex items-center justify-center h-32">
+                    <p className="text-muted-foreground">
+                      Nenhuma votação encerrada neste mês
+                    </p>
                   </CardContent>
                 </Card>
-              ))}
+              ) : (
+                filteredPastVotings.map((voting) => (
+                  <Card key={voting.id}>
+                    <CardHeader>
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <CardTitle className="flex items-center gap-2">
+                            {voting.result === "Aprovado" ? (
+                              <CheckCircle2 className="w-5 h-5 text-green-500" />
+                            ) : (
+                              <XCircle className="w-5 h-5 text-red-500" />
+                            )}
+                            {voting.title}
+                          </CardTitle>
+                          <p className="text-sm text-muted-foreground mt-2">
+                            {new Date(voting.startDate).toLocaleDateString(
+                              "pt-BR"
+                            )}{" "}
+                            até{" "}
+                            {new Date(voting.endDate).toLocaleDateString(
+                              "pt-BR"
+                            )}
+                          </p>
+                        </div>
+                        <Badge
+                          variant={
+                            voting.result === "Aprovado"
+                              ? "default"
+                              : "secondary"
+                          }
+                          className={
+                            voting.result === "Aprovado"
+                              ? "bg-green-500"
+                              : "bg-red-500"
+                          }
+                        >
+                          {voting.result}
+                        </Badge>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <div className="space-y-3">
+                        {voting.options.map((option, idx) => (
+                          <div key={idx} className="space-y-1">
+                            <div className="flex justify-between text-sm">
+                              <span className="font-medium">
+                                {option.label}
+                              </span>
+                              <span className="text-muted-foreground">
+                                {option.votes} votos ({option.percentage}%)
+                              </span>
+                            </div>
+                            <Progress
+                              value={option.percentage}
+                              className="h-2"
+                            />
+                          </div>
+                        ))}
+                      </div>
+
+                      <div className="pt-2 border-t">
+                        <p className="text-sm text-muted-foreground">
+                          Participação: {voting.totalVotes} de{" "}
+                          {voting.totalResidents} moradores (
+                          {Math.round(
+                            (voting.totalVotes / voting.totalResidents) * 100
+                          )}
+                          %)
+                        </p>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))
+              )}
             </div>
           </div>
         </TabsContent>

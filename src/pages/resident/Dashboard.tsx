@@ -1,10 +1,18 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Trophy, TrendingUp } from "lucide-react";
 import DashboardSkeleton from "@/skeleton/resident/DashboardSkeleton";
 import { useState, useEffect } from "react";
 
 export default function Dashboard() {
   const [isLoading, setIsLoading] = useState(true);
+  const [selectedMonth, setSelectedMonth] = useState("2025-10");
 
   useEffect(() => {
     const loadData = async () => {
@@ -55,6 +63,13 @@ export default function Dashboard() {
   const budgetBalance = financialData.totalBudget - totalCommitted;
   const isPositiveBalance = budgetBalance >= 0;
 
+  const availableMonths = [
+    { value: "2025-10", label: "Outubro 2025" },
+    { value: "2025-09", label: "Setembro 2025" },
+    { value: "2025-08", label: "Agosto 2025" },
+    { value: "2025-07", label: "Julho 2025" },
+  ];
+
   if (isLoading) {
     return <DashboardSkeleton />;
   }
@@ -63,10 +78,18 @@ export default function Dashboard() {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h1 className="text-3xl font-bold">Painel Principal</h1>
-        <select className="px-4 py-2 border border-border rounded-md bg-card">
-          <option>Outubro 2025</option>
-          <option>Setembro 2025</option>
-        </select>
+        <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+          <SelectTrigger className="w-[200px]">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {availableMonths.map((month) => (
+              <SelectItem key={month.value} value={month.value}>
+                {month.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       {/* Top 3 Podium */}
