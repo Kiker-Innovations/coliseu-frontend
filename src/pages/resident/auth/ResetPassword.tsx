@@ -10,9 +10,20 @@ import coliseuIcon from "@/assets/coliseu-icon.png";
 import {
   resetPasswordSchema,
   type ResetPasswordSchema,
-} from "@/schemas/auth/reset-password.schema";
+} from "@/schemas/resident/auth/reset-password.schema";
+import ResetPasswordSkeleton from "@/skeleton/resident/auth/ResetPasswordSkeleton";
+import { useState, useEffect } from "react";
 
 export default function ResetPassword() {
+  const [isPageReady, setIsPageReady] = useState(false);
+
+  useEffect(() => {
+    const initialize = async () => {
+      setIsPageReady(true);
+    };
+    initialize();
+  }, []);
+
   const {
     register,
     handleSubmit,
@@ -37,6 +48,10 @@ export default function ResetPassword() {
       toast.error(error.message || "Erro ao enviar email de recuperação");
     }
   };
+
+  if (!isPageReady) {
+    return <ResetPasswordSkeleton />;
+  }
 
   return (
     <div className="min-h-screen flex">

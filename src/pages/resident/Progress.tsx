@@ -1,8 +1,19 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import ProgressSkeleton from "@/skeleton/resident/ProgressSkeleton";
 import { Progress as ProgressBar } from "@/components/ui/progress";
 import { TrendingUp, DollarSign } from "lucide-react";
+import { useState, useEffect } from "react";
 
 export default function Progress() {
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const loadData = async () => {
+      setIsLoading(false);
+    };
+    loadData();
+  }, []);
+
   // Mock data
   const approvedSuggestions = [
     {
@@ -39,10 +50,18 @@ export default function Progress() {
     return total / installments;
   };
 
-  const calculateRemaining = (total: number, paid: number, installments: number) => {
+  const calculateRemaining = (
+    total: number,
+    paid: number,
+    installments: number
+  ) => {
     const monthlyPayment = total / installments;
     return total - monthlyPayment * paid;
   };
+
+  if (isLoading) {
+    return <ProgressSkeleton />;
+  }
 
   return (
     <div className="space-y-6">
@@ -90,7 +109,8 @@ export default function Progress() {
                   <div className="flex justify-between text-sm text-muted-foreground">
                     <span>Progresso</span>
                     <span>
-                      {suggestion.paidInstallments} de {suggestion.installments} parcelas pagas
+                      {suggestion.paidInstallments} de {suggestion.installments}{" "}
+                      parcelas pagas
                     </span>
                   </div>
                   <ProgressBar value={progress} className="h-3" />
@@ -99,14 +119,18 @@ export default function Progress() {
                 {/* Financial Information Grid */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="p-4 bg-muted/50 rounded-lg">
-                    <p className="text-sm text-muted-foreground mb-1">Valor Total</p>
+                    <p className="text-sm text-muted-foreground mb-1">
+                      Valor Total
+                    </p>
                     <p className="text-2xl font-bold">
                       R$ {suggestion.totalValue.toLocaleString("pt-BR")}
                     </p>
                   </div>
 
                   <div className="p-4 bg-muted/50 rounded-lg">
-                    <p className="text-sm text-muted-foreground mb-1">Parcelas</p>
+                    <p className="text-sm text-muted-foreground mb-1">
+                      Parcelas
+                    </p>
                     <p className="text-2xl font-bold">
                       {suggestion.paidInstallments}/{suggestion.installments}
                     </p>
@@ -115,17 +139,27 @@ export default function Progress() {
                   <div className="p-4 bg-primary/10 rounded-lg border border-primary/20">
                     <div className="flex items-center gap-2 mb-1">
                       <DollarSign className="w-4 h-4 text-primary" />
-                      <p className="text-sm text-muted-foreground">Pagamento Mensal</p>
+                      <p className="text-sm text-muted-foreground">
+                        Pagamento Mensal
+                      </p>
                     </div>
                     <p className="text-2xl font-bold text-primary">
-                      R$ {monthlyPayment.toLocaleString("pt-BR", { maximumFractionDigits: 0 })}
+                      R${" "}
+                      {monthlyPayment.toLocaleString("pt-BR", {
+                        maximumFractionDigits: 0,
+                      })}
                     </p>
                   </div>
 
                   <div className="p-4 bg-accent/10 rounded-lg border border-accent/20">
-                    <p className="text-sm text-muted-foreground mb-1">Valor Restante</p>
+                    <p className="text-sm text-muted-foreground mb-1">
+                      Valor Restante
+                    </p>
                     <p className="text-2xl font-bold text-accent">
-                      R$ {remainingValue.toLocaleString("pt-BR", { maximumFractionDigits: 0 })}
+                      R${" "}
+                      {remainingValue.toLocaleString("pt-BR", {
+                        maximumFractionDigits: 0,
+                      })}
                     </p>
                   </div>
                 </div>
@@ -134,13 +168,17 @@ export default function Progress() {
                 <div className="p-4 bg-card border-2 border-border rounded-lg">
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <p className="text-sm text-muted-foreground mb-1">Budget Mensal</p>
+                      <p className="text-sm text-muted-foreground mb-1">
+                        Budget Mensal
+                      </p>
                       <p className="text-xl font-bold">
                         R$ {suggestion.monthlyBudget.toLocaleString("pt-BR")}
                       </p>
                     </div>
                     <div>
-                      <p className="text-sm text-muted-foreground mb-1">Budget Restante</p>
+                      <p className="text-sm text-muted-foreground mb-1">
+                        Budget Restante
+                      </p>
                       <p className="text-xl font-bold text-accent">
                         R$ {budgetRemaining.toLocaleString("pt-BR")}
                       </p>
@@ -161,11 +199,17 @@ export default function Progress() {
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="text-center p-4">
-              <p className="text-sm text-muted-foreground mb-2">Sugestões em Andamento</p>
-              <p className="text-3xl font-bold text-primary">{approvedSuggestions.length}</p>
+              <p className="text-sm text-muted-foreground mb-2">
+                Sugestões em Andamento
+              </p>
+              <p className="text-3xl font-bold text-primary">
+                {approvedSuggestions.length}
+              </p>
             </div>
             <div className="text-center p-4">
-              <p className="text-sm text-muted-foreground mb-2">Total Investido</p>
+              <p className="text-sm text-muted-foreground mb-2">
+                Total Investido
+              </p>
               <p className="text-3xl font-bold text-accent">
                 R${" "}
                 {approvedSuggestions
@@ -174,11 +218,15 @@ export default function Progress() {
               </p>
             </div>
             <div className="text-center p-4">
-              <p className="text-sm text-muted-foreground mb-2">Progresso Médio</p>
+              <p className="text-sm text-muted-foreground mb-2">
+                Progresso Médio
+              </p>
               <p className="text-3xl font-bold text-primary">
                 {(
                   approvedSuggestions.reduce(
-                    (sum, s) => sum + calculateProgress(s.paidInstallments, s.installments),
+                    (sum, s) =>
+                      sum +
+                      calculateProgress(s.paidInstallments, s.installments),
                     0
                   ) / approvedSuggestions.length
                 ).toFixed(0)}

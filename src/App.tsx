@@ -4,16 +4,31 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AppLayout } from "./components/layout/AppLayout";
-import Login from "./pages/auth/Login";
-import Register from "./pages/auth/Register";
-import ResetPassword from "./pages/auth/ResetPassword";
-import Dashboard from "./pages/Dashboard";
-import Suggestions from "./pages/Suggestions";
-import Vote from "./pages/Vote";
-import Progress from "./pages/Progress";
-import Poll from "./pages/Poll";
-import Documents from "./pages/Documents";
+import { AppLayoutAdmin } from "./components/layout/AppLayoutAdmin";
+
+// Resident pages
+import Login from "./pages/resident/auth/Login";
+import Register from "./pages/resident/auth/Register";
+import ResetPassword from "./pages/resident/auth/ResetPassword";
+import Dashboard from "./pages/resident/Dashboard";
+import Suggestions from "./pages/resident/Suggestions";
+import Vote from "./pages/resident/Vote";
+import Progress from "./pages/resident/Progress";
+import Poll from "./pages/resident/Poll";
+import Fines from "./pages/resident/Fines";
+import Documents from "./pages/resident/Documents";
 import NotFound from "./pages/NotFound";
+
+// Admin pages
+import AdminLogin from "./pages/admin/auth/Login";
+import AdminResetPassword from "./pages/admin/auth/ResetPassword";
+import AdminDashboard from "./pages/admin/Dashboard";
+import AdminFinancial from "./pages/admin/Financial";
+import AdminVoting from "./pages/admin/Voting";
+import AdminPolls from "./pages/admin/Polls";
+import AdminCondominiumInfo from "./pages/admin/CondominiumInfo";
+import AdminFines from "./pages/admin/Fines";
+import AdminNotices from "./pages/admin/Notices";
 
 const queryClient = new QueryClient();
 
@@ -25,19 +40,46 @@ const App = () => (
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<Navigate to="/login" replace />} />
+
+          {/* Resident Routes */}
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           <Route path="/reset-password" element={<ResetPassword />} />
-          
+
           <Route element={<AppLayout />}>
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/suggestions" element={<Suggestions />} />
             <Route path="/vote" element={<Vote />} />
             <Route path="/progress" element={<Progress />} />
             <Route path="/poll" element={<Poll />} />
+            <Route path="/fines" element={<Fines />} />
             <Route path="/documents" element={<Documents />} />
           </Route>
-          
+
+          {/* Admin Routes */}
+          <Route
+            path="/admin"
+            element={<Navigate to="/admin/login" replace />}
+          />
+          <Route path="/admin/login" element={<AdminLogin />} />
+          <Route
+            path="/admin/reset-password"
+            element={<AdminResetPassword />}
+          />
+
+          <Route element={<AppLayoutAdmin />}>
+            <Route path="/admin/dashboard" element={<AdminDashboard />} />
+            <Route path="/admin/financial" element={<AdminFinancial />} />
+            <Route path="/admin/voting" element={<AdminVoting />} />
+            <Route path="/admin/polls" element={<AdminPolls />} />
+            <Route
+              path="/admin/condominium-info"
+              element={<AdminCondominiumInfo />}
+            />
+            <Route path="/admin/fines" element={<AdminFines />} />
+            <Route path="/admin/notices" element={<AdminNotices />} />
+          </Route>
+
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>

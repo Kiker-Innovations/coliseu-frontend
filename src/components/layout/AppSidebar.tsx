@@ -5,6 +5,7 @@ import {
   TrendingUp,
   MessageSquare,
   FileText,
+  AlertTriangle,
 } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
 import {
@@ -25,6 +26,7 @@ const menuItems = [
   { title: "Votar", url: "/vote", icon: Vote },
   { title: "Progresso", url: "/progress", icon: TrendingUp },
   { title: "Enquete", url: "/poll", icon: MessageSquare },
+  { title: "Multas", url: "/fines", icon: AlertTriangle },
   { title: "Documentos", url: "/documents", icon: FileText },
 ];
 

@@ -1,8 +1,20 @@
-import { useState } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { useState, useEffect } from "react";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import DocumentsSkeleton from "@/skeleton/resident/DocumentsSkeleton";
 import { Button } from "@/components/ui/button";
 import { Download, FileText, Eye } from "lucide-react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 interface Document {
   id: string;
@@ -18,7 +30,8 @@ const mockDocuments: Document[] = [
   {
     id: "1",
     title: "Regimento Interno 2025",
-    description: "Documento completo com as regras e regulamentos do condomínio",
+    description:
+      "Documento completo com as regras e regulamentos do condomínio",
     fileUrl: "/placeholder.pdf",
     fileName: "regimento-interno-2025.pdf",
     fileSize: "2.5 MB",
@@ -45,8 +58,18 @@ const mockDocuments: Document[] = [
 ];
 
 const Documents = () => {
-  const [selectedDocument, setSelectedDocument] = useState<Document | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [selectedDocument, setSelectedDocument] = useState<Document | null>(
+    null
+  );
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
+
+  useEffect(() => {
+    const loadData = async () => {
+      setIsLoading(false);
+    };
+    loadData();
+  }, []);
 
   const handleView = (doc: Document) => {
     setSelectedDocument(doc);
@@ -60,6 +83,10 @@ const Documents = () => {
     link.download = doc.fileName;
     link.click();
   };
+
+  if (isLoading) {
+    return <DocumentsSkeleton />;
+  }
 
   return (
     <div className="space-y-6">

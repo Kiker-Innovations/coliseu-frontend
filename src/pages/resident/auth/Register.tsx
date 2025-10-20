@@ -1,7 +1,7 @@
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Link, useNavigate } from "react-router-dom";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import InputMask from "react-input-mask";
 import { Camera } from "lucide-react";
 import { BR } from "country-flag-icons/react/3x2";
@@ -15,12 +15,21 @@ import coliseuIcon from "@/assets/coliseu-icon.png";
 import {
   registerSchema,
   type RegisterSchema,
-} from "@/schemas/auth/register.schema";
+} from "@/schemas/resident/auth/register.schema";
+import RegisterSkeleton from "@/skeleton/resident/auth/RegisterSkeleton";
 
 export default function Register() {
   const navigate = useNavigate();
+  const [isPageReady, setIsPageReady] = useState(false);
   const [showCamera, setShowCamera] = useState(false);
   const [capturedPhoto, setCapturedPhoto] = useState<File | null>(null);
+
+  useEffect(() => {
+    const initialize = async () => {
+      setIsPageReady(true);
+    };
+    initialize();
+  }, []);
 
   const {
     register,
@@ -64,33 +73,33 @@ export default function Register() {
 
       console.log(data);
 
-      // const { error } = await authService.signUp({
-      //   email: data.email,
-      //   password: data.password,
-      //   apartmentNumber: data.apartmentNumber,
-      //   phone: formattedPhone,
-      //   photo: data.photo[0],
-      // });
+      const { error } = await authService.signUp({
+        email: data.email,
+        password: data.password,
+        apartmentNumber: data.apartmentNumber,
+        phone: formattedPhone,
+        photo: data.photo[0],
+      });
 
-      // if (error) throw error;
+      if (error) throw error;
 
       toast.success("Conta criada com sucesso!");
-      // navigate("/login");
+      navigate("/login");
     } catch (error: any) {
       toast.error(error.message || "Erro ao criar conta");
     }
   };
+
+  if (!isPageReady) {
+    return <RegisterSkeleton />;
+  }
 
   return (
     <div className="min-h-screen flex">
       {/* Left side - Branding */}
       <div className="hidden lg:flex lg:w-1/2 bg-primary items-center justify-center p-12">
         <div className="text-center">
-          <img
-            src={coliseuIcon}
-            alt="Coliseu"
-            className="w-60 h-60 mx-auto mb-8"
-          />
+          <img src={coliseuIcon} alt="Coliseu" className="w-80 h-80 mx-auto" />
           <h1 className="text-6xl font-bold text-primary-foreground mb-4">
             COLISEU
           </h1>

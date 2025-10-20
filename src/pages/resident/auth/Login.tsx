@@ -8,10 +8,24 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import coliseuIcon from "@/assets/coliseu-icon.png";
-import { loginSchema, type LoginSchema } from "@/schemas/auth/login.schema";
+import {
+  loginSchema,
+  type LoginSchema,
+} from "@/schemas/resident/auth/login.schema";
+import LoginSkeleton from "@/skeleton/resident/auth/LoginSkeleton";
+import { useState, useEffect } from "react";
+import { Home } from "lucide-react";
 
 export default function Login() {
   const navigate = useNavigate();
+  const [isPageReady, setIsPageReady] = useState(false);
+
+  useEffect(() => {
+    const initialize = async () => {
+      setIsPageReady(true);
+    };
+    initialize();
+  }, []);
 
   const {
     register,
@@ -47,6 +61,10 @@ export default function Login() {
     }
   };
 
+  if (!isPageReady) {
+    return <LoginSkeleton />;
+  }
+
   return (
     <div className="min-h-screen flex">
       {/* Left side - Branding */}
@@ -56,9 +74,15 @@ export default function Login() {
           <h1 className="text-6xl font-bold text-primary-foreground mb-4">
             COLISEU
           </h1>
-          <p className="text-primary-foreground/80 text-lg">
+          <p className="text-primary-foreground/80 text-lg mb-4">
             Gestão de Condomínios
           </p>
+          <div className="flex items-center justify-center gap-2 bg-primary-foreground/20 px-6 py-3 rounded-lg backdrop-blur-sm">
+            <Home className="w-6 h-6 text-primary-foreground" />
+            <span className="text-primary-foreground font-bold text-xl">
+              ACESSO DE MORADORES
+            </span>
+          </div>
         </div>
       </div>
 
@@ -72,6 +96,21 @@ export default function Login() {
               className="w-16 h-16 mx-auto mb-4"
             />
             <h1 className="text-4xl font-bold text-primary">COLISEU</h1>
+            <div className="flex items-center justify-center gap-2 mt-4 bg-primary/10 px-4 py-2 rounded-lg">
+              <Home className="w-5 h-5 text-primary" />
+              <span className="text-primary font-bold">
+                ACESSO DE MORADORES
+              </span>
+            </div>
+          </div>
+
+          <div className="hidden lg:block">
+            <div className="flex items-center justify-center gap-2 bg-primary/10 px-6 py-3 rounded-lg mb-6">
+              <Home className="w-6 h-6 text-primary" />
+              <span className="text-primary font-bold text-xl">
+                ACESSO DE MORADORES
+              </span>
+            </div>
           </div>
 
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">

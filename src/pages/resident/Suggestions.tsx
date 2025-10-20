@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import SuggestionsSkeleton from "@/skeleton/resident/SuggestionsSkeleton";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -11,9 +12,10 @@ import { toast } from "sonner";
 import {
   suggestionSchema,
   type SuggestionSchema,
-} from "@/schemas/suggestions/suggestion.schema";
+} from "@/schemas/resident/suggestions.schema";
 
 export default function Suggestions() {
+  const [isLoading, setIsLoading] = useState(true);
   const [suggestions, setSuggestions] = useState([
     {
       id: 1,
@@ -47,6 +49,13 @@ export default function Suggestions() {
 
   const description = watch("description");
   const canCreateMore = suggestions.length < 5;
+
+  useEffect(() => {
+    const loadData = async () => {
+      setIsLoading(false);
+    };
+    loadData();
+  }, []);
 
   const onSubmit = (data: SuggestionSchema) => {
     if (editingId) {
@@ -91,6 +100,10 @@ export default function Suggestions() {
     setIsCreating(false);
     setEditingId(null);
   };
+
+  if (isLoading) {
+    return <SuggestionsSkeleton />;
+  }
 
   return (
     <div className="space-y-6">

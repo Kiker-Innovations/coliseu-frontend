@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import PollSkeleton from "@/skeleton/resident/PollSkeleton";
 import { Button } from "@/components/ui/button";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
@@ -7,11 +8,19 @@ import { CheckCircle2, Lock } from "lucide-react";
 import { toast } from "sonner";
 
 export default function Poll() {
+  const [isLoading, setIsLoading] = useState(true);
   const [selectedMonth, setSelectedMonth] = useState("2025-10");
   const [votes, setVotes] = useState<{ [key: number]: string }>({});
   const [tempSelections, setTempSelections] = useState<{
     [key: number]: string;
   }>({});
+
+  useEffect(() => {
+    const loadData = async () => {
+      setIsLoading(false);
+    };
+    loadData();
+  }, []);
 
   // Mock data
   const polls = [
@@ -109,6 +118,10 @@ export default function Poll() {
   };
 
   const hasVoted = (pollId: number) => !!votes[pollId];
+
+  if (isLoading) {
+    return <PollSkeleton />;
+  }
 
   return (
     <div className="space-y-6">

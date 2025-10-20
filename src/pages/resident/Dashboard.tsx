@@ -1,7 +1,19 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Trophy, TrendingUp } from "lucide-react";
+import DashboardSkeleton from "@/skeleton/resident/DashboardSkeleton";
+import { useState, useEffect } from "react";
 
 export default function Dashboard() {
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const loadData = async () => {
+      setIsLoading(false);
+    };
+
+    loadData();
+  }, []);
+
   // Mock data - will be replaced with real data later
   const topSuggestions = [
     { id: 1, title: "Reforma da Piscina", votes: 45 },
@@ -35,7 +47,17 @@ export default function Dashboard() {
     (sum, s) => sum + s.total / s.installments,
     0
   );
+  const totalCommitted = financialData.approvedSuggestions.reduce(
+    (sum, s) => sum + s.total,
+    0
+  );
   const remainingBudget = financialData.totalBudget - monthlyPayment;
+  const budgetBalance = financialData.totalBudget - totalCommitted;
+  const isPositiveBalance = budgetBalance >= 0;
+
+  if (isLoading) {
+    return <DashboardSkeleton />;
+  }
 
   return (
     <div className="space-y-6">
@@ -71,7 +93,9 @@ export default function Dashboard() {
                 <div className="text-4xl font-bold mb-2">
                   {index === 0 ? "🥇" : index === 1 ? "🥈" : "🥉"}
                 </div>
-                <h3 className="font-semibold text-lg mb-2">{suggestion.title}</h3>
+                <h3 className="font-semibold text-lg mb-2">
+                  {suggestion.title}
+                </h3>
                 <p className="text-2xl font-bold">{suggestion.votes} votos</p>
               </div>
             ))}
@@ -102,7 +126,9 @@ export default function Dashboard() {
                     </span>
                     <span className="font-medium">{suggestion.title}</span>
                   </div>
-                  <span className="font-bold text-primary">{suggestion.votes}</span>
+                  <span className="font-bold text-primary">
+                    {suggestion.votes}
+                  </span>
                 </div>
               ))}
             </div>
@@ -116,16 +142,42 @@ export default function Dashboard() {
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="p-4 bg-primary/10 rounded-lg">
-              <p className="text-sm text-muted-foreground">Caixa Total do Condomínio</p>
+              <p className="text-sm text-muted-foreground">
+                Caixa Total do Condomínio
+              </p>
               <p className="text-2xl font-bold text-primary">
                 R$ {financialData.totalBudget.toLocaleString("pt-BR")}
+              </p>
+            </div>
+
+            <div
+              className={`p-4 rounded-lg ${
+                isPositiveBalance
+                  ? "bg-green-500/10 border-2 border-green-500/50"
+                  : "bg-red-500/10 border-2 border-red-500/50"
+              }`}
+            >
+              <p className="text-sm text-muted-foreground">
+                Total Comprometido
+              </p>
+              <p
+                className={`text-2xl font-bold ${
+                  isPositiveBalance
+                    ? "text-green-600 dark:text-green-500"
+                    : "text-red-600 dark:text-red-500"
+                }`}
+              >
+                R$ {totalCommitted.toLocaleString("pt-BR")}
               </p>
             </div>
 
             <div className="space-y-3">
               <h4 className="font-semibold">Sugestões Aprovadas</h4>
               {financialData.approvedSuggestions.map((suggestion) => (
-                <div key={suggestion.name} className="p-3 border border-border rounded-md">
+                <div
+                  key={suggestion.name}
+                  className="p-3 border border-border rounded-md"
+                >
                   <p className="font-medium mb-2">{suggestion.name}</p>
                   <div className="grid grid-cols-2 gap-2 text-sm">
                     <div>
@@ -146,9 +198,14 @@ export default function Dashboard() {
             </div>
 
             <div className="p-4 bg-accent/10 rounded-lg border-2 border-accent">
-              <p className="text-sm text-muted-foreground">Caixa Restante (após parcelas)</p>
+              <p className="text-sm text-muted-foreground">
+                Caixa Restante (após parcelas)
+              </p>
               <p className="text-2xl font-bold text-accent">
-                R$ {remainingBudget.toLocaleString("pt-BR", { maximumFractionDigits: 0 })}
+                R${" "}
+                {remainingBudget.toLocaleString("pt-BR", {
+                  maximumFractionDigits: 0,
+                })}
               </p>
             </div>
           </CardContent>
