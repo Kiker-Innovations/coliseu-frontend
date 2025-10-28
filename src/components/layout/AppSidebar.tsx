@@ -6,6 +6,7 @@ import {
   MessageSquare,
   FileText,
   AlertTriangle,
+  Package,
 } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
 import {
@@ -28,6 +29,7 @@ const menuItems = [
   { title: "Enquete", url: "/poll", icon: MessageSquare },
   { title: "Multas", url: "/fines", icon: AlertTriangle },
   { title: "Documentos", url: "/documents", icon: FileText },
+  { title: "Encomendas", url: "/packages", icon: Package },
 ];
 
 export function AppSidebar() {

@@ -18,6 +18,7 @@ import Progress from "./pages/resident/Progress";
 import Poll from "./pages/resident/Poll";
 import Fines from "./pages/resident/Fines";
 import Documents from "./pages/resident/Documents";
+import Packages from "./pages/resident/Packages";
 import NotFound from "./pages/NotFound";
 
 // Admin pages
@@ -62,6 +63,7 @@ const App = () => (
             <Route path="/poll" element={<Poll />} />
             <Route path="/fines" element={<Fines />} />
             <Route path="/documents" element={<Documents />} />
+            <Route path="/packages" element={<Packages />} />
           </Route>
 
           {/* Admin Routes */}

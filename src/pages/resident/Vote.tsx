@@ -12,14 +12,24 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
-import { Vote as VoteIcon, CheckCircle2, Building2 } from "lucide-react";
+import {
+  Vote as VoteIcon,
+  CheckCircle2,
+  Building2,
+  Plus,
+  Minus,
+  RotateCcw,
+} from "lucide-react";
 import { toast } from "sonner";
 
 export default function Vote() {
   const [isLoading, setIsLoading] = useState(true);
   const [selectedMonth, setSelectedMonth] = useState("2025-10");
-  const [votesRemaining, setVotesRemaining] = useState(5);
-  const [votedSuggestions, setVotedSuggestions] = useState<number[]>([]);
+  const [votesRemaining, setVotesRemaining] = useState(3);
+  const [votesDistribution, setVotesDistribution] = useState<{
+    [key: number]: number;
+  }>({});
+  const [isVoteConfirmed, setIsVoteConfirmed] = useState(false);
   const [selectedOffers, setSelectedOffers] = useState<{
     [key: number]: number;
   }>({});
@@ -38,58 +48,93 @@ export default function Vote() {
       title: "Reforma da Piscina",
       description:
         "Melhorar a área de lazer com nova iluminação e revestimento",
-      author: "Apto 101",
       votes: 45,
     },
     {
       id: 2,
       title: "Nova Área de Churrasqueira",
       description: "Expandir área gourmet com mais espaço e equipamentos",
-      author: "Apto 205",
       votes: 38,
     },
     {
       id: 3,
       title: "Academia ao Ar Livre",
       description: "Instalar equipamentos de ginástica na área externa",
-      author: "Apto 302",
       votes: 32,
     },
     {
       id: 4,
       title: "Pintura da Fachada",
       description: "Renovar pintura externa do prédio",
-      author: "Apto 108",
       votes: 28,
     },
     {
       id: 5,
       title: "Playground Infantil",
       description: "Criar área de lazer segura para crianças",
-      author: "Apto 404",
       votes: 25,
     },
   ];
 
-  const canVote = votesRemaining > 0 && votedSuggestions.length < 3;
+  const totalVotes = 3;
+  const votesUsed = totalVotes - votesRemaining;
 
-  const handleVote = (suggestionId: number) => {
-    if (!canVote) {
+  const handleAddVote = (suggestionId: number) => {
+    if (isVoteConfirmed) {
+      toast.error(
+        "Você já confirmou sua votação! Resete para votar novamente."
+      );
+      return;
+    }
+
+    if (votesRemaining === 0) {
       toast.error("Você já utilizou todos os seus votos!");
       return;
     }
 
-    if (votedSuggestions.includes(suggestionId)) {
-      toast.error("Você já votou nesta sugestão!");
+    setVotesDistribution((prev) => ({
+      ...prev,
+      [suggestionId]: (prev[suggestionId] || 0) + 1,
+    }));
+    setVotesRemaining(votesRemaining - 1);
+  };
+
+  const handleRemoveVote = (suggestionId: number) => {
+    if (isVoteConfirmed) {
+      toast.error(
+        "Você já confirmou sua votação! Resete para votar novamente."
+      );
       return;
     }
 
-    setVotedSuggestions([...votedSuggestions, suggestionId]);
-    setVotesRemaining(votesRemaining - 1);
-    toast.success("Voto registrado com sucesso!");
+    const currentVotes = votesDistribution[suggestionId] || 0;
+    if (currentVotes === 0) return;
+
+    setVotesDistribution((prev) => ({
+      ...prev,
+      [suggestionId]: currentVotes - 1,
+    }));
+    setVotesRemaining(votesRemaining + 1);
   };
 
-  const hasVoted = (id: number) => votedSuggestions.includes(id);
+  const handleConfirmVotes = () => {
+    if (votesRemaining > 0) {
+      toast.error(`Você ainda tem ${votesRemaining} voto(s) disponível(is)!`);
+      return;
+    }
+
+    setIsVoteConfirmed(true);
+    toast.success("Votação confirmada com sucesso!");
+  };
+
+  const handleResetVotes = () => {
+    setVotesDistribution({});
+    setVotesRemaining(3);
+    setIsVoteConfirmed(false);
+    toast.info("Votos resetados! Você pode votar novamente.");
+  };
+
+  const getVotesForSuggestion = (id: number) => votesDistribution[id] || 0;
 
   // Mock data for approved activities with offers
   const approvedActivities = [
@@ -234,10 +279,10 @@ export default function Vote() {
               <CardContent className="pt-6">
                 <div className="text-center">
                   <p className="text-sm text-muted-foreground mb-2">
-                    Sugestões Votadas
+                    Votos Utilizados
                   </p>
                   <p className="text-4xl font-bold text-accent">
-                    {votedSuggestions.length}/3
+                    {votesUsed}/{totalVotes}
                   </p>
                 </div>
               </CardContent>
@@ -245,72 +290,111 @@ export default function Vote() {
             <Card>
               <CardContent className="pt-6">
                 <div className="text-center">
-                  <p className="text-sm text-muted-foreground mb-2">
-                    Total de Sugestões
-                  </p>
-                  <p className="text-4xl font-bold text-muted-foreground">
-                    {monthlySuggestions.length}
+                  <p className="text-sm text-muted-foreground mb-2">Status</p>
+                  <p
+                    className={`text-2xl font-bold ${
+                      isVoteConfirmed
+                        ? "text-green-600"
+                        : "text-muted-foreground"
+                    }`}
+                  >
+                    {isVoteConfirmed ? "Confirmado" : "Pendente"}
                   </p>
                 </div>
               </CardContent>
             </Card>
           </div>
 
+          {/* Action Buttons */}
+          <div className="flex gap-4">
+            <Button
+              onClick={handleConfirmVotes}
+              disabled={votesRemaining > 0 || isVoteConfirmed}
+              className="flex-1 gap-2"
+              size="lg"
+            >
+              <CheckCircle2 className="w-5 h-5" />
+              {isVoteConfirmed ? "Votação Confirmada" : "Confirmar Votação"}
+            </Button>
+            <Button
+              onClick={handleResetVotes}
+              disabled={votesUsed === 0 && !isVoteConfirmed}
+              variant="outline"
+              size="lg"
+              className="gap-2"
+            >
+              <RotateCcw className="w-5 h-5" />
+              Resetar Votos
+            </Button>
+          </div>
+
           {/* Suggestions List */}
           <div className="space-y-4">
-            {monthlySuggestions.map((suggestion) => (
-              <Card
-                key={suggestion.id}
-                className={
-                  hasVoted(suggestion.id) ? "border-2 border-accent" : ""
-                }
-              >
-                <CardHeader>
-                  <div className="flex justify-between items-start gap-4">
-                    <div className="flex-1">
-                      <CardTitle className="text-xl flex items-center gap-2">
-                        {suggestion.title}
-                        {hasVoted(suggestion.id) && (
-                          <CheckCircle2 className="w-5 h-5 text-accent" />
-                        )}
-                      </CardTitle>
-                      <p className="text-sm text-muted-foreground mt-1">
-                        Por {suggestion.author}
-                      </p>
+            {monthlySuggestions.map((suggestion) => {
+              const userVotes = getVotesForSuggestion(suggestion.id);
+              const hasVotes = userVotes > 0;
+
+              return (
+                <Card
+                  key={suggestion.id}
+                  className={hasVotes ? "border-2 border-accent" : ""}
+                >
+                  <CardHeader>
+                    <div className="flex justify-between items-start gap-4">
+                      <div className="flex-1">
+                        <CardTitle className="text-xl flex items-center gap-2">
+                          {suggestion.title}
+                          {hasVotes && (
+                            <CheckCircle2 className="w-5 h-5 text-accent" />
+                          )}
+                        </CardTitle>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-2xl font-bold text-primary">
+                          {suggestion.votes}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          votos totais
+                        </p>
+                      </div>
                     </div>
-                    <div className="text-right">
-                      <p className="text-2xl font-bold text-primary">
-                        {suggestion.votes}
-                      </p>
-                      <p className="text-xs text-muted-foreground">votos</p>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-muted-foreground mb-4">
+                      {suggestion.description}
+                    </p>
+                    <div className="flex items-center gap-4">
+                      <div className="flex items-center gap-2 flex-1">
+                        <Button
+                          onClick={() => handleRemoveVote(suggestion.id)}
+                          disabled={userVotes === 0 || isVoteConfirmed}
+                          variant="outline"
+                          size="icon"
+                        >
+                          <Minus className="w-4 h-4" />
+                        </Button>
+                        <div className="flex-1 text-center">
+                          <p className="text-2xl font-bold text-accent">
+                            {userVotes}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {userVotes === 1 ? "seu voto" : "seus votos"}
+                          </p>
+                        </div>
+                        <Button
+                          onClick={() => handleAddVote(suggestion.id)}
+                          disabled={votesRemaining === 0 || isVoteConfirmed}
+                          variant="outline"
+                          size="icon"
+                        >
+                          <Plus className="w-4 h-4" />
+                        </Button>
+                      </div>
                     </div>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-muted-foreground mb-4">
-                    {suggestion.description}
-                  </p>
-                  <Button
-                    onClick={() => handleVote(suggestion.id)}
-                    disabled={hasVoted(suggestion.id) || !canVote}
-                    className="w-full gap-2"
-                    variant={hasVoted(suggestion.id) ? "secondary" : "default"}
-                  >
-                    {hasVoted(suggestion.id) ? (
-                      <>
-                        <CheckCircle2 className="w-4 h-4" />
-                        Votado
-                      </>
-                    ) : (
-                      <>
-                        <VoteIcon className="w-4 h-4" />
-                        Votar
-                      </>
-                    )}
-                  </Button>
-                </CardContent>
-              </Card>
-            ))}
+                  </CardContent>
+                </Card>
+              );
+            })}
           </div>
         </TabsContent>
 
