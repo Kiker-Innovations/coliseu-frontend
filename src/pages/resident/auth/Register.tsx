@@ -5,7 +5,7 @@ import { useState, useEffect } from "react";
 import InputMask from "react-input-mask";
 import { Camera } from "lucide-react";
 import { BR } from "country-flag-icons/react/3x2";
-import { authService } from "@/services/auth.service";
+import { residentsService, ApiClientError } from "@/services/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -71,22 +71,32 @@ export default function Register() {
       const phoneDigits = data.phone.replace(/\D/g, "");
       const formattedPhone = `+55${phoneDigits}`;
 
-      console.log(data);
-
-      const { error } = await authService.signUp({
+      // Register resident
+      const response = await residentsService.register({
         email: data.email,
         password: data.password,
         apartmentNumber: data.apartmentNumber,
         phone: formattedPhone,
-        photo: data.photo[0],
       });
 
-      if (error) throw error;
+      // Upload photo to presigned URL if provided
+      if (data.photo?.[0] && response.data?.presignedUrl) {
+        await residentsService.uploadPhoto(
+          response.data.presignedUrl,
+          data.photo[0]
+        );
+      }
 
-      toast.success("Conta criada com sucesso!");
+      toast.success(response.message || "Conta criada com sucesso!");
       navigate("/login");
-    } catch (error: any) {
-      toast.error(error.message || "Erro ao criar conta");
+    } catch (error) {
+      if (error instanceof ApiClientError) {
+        toast.error(error.response.message || "Erro ao criar conta");
+      } else if (error instanceof Error) {
+        toast.error(error.message);
+      } else {
+        toast.error("Erro ao criar conta");
+      }
     }
   };
 
