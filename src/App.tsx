@@ -31,10 +31,14 @@ import AdminPolls from "./pages/admin/Polls";
 import AdminCondominiumInfo from "./pages/admin/CondominiumInfo";
 import AdminFines from "./pages/admin/Fines";
 import AdminNotices from "./pages/admin/Notices";
+import AdminConcierge from "./pages/admin/Concierge";
+import AdminConciergeEdit from "./pages/admin/ConciergeEdit";
+import AdminConciergeView from "./pages/admin/ConciergeView";
 
 // Concierge pages
 import ConciergeLogin from "./pages/concierge/auth/Login";
 import ConciergeResetPassword from "./pages/concierge/auth/ResetPassword";
+import ConciergeResetPasswordToken from "./pages/concierge/auth/ResetPasswordToken";
 import ConciergeDashboard from "./pages/concierge/Dashboard";
 import ConciergePackages from "./pages/concierge/Packages";
 import ConciergeFines from "./pages/concierge/Fines";
@@ -88,6 +92,9 @@ const App = () => (
             />
             <Route path="/admin/fines" element={<AdminFines />} />
             <Route path="/admin/notices" element={<AdminNotices />} />
+            <Route path="/admin/concierge" element={<AdminConcierge />} />
+            <Route path="/admin/concierge/edit/:id" element={<AdminConciergeEdit />} />
+            <Route path="/admin/concierge/view/:id" element={<AdminConciergeView />} />
           </Route>
 
           {/* Concierge Routes */}
@@ -99,6 +106,10 @@ const App = () => (
           <Route
             path="/concierge/reset-password"
             element={<ConciergeResetPassword />}
+          />
+          <Route
+            path="/concierge/reset-password/token"
+            element={<ConciergeResetPasswordToken />}
           />
 
           <Route element={<AppLayoutConcierge />}>

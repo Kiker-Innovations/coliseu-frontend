@@ -12,6 +12,7 @@ import {
   resetPasswordSchema,
   type ResetPasswordSchema,
 } from "@/schemas/concierge/reset-password.schema";
+import { forgetPasswordConcierge } from "@/services/concierge.service";
 import coliseuIcon from "@/assets/coliseu-icon.png";
 
 export default function ConciergeResetPassword() {
@@ -31,7 +32,7 @@ export default function ConciergeResetPassword() {
 
   const onSubmit = async (data: ResetPasswordSchema) => {
     try {
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      await forgetPasswordConcierge(data.email);
       setEmailSent(true);
       toast.success("E-mail de recuperação enviado!");
     } catch (error: any) {

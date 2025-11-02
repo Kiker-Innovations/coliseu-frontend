@@ -8,6 +8,7 @@ import {
   AlertTriangle,
   Megaphone,
   BarChart3,
+  DoorOpen,
 } from "lucide-react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import {
@@ -36,6 +37,7 @@ const menuItems = [
   },
   { title: "Multas", url: "/admin/fines", icon: AlertTriangle },
   { title: "Avisos", url: "/admin/notices", icon: Megaphone },
+  { title: "Portaria", url: "/admin/concierge", icon: DoorOpen },
 ];
 
 export function AppSidebarAdmin() {

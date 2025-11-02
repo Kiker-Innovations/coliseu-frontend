@@ -13,6 +13,7 @@ import {
   loginSchema,
   type LoginSchema,
 } from "@/schemas/concierge/login.schema";
+import { loginConcierge } from "@/services/concierge.service";
 import coliseuIcon from "@/assets/coliseu-icon.png";
 
 export default function ConciergeLogin() {
@@ -38,7 +39,21 @@ export default function ConciergeLogin() {
 
   const onSubmit = async (data: LoginSchema) => {
     try {
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      const response = await loginConcierge({
+        email: data.email,
+        password: data.password,
+      });
+      
+      // Salvar token se existir
+      if (response.token) {
+        localStorage.setItem("concierge_token", response.token);
+      }
+      
+      // Salvar rememberMe se marcado
+      if (data.rememberMe && response.token) {
+        localStorage.setItem("concierge_remember", "true");
+      }
+      
       toast.success("Login realizado com sucesso!");
       navigate("/concierge/dashboard");
     } catch (error: any) {
