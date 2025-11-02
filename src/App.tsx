@@ -48,8 +48,7 @@ import AdminConciergeView from "./pages/admin/ConciergeView";
 // Concierge pages
 import ConciergeLogin from "./pages/concierge/auth/Login";
 import ConciergeResetPassword from "./pages/concierge/auth/ResetPassword";
-import ConciergeUpdatePassword from "./pages/concierge/auth/UpdatePassword";
-import ConciergeConfirmCode from "./pages/concierge/auth/ConfirmCode";
+import ConciergeResetPasswordToken from "./pages/concierge/auth/ResetPasswordToken";
 import ConciergeDashboard from "./pages/concierge/Dashboard";
 import ConciergePackages from "./pages/concierge/Packages";
 import ConciergeFines from "./pages/concierge/Fines";
@@ -133,12 +132,8 @@ const App = () => (
               element={<ConciergeResetPassword />}
             />
             <Route
-              path="/concierge/update-password"
-              element={<ConciergeUpdatePassword />}
-            />
-            <Route
-              path="/concierge/confirmcode"
-              element={<ConciergeConfirmCode />}
+              path="/concierge/reset-password/token"
+              element={<ConciergeResetPasswordToken />}
             />
 
             {/* Protected Concierge Routes */}

@@ -33,31 +33,11 @@ export default function ConciergeResetPassword() {
 
   const onSubmit = async (data: ResetPasswordSchema) => {
     try {
-      const response = await conciergeService.forgetPassword({
-        email: data.email,
-      });
-
-      toast.success(
-        response.message ||
-          "Email de recuperação enviado! Verifique sua caixa de entrada."
-      );
-
-      // Redirect to update password page with email
-      setTimeout(() => {
-        navigate(
-          `/concierge/update-password?email=${encodeURIComponent(data.email)}`
-        );
-      }, 2000);
-    } catch (error) {
-      if (error instanceof ApiClientError) {
-        toast.error(
-          error.response.message || "Erro ao enviar email de recuperação"
-        );
-      } else if (error instanceof Error) {
-        toast.error(error.message);
-      } else {
-        toast.error("Erro ao enviar email de recuperação");
-      }
+      await forgetPasswordConcierge(data.email);
+      setEmailSent(true);
+      toast.success("E-mail de recuperação enviado!");
+    } catch (error: any) {
+      toast.error(error.message || "Erro ao enviar e-mail");
     }
   };
 
