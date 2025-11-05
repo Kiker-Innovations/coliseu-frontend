@@ -66,10 +66,55 @@ export interface Fine {
 }
 
 /**
+ * Concierge confirm email request
+ */
+export interface ConciergeConfirmRequest {
+	email: string;
+	code: string;
+}
+
+/**
+ * Concierge confirm email response
+ */
+export interface ConciergeConfirmResponse {
+	message: string;
+}
+
+/**
+ * Concierge forget password request
+ */
+export interface ConciergeForgetPasswordRequest {
+	email: string;
+}
+
+/**
+ * Concierge forget password response
+ */
+export interface ConciergeForgetPasswordResponse {
+	message: string;
+}
+
+/**
+ * Concierge reset password request
+ */
+export interface ConciergeResetPasswordRequest {
+	email: string;
+	code: string;
+	newPassword: string;
+}
+
+/**
+ * Concierge reset password response
+ */
+export interface ConciergeResetPasswordResponse {
+	message: string;
+}
+
+/**
  * Concierge Service Class
  */
 class ConciergeService {
-	private readonly basePath = `/${API_CONFIG.version}/concierge`;
+	private readonly basePath = `/${API_CONFIG.version}/concierges`;
 
 	/**
 	 * Concierge login
@@ -77,6 +122,39 @@ class ConciergeService {
 	 */
 	async login(data: ConciergeLoginRequest): Promise<ApiResponse<ConciergeLoginResponse>> {
 		return apiClient.post<ConciergeLoginResponse>(`${this.basePath}/login`, data);
+	}
+
+	/**
+	 * Confirm concierge email
+	 * POST /v1/concierge/confirm
+	 */
+	async confirmEmail(
+		data: ConciergeConfirmRequest,
+	): Promise<ApiResponse<ConciergeConfirmResponse>> {
+		return apiClient.post<ConciergeConfirmResponse>(`${this.basePath}/confirm`, data);
+	}
+
+	/**
+	 * Request password reset (forget password)
+	 * POST /v1/concierge/forget-password
+	 */
+	async forgetPassword(
+		data: ConciergeForgetPasswordRequest,
+	): Promise<ApiResponse<ConciergeForgetPasswordResponse>> {
+		return apiClient.post<ConciergeForgetPasswordResponse>(
+			`${this.basePath}/forget-password`,
+			data,
+		);
+	}
+
+	/**
+	 * Reset password with code
+	 * POST /v1/concierge/reset-password
+	 */
+	async resetPassword(
+		data: ConciergeResetPasswordRequest,
+	): Promise<ApiResponse<ConciergeResetPasswordResponse>> {
+		return apiClient.post<ConciergeResetPasswordResponse>(`${this.basePath}/reset-password`, data);
 	}
 
 	/**

@@ -39,6 +39,7 @@ export default function Register() {
   } = useForm<RegisterSchema>({
     resolver: zodResolver(registerSchema),
     defaultValues: {
+      name: "",
       apartmentNumber: "",
       email: "",
       password: "",
@@ -67,12 +68,12 @@ export default function Register() {
 
   const onSubmit = async (data: RegisterSchema) => {
     try {
-      // Remove a máscara e adiciona o código do país +55
       const phoneDigits = data.phone.replace(/\D/g, "");
       const formattedPhone = `+55${phoneDigits}`;
 
       // Register resident
       const response = await residentsService.register({
+        name: data.name,
         email: data.email,
         password: data.password,
         apartmentNumber: data.apartmentNumber,
@@ -86,6 +87,8 @@ export default function Register() {
           data.photo[0]
         );
       }
+
+      console.log(response);
 
       toast.success(response.message || "Conta criada com sucesso!");
       navigate("/login");
@@ -151,6 +154,22 @@ export default function Register() {
               {errors.apartmentNumber && (
                 <p className="text-sm text-destructive">
                   {errors.apartmentNumber.message}
+                </p>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="name">Nome Completo</Label>
+              <Input
+                id="name"
+                type="text"
+                {...register("name")}
+                className="h-12"
+                placeholder="Digite seu nome completo"
+              />
+              {errors.name && (
+                <p className="text-sm text-destructive">
+                  {errors.name.message}
                 </p>
               )}
             </div>

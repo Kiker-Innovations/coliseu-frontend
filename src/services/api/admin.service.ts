@@ -32,6 +32,51 @@ export interface AdminLoginResponse {
 }
 
 /**
+ * Admin confirm email request
+ */
+export interface AdminConfirmRequest {
+	email: string;
+	code: string;
+}
+
+/**
+ * Admin confirm email response
+ */
+export interface AdminConfirmResponse {
+	message: string;
+}
+
+/**
+ * Admin forget password request
+ */
+export interface AdminForgetPasswordRequest {
+	email: string;
+}
+
+/**
+ * Admin forget password response
+ */
+export interface AdminForgetPasswordResponse {
+	message: string;
+}
+
+/**
+ * Admin reset password request
+ */
+export interface AdminResetPasswordRequest {
+	email: string;
+	code: string;
+	newPassword: string;
+}
+
+/**
+ * Admin reset password response
+ */
+export interface AdminResetPasswordResponse {
+	message: string;
+}
+
+/**
  * Dashboard statistics
  */
 export interface DashboardStats {
@@ -56,7 +101,7 @@ export interface Notice {
  * Admin Service Class
  */
 class AdminService {
-	private readonly basePath = `/${API_CONFIG.version}/admin`;
+	private readonly basePath = `/${API_CONFIG.version}/admins`;
 
 	/**
 	 * Admin login
@@ -64,6 +109,34 @@ class AdminService {
 	 */
 	async login(data: AdminLoginRequest): Promise<ApiResponse<AdminLoginResponse>> {
 		return apiClient.post<AdminLoginResponse>(`${this.basePath}/login`, data);
+	}
+
+	/**
+	 * Confirm admin email
+	 * POST /v1/admins/confirm
+	 */
+	async confirmEmail(data: AdminConfirmRequest): Promise<ApiResponse<AdminConfirmResponse>> {
+		return apiClient.post<AdminConfirmResponse>(`/${API_CONFIG.version}/admins/confirm`, data);
+	}
+
+	/**
+	 * Request password reset (forget password)
+	 * POST /v1/admin/forget-password
+	 */
+	async forgetPassword(
+		data: AdminForgetPasswordRequest,
+	): Promise<ApiResponse<AdminForgetPasswordResponse>> {
+		return apiClient.post<AdminForgetPasswordResponse>(`${this.basePath}/forget-password`, data);
+	}
+
+	/**
+	 * Reset password with code
+	 * POST /v1/admin/reset-password
+	 */
+	async resetPassword(
+		data: AdminResetPasswordRequest,
+	): Promise<ApiResponse<AdminResetPasswordResponse>> {
+		return apiClient.post<AdminResetPasswordResponse>(`${this.basePath}/reset-password`, data);
 	}
 
 	/**

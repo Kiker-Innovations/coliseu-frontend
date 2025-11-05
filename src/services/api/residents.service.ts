@@ -11,6 +11,7 @@ import type { ApiResponse } from "./types";
  * Resident registration request data
  */
 export interface ResidentRegisterRequest {
+	name: string;
 	apartmentNumber: string;
 	email: string;
 	password: string;
@@ -25,6 +26,51 @@ export interface ResidentRegisterResponse {
 	apartmentNumber: string;
 	phone: string;
 	presignedUrl: string;
+}
+
+/**
+ * Resident confirm email request
+ */
+export interface ResidentConfirmRequest {
+	email: string;
+	code: string;
+}
+
+/**
+ * Resident confirm email response
+ */
+export interface ResidentConfirmResponse {
+	message: string;
+}
+
+/**
+ * Resident forget password request
+ */
+export interface ResidentForgetPasswordRequest {
+	email: string;
+}
+
+/**
+ * Resident forget password response
+ */
+export interface ResidentForgetPasswordResponse {
+	message: string;
+}
+
+/**
+ * Resident reset password request
+ */
+export interface ResidentResetPasswordRequest {
+	email: string;
+	code: string;
+	newPassword: string;
+}
+
+/**
+ * Resident reset password response
+ */
+export interface ResidentResetPasswordResponse {
+	message: string;
 }
 
 /**
@@ -51,6 +97,34 @@ class ResidentsService {
 	 */
 	async register(data: ResidentRegisterRequest): Promise<ApiResponse<ResidentRegisterResponse>> {
 		return apiClient.post<ResidentRegisterResponse>(this.basePath, data);
+	}
+
+	/**
+	 * Confirm resident email
+	 * POST /v1/residents/confirm
+	 */
+	async confirmEmail(data: ResidentConfirmRequest): Promise<ApiResponse<ResidentConfirmResponse>> {
+		return apiClient.post<ResidentConfirmResponse>(`${this.basePath}/confirm`, data);
+	}
+
+	/**
+	 * Request password reset (forget password)
+	 * POST /v1/residents/forget-password
+	 */
+	async forgetPassword(
+		data: ResidentForgetPasswordRequest,
+	): Promise<ApiResponse<ResidentForgetPasswordResponse>> {
+		return apiClient.post<ResidentForgetPasswordResponse>(`${this.basePath}/forget-password`, data);
+	}
+
+	/**
+	 * Reset password with code
+	 * POST /v1/residents/reset-password
+	 */
+	async resetPassword(
+		data: ResidentResetPasswordRequest,
+	): Promise<ApiResponse<ResidentResetPasswordResponse>> {
+		return apiClient.post<ResidentResetPasswordResponse>(`${this.basePath}/reset-password`, data);
 	}
 
 	/**

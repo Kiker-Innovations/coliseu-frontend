@@ -1,7 +1,7 @@
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Link } from "react-router-dom";
-import { authService } from "@/services/auth.service";
+import { Link, useNavigate } from "react-router-dom";
+import { adminService, ApiClientError } from "@/services/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -16,6 +16,7 @@ import ResetPasswordSkeleton from "@/skeleton/admin/auth/ResetPasswordSkeleton";
 import { useState, useEffect } from "react";
 
 export default function AdminResetPassword() {
+  const navigate = useNavigate();
   const [isPageReady, setIsPageReady] = useState(false);
 
   useEffect(() => {
@@ -38,15 +39,31 @@ export default function AdminResetPassword() {
 
   const onSubmit = async (data: ResetPasswordSchema) => {
     try {
-      const { error } = await authService.resetPasswordForEmail(data.email);
-
-      if (error) throw error;
+      const response = await adminService.forgetPassword({
+        email: data.email,
+      });
 
       toast.success(
-        "Email de recuperação enviado! Verifique sua caixa de entrada."
+        response.message ||
+          "Email de recuperação enviado! Verifique sua caixa de entrada."
       );
-    } catch (error: any) {
-      toast.error(error.message || "Erro ao enviar email de recuperação");
+
+      // Redirect to update password page with email
+      setTimeout(() => {
+        navigate(
+          `/admin/update-password?email=${encodeURIComponent(data.email)}`
+        );
+      }, 2000);
+    } catch (error) {
+      if (error instanceof ApiClientError) {
+        toast.error(
+          error.response.message || "Erro ao enviar email de recuperação"
+        );
+      } else if (error instanceof Error) {
+        toast.error(error.message);
+      } else {
+        toast.error("Erro ao enviar email de recuperação");
+      }
     }
   };
 

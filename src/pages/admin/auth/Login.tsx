@@ -170,7 +170,7 @@ export default function AdminLogin() {
               className="w-full h-12 bg-primary hover:bg-primary/90"
               disabled={isSubmitting}
             >
-              {isSubmitting ? "Entrando..." : "Entrar como Administrador"}
+              {isSubmitting ? "Entrando..." : "Entrar"}
             </Button>
           </form>
         </div>

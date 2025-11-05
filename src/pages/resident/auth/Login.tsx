@@ -132,7 +132,7 @@ export default function Login() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="email">Email address</Label>
+              <Label htmlFor="email">Email</Label>
               <Input
                 id="email"
                 type="email"
@@ -148,7 +148,7 @@ export default function Login() {
 
             <div className="space-y-2">
               <div className="flex justify-between items-center">
-                <Label htmlFor="password">Password</Label>
+                <Label htmlFor="password">Senha</Label>
                 <Link
                   to="/reset-password"
                   className="text-sm text-muted-foreground hover:text-primary"
@@ -178,7 +178,7 @@ export default function Login() {
                 }
               />
               <Label htmlFor="remember" className="cursor-pointer">
-                Remember me
+                Lembrar-me
               </Label>
             </div>
 
