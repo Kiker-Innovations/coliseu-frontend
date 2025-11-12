@@ -11,6 +11,8 @@ import { AppLayoutConcierge } from "./components/layout/AppLayoutConcierge";
 import Login from "./pages/resident/auth/Login";
 import Register from "./pages/resident/auth/Register";
 import ResetPassword from "./pages/resident/auth/ResetPassword";
+import UpdatePassword from "./pages/resident/auth/UpdatePassword";
+import ConfirmCode from "./pages/resident/auth/ConfirmCode";
 import Dashboard from "./pages/resident/Dashboard";
 import Suggestions from "./pages/resident/Suggestions";
 import Vote from "./pages/resident/Vote";
@@ -24,6 +26,8 @@ import NotFound from "./pages/NotFound";
 // Admin pages
 import AdminLogin from "./pages/admin/auth/Login";
 import AdminResetPassword from "./pages/admin/auth/ResetPassword";
+import AdminUpdatePassword from "./pages/admin/auth/UpdatePassword";
+import AdminConfirmCode from "./pages/admin/auth/ConfirmCode";
 import AdminDashboard from "./pages/admin/Dashboard";
 import AdminFinancial from "./pages/admin/Financial";
 import AdminVoting from "./pages/admin/Voting";
@@ -38,7 +42,8 @@ import AdminConciergeView from "./pages/admin/ConciergeView";
 // Concierge pages
 import ConciergeLogin from "./pages/concierge/auth/Login";
 import ConciergeResetPassword from "./pages/concierge/auth/ResetPassword";
-import ConciergeResetPasswordToken from "./pages/concierge/auth/ResetPasswordToken";
+import ConciergeUpdatePassword from "./pages/concierge/auth/UpdatePassword";
+import ConciergeConfirmCode from "./pages/concierge/auth/ConfirmCode";
 import ConciergeDashboard from "./pages/concierge/Dashboard";
 import ConciergePackages from "./pages/concierge/Packages";
 import ConciergeFines from "./pages/concierge/Fines";
@@ -58,6 +63,8 @@ const App = () => (
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           <Route path="/reset-password" element={<ResetPassword />} />
+          <Route path="/update-password" element={<UpdatePassword />} />
+          <Route path="/confirmcode" element={<ConfirmCode />} />
 
           <Route element={<AppLayout />}>
             <Route path="/dashboard" element={<Dashboard />} />
@@ -80,6 +87,11 @@ const App = () => (
             path="/admin/reset-password"
             element={<AdminResetPassword />}
           />
+          <Route
+            path="/admin/update-password"
+            element={<AdminUpdatePassword />}
+          />
+          <Route path="/admin/confirmcode" element={<AdminConfirmCode />} />
 
           <Route element={<AppLayoutAdmin />}>
             <Route path="/admin/dashboard" element={<AdminDashboard />} />
@@ -108,8 +120,12 @@ const App = () => (
             element={<ConciergeResetPassword />}
           />
           <Route
-            path="/concierge/reset-password/token"
-            element={<ConciergeResetPasswordToken />}
+            path="/concierge/update-password"
+            element={<ConciergeUpdatePassword />}
+          />
+          <Route
+            path="/concierge/confirmcode"
+            element={<ConciergeConfirmCode />}
           />
 
           <Route element={<AppLayoutConcierge />}>

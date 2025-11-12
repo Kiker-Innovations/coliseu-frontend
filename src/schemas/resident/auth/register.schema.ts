@@ -5,6 +5,12 @@ const ACCEPTED_IMAGE_TYPES = ["image/jpeg", "image/jpg", "image/png", "image/web
 
 export const registerSchema = z
 	.object({
+		name: z
+			.string()
+			.min(1, "Nome é obrigatório")
+			.min(3, "Nome deve ter no mínimo 3 caracteres")
+			.max(100, "Nome deve ter no máximo 100 caracteres")
+			.trim(),
 		apartmentNumber: z
 			.string()
 			.min(1, "Número do apartamento é obrigatório")

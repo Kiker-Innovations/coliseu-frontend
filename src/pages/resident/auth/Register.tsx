@@ -5,7 +5,7 @@ import { useState, useEffect } from "react";
 import InputMask from "react-input-mask";
 import { Camera } from "lucide-react";
 import { BR } from "country-flag-icons/react/3x2";
-import { authService } from "@/services/auth.service";
+import { residentsService, ApiClientError } from "@/services/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -39,6 +39,7 @@ export default function Register() {
   } = useForm<RegisterSchema>({
     resolver: zodResolver(registerSchema),
     defaultValues: {
+      name: "",
       apartmentNumber: "",
       email: "",
       password: "",
@@ -67,26 +68,38 @@ export default function Register() {
 
   const onSubmit = async (data: RegisterSchema) => {
     try {
-      // Remove a máscara e adiciona o código do país +55
       const phoneDigits = data.phone.replace(/\D/g, "");
       const formattedPhone = `+55${phoneDigits}`;
 
-      console.log(data);
-
-      const { error } = await authService.signUp({
+      // Register resident
+      const response = await residentsService.register({
+        name: data.name,
         email: data.email,
         password: data.password,
         apartmentNumber: data.apartmentNumber,
         phone: formattedPhone,
-        photo: data.photo[0],
       });
 
-      if (error) throw error;
+      // Upload photo to presigned URL if provided
+      if (data.photo?.[0] && response.data?.presignedUrl) {
+        await residentsService.uploadPhoto(
+          response.data.presignedUrl,
+          data.photo[0]
+        );
+      }
 
-      toast.success("Conta criada com sucesso!");
+      console.log(response);
+
+      toast.success(response.message || "Conta criada com sucesso!");
       navigate("/login");
-    } catch (error: any) {
-      toast.error(error.message || "Erro ao criar conta");
+    } catch (error) {
+      if (error instanceof ApiClientError) {
+        toast.error(error.response.message || "Erro ao criar conta");
+      } else if (error instanceof Error) {
+        toast.error(error.message);
+      } else {
+        toast.error("Erro ao criar conta");
+      }
     }
   };
 
@@ -141,6 +154,22 @@ export default function Register() {
               {errors.apartmentNumber && (
                 <p className="text-sm text-destructive">
                   {errors.apartmentNumber.message}
+                </p>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="name">Nome Completo</Label>
+              <Input
+                id="name"
+                type="text"
+                {...register("name")}
+                className="h-12"
+                placeholder="Digite seu nome completo"
+              />
+              {errors.name && (
+                <p className="text-sm text-destructive">
+                  {errors.name.message}
                 </p>
               )}
             </div>
