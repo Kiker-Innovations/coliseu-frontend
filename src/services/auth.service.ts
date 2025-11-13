@@ -1,195 +1,433 @@
 /**
- * Mock Auth Service
- * Este serviço simula um backend de autenticação.
- * Substitui a integração com Supabase por dados mockados.
- *
- * TODO: Conectar com backend real quando disponível
+ * Authentication Service
+ * Handles authentication for all three user types: resident, concierge, and admin
  */
 
-interface User {
-	id: string;
+import { apiClient } from "./api/client";
+import type { ApiResponse } from "./api/types";
+
+// User Types
+export type UserType = "resident" | "concierge" | "admin";
+
+// Auth Response Types
+export interface ResidentUser {
 	email: string;
+	name: string;
+	buildingName: string;
 	apartmentNumber: string;
-	phone: string;
-	createdAt: string;
+	blockName: string;
 }
 
-interface SignInCredentials {
+export interface ConciergeUser {
+	email: string;
+	name: string;
+	buildingName: string;
+	shift: string;
+}
+
+export interface AdminUser {
+	email: string;
+	name: string;
+	buildingName: string;
+}
+
+export type User = ResidentUser | ConciergeUser | AdminUser;
+
+export interface AuthTokens {
+	token: string;
+	refreshToken: string;
+}
+
+export interface LoginResponse {
+	token: string;
+	refreshToken: string;
+	user: User;
+}
+
+export interface ValidateResponse {
+	email: string;
+	name: string;
+	buildingName: string;
+	apartmentNumber?: string;
+	blockName?: string;
+	shift?: string;
+}
+
+export interface RefreshResponse {
+	token: string;
+	refreshToken: string;
+}
+
+// Login Credentials
+export interface ResidentLoginCredentials {
+	buildingId: string;
 	email: string;
 	password: string;
 }
 
-interface SignUpData {
+export interface ConciergeLoginCredentials {
+	buildingId: string;
 	email: string;
 	password: string;
-	apartmentNumber: string;
-	phone: string;
-	photo?: File;
 }
 
-interface AuthResponse {
-	data?: {
-		user: User | null;
-	};
-	error: Error | null;
+export interface AdminLoginCredentials {
+	buildingId: string;
+	email: string;
+	password: string;
 }
+
+// Storage Keys
+const STORAGE_KEYS = {
+	TOKEN: "coliseu_access_token",
+	REFRESH_TOKEN: "coliseu_refresh_token",
+	USER: "coliseu_user",
+	USER_TYPE: "coliseu_user_type",
+	REMEMBER_ME: "coliseu_remember_me",
+} as const;
 
 class AuthService {
-	private users: Map<string, { password: string; user: User }>;
-	private currentUser: User | null = null;
-	private readonly SESSION_KEY = "auth_session";
-
-	constructor() {
-		this.users = new Map();
-		// Usuário de exemplo para testes
-		this.users.set("test@example.com", {
-			password: "test123",
-			user: {
-				id: "1",
-				email: "test@example.com",
-				apartmentNumber: "101",
-				phone: "(11) 99999-9999",
-				createdAt: new Date().toISOString(),
-			},
-		});
-
-		// Restaurar sessão se existir
-		this.loadSession();
-	}
-
-	private loadSession(): void {
-		const sessionData = localStorage.getItem(this.SESSION_KEY);
-		if (sessionData) {
-			try {
-				this.currentUser = JSON.parse(sessionData);
-			} catch (error) {
-				console.error("Erro ao carregar sessão:", error);
-				localStorage.removeItem(this.SESSION_KEY);
-			}
-		}
-	}
-
-	private saveSession(user: User): void {
-		localStorage.setItem(this.SESSION_KEY, JSON.stringify(user));
-		this.currentUser = user;
-	}
-
-	private clearSession(): void {
-		localStorage.removeItem(this.SESSION_KEY);
-		this.currentUser = null;
-	}
-
 	/**
-	 * Simula login com email e senha
+	 * Get storage based on remember me preference
 	 */
-	async signInWithPassword(
-		credentials: SignInCredentials,
-	): Promise<AuthResponse> {
-		// Simula delay de rede
-		await this.delay(500);
-
-		const userRecord = this.users.get(credentials.email);
-
-		if (!userRecord || userRecord.password !== credentials.password) {
-			return {
-				error: new Error("Email ou senha inválidos"),
-			};
-		}
-
-		this.saveSession(userRecord.user);
-
-		return {
-			data: {
-				user: userRecord.user,
-			},
-			error: null,
-		};
+	private getStorage(): Storage {
+		const rememberMe = localStorage.getItem(STORAGE_KEYS.REMEMBER_ME) === "true";
+		return rememberMe ? localStorage : sessionStorage;
 	}
 
 	/**
-	 * Simula cadastro de novo usuário
+	 * Set remember me preference
 	 */
-	async signUp(data: SignUpData): Promise<AuthResponse> {
-		// Simula delay de rede
-		await this.delay(800);
-
-		if (this.users.has(data.email)) {
-			return {
-				error: new Error("Este email já está cadastrado"),
-			};
+	private setRememberMe(remember: boolean): void {
+		if (remember) {
+			localStorage.setItem(STORAGE_KEYS.REMEMBER_ME, "true");
+		} else {
+			localStorage.removeItem(STORAGE_KEYS.REMEMBER_ME);
 		}
-
-		const newUser: User = {
-			id: Date.now().toString(),
-			email: data.email,
-			apartmentNumber: data.apartmentNumber,
-			phone: data.phone,
-			createdAt: new Date().toISOString(),
-		};
-
-		this.users.set(data.email, {
-			password: data.password,
-			user: newUser,
-		});
-
-		return {
-			data: {
-				user: newUser,
-			},
-			error: null,
-		};
 	}
 
 	/**
-	 * Simula recuperação de senha
+	 * Save authentication data to storage
 	 */
-	async resetPasswordForEmail(email: string): Promise<{ error: Error | null }> {
-		// Simula delay de rede
-		await this.delay(600);
+	private saveAuthData(
+		tokens: AuthTokens,
+		user: User,
+		userType: UserType,
+		rememberMe: boolean,
+	): void {
+		this.setRememberMe(rememberMe);
+		const storage = this.getStorage();
 
-		if (!this.users.has(email)) {
-			return {
-				error: new Error("Email não encontrado"),
-			};
-		}
+		storage.setItem(STORAGE_KEYS.TOKEN, tokens.token);
+		storage.setItem(STORAGE_KEYS.REFRESH_TOKEN, tokens.refreshToken);
+		storage.setItem(STORAGE_KEYS.USER, JSON.stringify(user));
+		storage.setItem(STORAGE_KEYS.USER_TYPE, userType);
 
-		// Em um backend real, seria enviado um email
-		console.log(`[MOCK] Email de recuperação seria enviado para: ${email}`);
-
-		return {
-			error: null,
-		};
+		// Also save token to apiClient for automatic header injection
+		apiClient.setAuthToken(tokens.token);
 	}
 
 	/**
-	 * Retorna o usuário atualmente autenticado
+	 * Get current auth token
+	 */
+	getToken(): string | null {
+		return localStorage.getItem(STORAGE_KEYS.TOKEN) || sessionStorage.getItem(STORAGE_KEYS.TOKEN);
+	}
+
+	/**
+	 * Get refresh token
+	 */
+	getRefreshToken(): string | null {
+		return (
+			localStorage.getItem(STORAGE_KEYS.REFRESH_TOKEN) ||
+			sessionStorage.getItem(STORAGE_KEYS.REFRESH_TOKEN)
+		);
+	}
+
+	/**
+	 * Get current user
 	 */
 	getCurrentUser(): User | null {
-		return this.currentUser;
+		const storage = this.getStorage();
+		const userStr = storage.getItem(STORAGE_KEYS.USER);
+		if (!userStr) return null;
+
+		try {
+			return JSON.parse(userStr);
+		} catch {
+			return null;
+		}
 	}
 
 	/**
-	 * Realiza logout
+	 * Get current user type
 	 */
-	async signOut(): Promise<void> {
-		await this.delay(300);
-		this.clearSession();
+	getUserType(): UserType | null {
+		return (
+			(localStorage.getItem(STORAGE_KEYS.USER_TYPE) as UserType) ||
+			(sessionStorage.getItem(STORAGE_KEYS.USER_TYPE) as UserType) ||
+			null
+		);
 	}
 
 	/**
-	 * Verifica se há um usuário autenticado
+	 * Check if user is authenticated
 	 */
 	isAuthenticated(): boolean {
-		return this.currentUser !== null;
+		return !!this.getToken() && !!this.getCurrentUser();
 	}
 
 	/**
-	 * Simula delay de rede
+	 * Clear all authentication data
 	 */
-	private delay(ms: number): Promise<void> {
-		return new Promise((resolve) => setTimeout(resolve, ms));
+	clearAuth(): void {
+		// Clear from both storages
+		for (const storage of [localStorage, sessionStorage]) {
+			storage.removeItem(STORAGE_KEYS.TOKEN);
+			storage.removeItem(STORAGE_KEYS.REFRESH_TOKEN);
+			storage.removeItem(STORAGE_KEYS.USER);
+			storage.removeItem(STORAGE_KEYS.USER_TYPE);
+		}
+		localStorage.removeItem(STORAGE_KEYS.REMEMBER_ME);
+
+		// Clear token from apiClient
+		apiClient.clearAuthToken();
+	}
+
+	/**
+	 * Login as Resident
+	 */
+	async loginResident(
+		credentials: ResidentLoginCredentials,
+		rememberMe = false,
+	): Promise<LoginResponse> {
+		const response = await apiClient.post<LoginResponse>("/v1/auth/login/resident", credentials);
+
+		if (response.success && response.data) {
+			this.saveAuthData(
+				{
+					token: response.data.token,
+					refreshToken: response.data.refreshToken,
+				},
+				response.data.user,
+				"resident",
+				rememberMe,
+			);
+		}
+
+		return response.data!;
+	}
+
+	/**
+	 * Login as Concierge
+	 */
+	async loginConcierge(
+		credentials: ConciergeLoginCredentials,
+		rememberMe = false,
+	): Promise<LoginResponse> {
+		const response = await apiClient.post<LoginResponse>("/v1/auth/login/concierge", credentials);
+
+		if (response.success && response.data) {
+			this.saveAuthData(
+				{
+					token: response.data.token,
+					refreshToken: response.data.refreshToken,
+				},
+				response.data.user,
+				"concierge",
+				rememberMe,
+			);
+		}
+
+		return response.data!;
+	}
+
+	/**
+	 * Login as Admin
+	 */
+	async loginAdmin(credentials: AdminLoginCredentials, rememberMe = false): Promise<LoginResponse> {
+		const response = await apiClient.post<LoginResponse>("/v1/auth/login/admin", credentials);
+
+		if (response.success && response.data) {
+			this.saveAuthData(
+				{
+					token: response.data.token,
+					refreshToken: response.data.refreshToken,
+				},
+				response.data.user,
+				"admin",
+				rememberMe,
+			);
+		}
+
+		return response.data!;
+	}
+
+	/**
+	 * Validate current session for Resident
+	 */
+	async validateResident(): Promise<ResidentUser> {
+		const response = await apiClient.get<ValidateResponse>("/v1/auth/validate/resident");
+		if (response.success && response.data) {
+			return response.data as ResidentUser;
+		}
+		throw new Error("Failed to validate resident session");
+	}
+
+	/**
+	 * Validate current session for Concierge
+	 */
+	async validateConcierge(): Promise<ConciergeUser> {
+		const response = await apiClient.get<ValidateResponse>("/v1/auth/validate/concierge");
+		if (response.success && response.data) {
+			return response.data as ConciergeUser;
+		}
+		throw new Error("Failed to validate concierge session");
+	}
+
+	/**
+	 * Validate current session for Admin
+	 */
+	async validateAdmin(): Promise<AdminUser> {
+		const response = await apiClient.get<ValidateResponse>("/v1/auth/validate/admin");
+		if (response.success && response.data) {
+			return response.data as AdminUser;
+		}
+		throw new Error("Failed to validate admin session");
+	}
+
+	/**
+	 * Validate session based on user type
+	 */
+	async validateSession(): Promise<User | null> {
+		const userType = this.getUserType();
+		if (!userType || !this.getToken()) {
+			return null;
+		}
+
+		try {
+			let user: User;
+
+			switch (userType) {
+				case "resident":
+					user = await this.validateResident();
+					break;
+				case "concierge":
+					user = await this.validateConcierge();
+					break;
+				case "admin":
+					user = await this.validateAdmin();
+					break;
+				default:
+					return null;
+			}
+
+			// Update user data in storage
+			const storage = this.getStorage();
+			storage.setItem(STORAGE_KEYS.USER, JSON.stringify(user));
+
+			return user;
+		} catch (error) {
+			// If validation fails, try to refresh token
+			return await this.attemptTokenRefresh();
+		}
+	}
+
+	/**
+	 * Refresh authentication token
+	 */
+	async refreshToken(): Promise<AuthTokens> {
+		const refreshToken = this.getRefreshToken();
+		if (!refreshToken) {
+			throw new Error("No refresh token available");
+		}
+
+		const response = await apiClient.post<RefreshResponse>("/v1/auth/refresh", {
+			refreshToken,
+		});
+
+		if (response.success && response.data) {
+			const tokens: AuthTokens = {
+				token: response.data.token,
+				refreshToken: response.data.refreshToken,
+			};
+
+			// Update tokens in storage
+			const storage = this.getStorage();
+			storage.setItem(STORAGE_KEYS.TOKEN, tokens.token);
+			storage.setItem(STORAGE_KEYS.REFRESH_TOKEN, tokens.refreshToken);
+
+			// Update token in apiClient
+			apiClient.setAuthToken(tokens.token);
+
+			return tokens;
+		}
+
+		throw new Error("Failed to refresh token");
+	}
+
+	/**
+	 * Attempt to refresh token and validate session
+	 */
+	private async attemptTokenRefresh(): Promise<User | null> {
+		try {
+			await this.refreshToken();
+			// After refreshing, try to validate again
+			const userType = this.getUserType();
+			if (!userType) return null;
+
+			switch (userType) {
+				case "resident":
+					return await this.validateResident();
+				case "concierge":
+					return await this.validateConcierge();
+				case "admin":
+					return await this.validateAdmin();
+				default:
+					return null;
+			}
+		} catch {
+			// If refresh fails, clear auth and return null
+			this.clearAuth();
+			return null;
+		}
+	}
+
+	/**
+	 * Logout
+	 */
+	async logout(): Promise<void> {
+		this.clearAuth();
+	}
+
+	/**
+	 * Get redirect path based on user type
+	 */
+	getRedirectPath(userType: UserType): string {
+		switch (userType) {
+			case "resident":
+				return "/dashboard";
+			case "concierge":
+				return "/concierge/dashboard";
+			case "admin":
+				return "/admin/dashboard";
+		}
+	}
+
+	/**
+	 * Get login path based on user type
+	 */
+	getLoginPath(userType: UserType): string {
+		switch (userType) {
+			case "resident":
+				return "/login";
+			case "concierge":
+				return "/concierge/login";
+			case "admin":
+				return "/admin/login";
+		}
 	}
 }
 
-// Exporta instância singleton
+// Export singleton instance
 export const authService = new AuthService();

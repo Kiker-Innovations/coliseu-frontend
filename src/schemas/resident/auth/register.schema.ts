@@ -5,6 +5,8 @@ const ACCEPTED_IMAGE_TYPES = ["image/jpeg", "image/jpg", "image/png", "image/web
 
 export const registerSchema = z
 	.object({
+		buildingId: z.string().min(1, "Prédio é obrigatório"),
+		blockName: z.string().default(""),
 		name: z
 			.string()
 			.min(1, "Nome é obrigatório")

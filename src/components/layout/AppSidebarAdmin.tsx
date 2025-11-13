@@ -10,7 +10,7 @@ import {
   BarChart3,
   DoorOpen,
 } from "lucide-react";
-import { NavLink, useLocation, useNavigate } from "react-router-dom";
+import { NavLink, useLocation } from "react-router-dom";
 import {
   Sidebar,
   SidebarContent,
@@ -23,6 +23,7 @@ import {
   SidebarFooter,
 } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@/hooks/use-auth";
 import coliseuIcon from "@/assets/coliseu-icon.png";
 
 const menuItems = [
@@ -43,14 +44,13 @@ const menuItems = [
 export function AppSidebarAdmin() {
   const { state } = useSidebar();
   const location = useLocation();
-  const navigate = useNavigate();
+  const { logout } = useAuth();
   const collapsed = state === "collapsed";
 
   const isActive = (path: string) => location.pathname === path;
 
-  const handleLogout = () => {
-    // Aqui você pode adicionar lógica de logout (limpar sessão, etc.)
-    navigate("/admin/login");
+  const handleLogout = async () => {
+    await logout();
   };
 
   return (

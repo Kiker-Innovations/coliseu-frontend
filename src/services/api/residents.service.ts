@@ -11,6 +11,8 @@ import type { ApiResponse } from "./types";
  * Resident registration request data
  */
 export interface ResidentRegisterRequest {
+	buildingId: string;
+	blockName: string;
 	name: string;
 	apartmentNumber: string;
 	email: string;

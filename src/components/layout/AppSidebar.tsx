@@ -7,6 +7,7 @@ import {
   FileText,
   AlertTriangle,
   Package,
+  LogOut,
 } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
 import {
@@ -17,8 +18,11 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  SidebarFooter,
   useSidebar,
 } from "@/components/ui/sidebar";
+import { Button } from "@/components/ui/button";
+import { useAuth } from "@/hooks/use-auth";
 import coliseuIcon from "@/assets/coliseu-icon.png";
 
 const menuItems = [
@@ -35,9 +39,14 @@ const menuItems = [
 export function AppSidebar() {
   const { state } = useSidebar();
   const location = useLocation();
+  const { logout } = useAuth();
   const collapsed = state === "collapsed";
 
   const isActive = (path: string) => location.pathname === path;
+
+  const handleLogout = async () => {
+    await logout();
+  };
 
   return (
     <Sidebar collapsible="icon">
@@ -68,6 +77,23 @@ export function AppSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
+
+      <SidebarFooter>
+        <SidebarMenu>
+          <SidebarMenuItem>
+            <SidebarMenuButton asChild>
+              <Button
+                variant="ghost"
+                className="w-full justify-start"
+                onClick={handleLogout}
+              >
+                <LogOut className="h-5 w-5" />
+                <span>Sair</span>
+              </Button>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        </SidebarMenu>
+      </SidebarFooter>
     </Sidebar>
   );
 }
