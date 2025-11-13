@@ -244,8 +244,11 @@ class ApiClient {
 	 * Clear authentication token
 	 */
 	clearAuthToken(): void {
+		// Clear from both storages for consistency
 		localStorage.removeItem(AUTH_STORAGE_KEYS.accessToken);
 		localStorage.removeItem(AUTH_STORAGE_KEYS.refreshToken);
+		sessionStorage.removeItem(AUTH_STORAGE_KEYS.accessToken);
+		sessionStorage.removeItem(AUTH_STORAGE_KEYS.refreshToken);
 	}
 }
 

@@ -9,6 +9,13 @@ import { residentsService, ApiClientError } from "@/services/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { CameraCapture } from "@/components/ui/camera-capture";
 import { toast } from "sonner";
 import coliseuIcon from "@/assets/coliseu-icon.png";
@@ -17,15 +24,32 @@ import {
   type RegisterSchema,
 } from "@/schemas/resident/auth/register.schema";
 import RegisterSkeleton from "@/skeleton/resident/auth/RegisterSkeleton";
+import {
+  buildingsService,
+  type Building,
+} from "@/services/api/buildings.service";
 
 export default function Register() {
   const navigate = useNavigate();
   const [isPageReady, setIsPageReady] = useState(false);
   const [showCamera, setShowCamera] = useState(false);
   const [capturedPhoto, setCapturedPhoto] = useState<File | null>(null);
+  const [buildings, setBuildings] = useState<Building[]>([]);
+  const [isLoadingBuildings, setIsLoadingBuildings] = useState(true);
 
   useEffect(() => {
     const initialize = async () => {
+      // Load buildings
+      try {
+        const buildingsList = await buildingsService.getBuildings();
+        setBuildings(buildingsList);
+      } catch (error) {
+        toast.error("Erro ao carregar prédios");
+        console.error("Failed to load buildings:", error);
+      } finally {
+        setIsLoadingBuildings(false);
+      }
+
       setIsPageReady(true);
     };
     initialize();
@@ -36,9 +60,12 @@ export default function Register() {
     handleSubmit,
     formState: { errors, isSubmitting },
     setValue,
+    watch,
   } = useForm<RegisterSchema>({
     resolver: zodResolver(registerSchema),
     defaultValues: {
+      buildingId: "",
+      blockName: "",
       name: "",
       apartmentNumber: "",
       email: "",
@@ -47,6 +74,8 @@ export default function Register() {
       phone: "",
     },
   });
+
+  const selectedBuildingId = watch("buildingId");
 
   const handlePhotoCapture = (file: File) => {
     setCapturedPhoto(file);
@@ -73,6 +102,8 @@ export default function Register() {
 
       // Register resident
       const response = await residentsService.register({
+        buildingId: data.buildingId,
+        blockName: data.blockName || "",
         name: data.name,
         email: data.email,
         password: data.password,
@@ -141,6 +172,58 @@ export default function Register() {
           </div>
 
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
+            <div className="space-y-2">
+              <Label htmlFor="building">Prédio</Label>
+              <Select
+                value={selectedBuildingId}
+                onValueChange={(value) => setValue("buildingId", value)}
+                disabled={isLoadingBuildings || isSubmitting}
+              >
+                <SelectTrigger className="h-12">
+                  <SelectValue
+                    placeholder={
+                      isLoadingBuildings
+                        ? "Carregando prédios..."
+                        : "Selecione o prédio"
+                    }
+                  />
+                </SelectTrigger>
+                <SelectContent>
+                  {buildings.map((building) => (
+                    <SelectItem key={building._id} value={building._id}>
+                      {building.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {errors.buildingId && (
+                <p className="text-sm text-destructive">
+                  {errors.buildingId.message}
+                </p>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="blockName">
+                Nome do Bloco{" "}
+                <span className="text-muted-foreground text-xs">
+                  (opcional)
+                </span>
+              </Label>
+              <Input
+                id="blockName"
+                type="text"
+                placeholder="Ex: Bloco A"
+                {...register("blockName")}
+                className="h-12"
+              />
+              {errors.blockName && (
+                <p className="text-sm text-destructive">
+                  {errors.blockName.message}
+                </p>
+              )}
+            </div>
+
             <div className="space-y-2">
               <Label htmlFor="apartment">Número do Apartamento</Label>
               <Input

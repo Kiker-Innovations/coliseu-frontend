@@ -51,3 +51,7 @@ export type {
 	PackageRegisterRequest,
 	Fine,
 } from "./concierge.service";
+
+// Buildings service
+export { buildingsService } from "./buildings.service";
+export type { Building, BuildingsResponse } from "./buildings.service";

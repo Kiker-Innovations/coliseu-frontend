@@ -1,12 +1,20 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Shield, Eye, EyeOff } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -14,10 +22,38 @@ import {
   type LoginSchema,
 } from "@/schemas/concierge/login.schema";
 import coliseuIcon from "@/assets/coliseu-icon.png";
+import {
+  buildingsService,
+  type Building,
+} from "@/services/api/buildings.service";
 
 export default function ConciergeLogin() {
   const navigate = useNavigate();
+  const { loginConcierge, isAuthenticated, userType } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
+  const [buildings, setBuildings] = useState<Building[]>([]);
+  const [isLoadingBuildings, setIsLoadingBuildings] = useState(true);
+
+  useEffect(() => {
+    const initialize = async () => {
+      // Redirect if already authenticated
+      if (isAuthenticated && userType === "concierge") {
+        navigate("/concierge/dashboard");
+      }
+
+      // Load buildings
+      try {
+        const buildingsList = await buildingsService.getBuildings();
+        setBuildings(buildingsList);
+      } catch (error) {
+        toast.error("Erro ao carregar prédios");
+        console.error("Failed to load buildings:", error);
+      } finally {
+        setIsLoadingBuildings(false);
+      }
+    };
+    initialize();
+  }, [isAuthenticated, userType, navigate]);
 
   const {
     register,
@@ -28,6 +64,7 @@ export default function ConciergeLogin() {
   } = useForm<LoginSchema>({
     resolver: zodResolver(loginSchema),
     defaultValues: {
+      buildingId: "",
       email: "",
       password: "",
       rememberMe: false,
@@ -35,12 +72,22 @@ export default function ConciergeLogin() {
   });
 
   const rememberMe = watch("rememberMe");
+  const selectedBuildingId = watch("buildingId");
 
   const onSubmit = async (data: LoginSchema) => {
     try {
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      await loginConcierge(
+        {
+          buildingId: data.buildingId,
+          email: data.email,
+          password: data.password,
+        },
+        data.rememberMe
+      );
       toast.success("Login realizado com sucesso!");
-      navigate("/concierge/dashboard");
+      setTimeout(() => {
+        window.location.reload();
+      }, 3000);
     } catch (error: any) {
       toast.error(error.message || "Erro ao fazer login");
     }
@@ -65,6 +112,37 @@ export default function ConciergeLogin() {
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+            <div className="space-y-2">
+              <Label htmlFor="building">Prédio</Label>
+              <Select
+                value={selectedBuildingId}
+                onValueChange={(value) => setValue("buildingId", value)}
+                disabled={isLoadingBuildings || isSubmitting}
+              >
+                <SelectTrigger>
+                  <SelectValue
+                    placeholder={
+                      isLoadingBuildings
+                        ? "Carregando prédios..."
+                        : "Selecione o prédio"
+                    }
+                  />
+                </SelectTrigger>
+                <SelectContent>
+                  {buildings.map((building) => (
+                    <SelectItem key={building._id} value={building._id}>
+                      {building.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {errors.buildingId && (
+                <p className="text-sm text-destructive">
+                  {errors.buildingId.message}
+                </p>
+              )}
+            </div>
+
             <div className="space-y-2">
               <Label htmlFor="email">E-mail</Label>
               <Input
