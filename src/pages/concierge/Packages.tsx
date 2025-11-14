@@ -56,7 +56,7 @@ import {
   type DeliveredPackage,
 } from "@/services/package.service";
 import { getCurrentConcierge } from "@/services/concierge.service";
-import { getApartmentByNumber } from "@/services/apartment.service";
+import { getApartmentByNumber, listAllApartments, type Apartment } from "@/services/apartment.service";
 
 interface PackageData {
   id: string;
@@ -81,57 +81,53 @@ export default function ConciergePackages() {
   const [searchTerm, setSearchTerm] = useState("");
   const [activeTab, setActiveTab] = useState("pending");
   const [packages, setPackages] = useState<PackageData[]>([]);
-  const [apartments, setApartments] = useState<string[]>([]);
+  const [apartments, setApartments] = useState<Apartment[]>([]);
   const [conciergeId, setConciergeId] = useState<string>("");
   const [conciergeName, setConciergeName] = useState<string>("Porteiro");
 
   useEffect(() => {
-    // Carregar dados do porteiro do localStorage
+    // Sempre buscar dados atuais do porteiro da API usando o token
     const loadConciergeData = async () => {
-      const storedConciergeId = localStorage.getItem("concierge_id") || "";
-      const storedConciergeName = localStorage.getItem("concierge_name") || "Porteiro";
+      // Verificar se há token disponível
+      const token = localStorage.getItem("concierge_token") || localStorage.getItem("coliseu_access_token");
       
-      setConciergeId(storedConciergeId);
-      setConciergeName(storedConciergeName);
+      if (!token) {
+        console.warn("Token não encontrado no localStorage");
+        return;
+      }
 
-      // Se não tiver ID, tentar buscar do perfil usando o token
-      if (!storedConciergeId) {
-        const token = localStorage.getItem("concierge_token");
-        if (token) {
-          try {
-            const concierge = await getCurrentConcierge();
-            if (concierge.id) {
-              const idString = String(concierge.id);
-              setConciergeId(idString);
-              localStorage.setItem("concierge_id", idString);
+      try {
+        // Sempre buscar dados atuais da API
+        const concierge = await getCurrentConcierge();
+        console.log("Dados do porteiro carregados:", { id: concierge.id, name: concierge.name });
+        if (concierge.id) {
+          const idString = String(concierge.id);
+          setConciergeId(idString);
+          localStorage.setItem("concierge_id", idString);
+        }
+        if (concierge.name) {
+          setConciergeName(concierge.name);
+          localStorage.setItem("concierge_name", concierge.name);
+        }
+      } catch (error: any) {
+        console.warn("Não foi possível buscar o perfil do porteiro:", error.message);
+        // Tentar decodificar o token JWT como fallback
+        try {
+          const tokenParts = token.split('.');
+          if (tokenParts.length === 3) {
+            const payload = JSON.parse(atob(tokenParts[1]));
+            if (payload.id || payload.sub || payload.userId) {
+              const idFromToken = payload.id || payload.sub || payload.userId;
+              setConciergeId(String(idFromToken));
+              localStorage.setItem("concierge_id", String(idFromToken));
             }
-            if (concierge.name) {
-              setConciergeName(concierge.name);
-              localStorage.setItem("concierge_name", concierge.name);
-            }
-          } catch (error: any) {
-            console.warn("Não foi possível buscar o perfil do porteiro:", error.message);
-            // Tentar decodificar o token JWT se possível (fallback)
-            try {
-              const tokenParts = token.split('.');
-              if (tokenParts.length === 3) {
-                const payload = JSON.parse(atob(tokenParts[1]));
-                if (payload.id || payload.sub || payload.userId) {
-                  const idFromToken = payload.id || payload.sub || payload.userId;
-                  setConciergeId(String(idFromToken));
-                  localStorage.setItem("concierge_id", String(idFromToken));
-                }
-                if (payload.name) {
-                  setConciergeName(payload.name);
-                  localStorage.setItem("concierge_name", payload.name);
-                }
-              }
-            } catch (decodeError) {
-              console.warn("Não foi possível decodificar o token:", decodeError);
+            if (payload.name) {
+              setConciergeName(payload.name);
+              localStorage.setItem("concierge_name", payload.name);
             }
           }
-        } else {
-          console.warn("Token não encontrado no localStorage");
+        } catch (decodeError) {
+          console.warn("Não foi possível decodificar o token:", decodeError);
         }
       }
     };
@@ -143,9 +139,10 @@ export default function ConciergePackages() {
     const loadData = async () => {
       try {
         setIsLoading(true);
-        const [pending, delivered] = await Promise.all([
+        const [pending, delivered, allApartments] = await Promise.all([
           getPendingPackages(),
           getDeliveredPackages(),
+          listAllApartments(),
         ]);
 
         // Map pending packages
@@ -176,14 +173,8 @@ export default function ConciergePackages() {
 
         setPackages([...pendingMapped, ...deliveredMapped]);
 
-        // Extract unique apartment numbers for the select
-        const uniqueApartments = Array.from(
-          new Set([
-            ...pending.map((p) => p.apartmentNumber),
-            ...delivered.map((p) => p.apartmentNumber),
-          ])
-        ).sort();
-        setApartments(uniqueApartments);
+        // Set all apartments from API
+        setApartments(allApartments);
       } catch (error: any) {
         toast.error(error.message || "Erro ao carregar encomendas");
       } finally {
@@ -232,36 +223,43 @@ export default function ConciergePackages() {
 
   const handleAddPackage = async (data: PackageSchema) => {
     try {
-      // Validar se temos o ID do porteiro - tentar buscar novamente se não tiver
-      let currentConciergeId = conciergeId || localStorage.getItem("concierge_id") || "";
+      // Sempre buscar dados atuais do porteiro da API antes de criar o pacote
+      let currentConciergeId = "";
+      const token = localStorage.getItem("concierge_token") || localStorage.getItem("coliseu_access_token");
       
-      // Se ainda não tiver ID, tentar buscar do perfil
-      if (!currentConciergeId) {
-        const token = localStorage.getItem("concierge_token");
-        if (token) {
-          try {
-            const concierge = await getCurrentConcierge();
-            if (concierge.id) {
-              currentConciergeId = String(concierge.id);
+      if (!token) {
+        toast.error("Token não encontrado. Faça login novamente.");
+        return;
+      }
+
+      try {
+        // Sempre buscar dados atuais da API para garantir que está usando o porteiro correto
+        const concierge = await getCurrentConcierge();
+        console.log("Dados do porteiro ao criar pacote:", { id: concierge.id, name: concierge.name });
+        if (concierge.id) {
+          currentConciergeId = String(concierge.id);
+          setConciergeId(currentConciergeId);
+          localStorage.setItem("concierge_id", currentConciergeId);
+        }
+        if (concierge.name) {
+          setConciergeName(concierge.name);
+          localStorage.setItem("concierge_name", concierge.name);
+        }
+      } catch (error: any) {
+        console.error("Erro ao buscar perfil do porteiro:", error);
+        // Tentar decodificar o token JWT como fallback
+        try {
+          const tokenParts = token.split('.');
+          if (tokenParts.length === 3) {
+            const payload = JSON.parse(atob(tokenParts[1]));
+            if (payload.id || payload.sub || payload.userId) {
+              currentConciergeId = String(payload.id || payload.sub || payload.userId);
               setConciergeId(currentConciergeId);
               localStorage.setItem("concierge_id", currentConciergeId);
             }
-          } catch (error: any) {
-            // Tentar decodificar o token JWT como fallback
-            try {
-              const tokenParts = token.split('.');
-              if (tokenParts.length === 3) {
-                const payload = JSON.parse(atob(tokenParts[1]));
-                if (payload.id || payload.sub || payload.userId) {
-                  currentConciergeId = String(payload.id || payload.sub || payload.userId);
-                  setConciergeId(currentConciergeId);
-                  localStorage.setItem("concierge_id", currentConciergeId);
-                }
-              }
-            } catch (decodeError) {
-              // Ignorar erro de decodificação
-            }
           }
+        } catch (decodeError) {
+          console.error("Erro ao decodificar token:", decodeError);
         }
       }
       
@@ -271,35 +269,69 @@ export default function ConciergePackages() {
       }
 
       // Buscar o ID do apartamento pelo número
-      const buildingId = localStorage.getItem("concierge_building_id");
-      if (!buildingId) {
-        toast.error("ID do condomínio não encontrado. Faça login novamente.");
-        return;
-      }
-
       let apartmentId: string;
       try {
-        const apartment = await getApartmentByNumber(buildingId, data.apartment);
+        const apartment = await getApartmentByNumber(data.apartment);
         if (!apartment) {
-          toast.error(`Apartamento ${data.apartment} não encontrado no condomínio.`);
+          toast.error(`Apartamento ${data.apartment} não encontrado.`);
           return;
         }
         apartmentId = apartment._id;
+        
+        // Validar se o ID é um UUID válido
+        if (!apartmentId || apartmentId.trim() === "") {
+          toast.error("ID do apartamento inválido.");
+          return;
+        }
       } catch (error: any) {
         toast.error(error.message || "Erro ao buscar apartamento. Verifique se o número está correto.");
         return;
       }
 
-      // Convert datetime-local to ISO string
-      const receiverDate = new Date(data.arrivalDate).toISOString();
+      // Validar ID do concierge
+      if (!currentConciergeId || currentConciergeId.trim() === "") {
+        toast.error("ID do porteiro inválido. Faça login novamente.");
+        return;
+      }
 
-      await createPackage({
-        ownerName: data.recipientName,
-        apartmentId: apartmentId,
-        description: data.description,
+      // Convert datetime-local to ISO string (sem milissegundos, formato Z)
+      const dateObj = new Date(data.arrivalDate);
+      if (isNaN(dateObj.getTime())) {
+        toast.error("Data de chegada inválida.");
+        return;
+      }
+      
+      // Formatar data no formato ISO sem milissegundos (ex: 2025-01-15T10:30:00Z)
+      const receiverDate = dateObj.toISOString().replace(/\.\d{3}Z$/, 'Z');
+
+      // Preparar payload com validação
+      const payload = {
+        ownerName: data.recipientName.trim(),
+        apartmentId: apartmentId.trim(),
+        description: data.description.trim(),
         receiverDate: receiverDate,
-        receiverConciergeId: currentConciergeId,
+        receiverConciergeId: currentConciergeId.trim(),
+      };
+      
+      // Log para debug
+      console.log("Payload antes de enviar:", JSON.stringify(payload, null, 2));
+      console.log("Tipos dos campos:", {
+        ownerName: typeof payload.ownerName,
+        apartmentId: typeof payload.apartmentId,
+        description: typeof payload.description,
+        receiverDate: typeof payload.receiverDate,
+        receiverConciergeId: typeof payload.receiverConciergeId,
       });
+
+      // Validar campos obrigatórios
+      if (!payload.ownerName || !payload.apartmentId || !payload.description || !payload.receiverDate || !payload.receiverConciergeId) {
+        toast.error("Todos os campos são obrigatórios.");
+        return;
+      }
+
+      console.log("Enviando payload:", payload);
+      
+      await createPackage(payload);
 
       toast.success("Encomenda cadastrada com sucesso!");
       setIsAddDialogOpen(false);
@@ -345,36 +377,42 @@ export default function ConciergePackages() {
     if (!selectedPackage) return;
 
     try {
-      // Validar se temos o ID do porteiro - tentar buscar novamente se não tiver
-      let currentConciergeId = conciergeId || localStorage.getItem("concierge_id") || "";
+      // Sempre buscar dados atuais do porteiro da API antes de confirmar entrega
+      let currentConciergeId = "";
+      const token = localStorage.getItem("concierge_token") || localStorage.getItem("coliseu_access_token");
       
-      // Se ainda não tiver ID, tentar buscar do perfil
-      if (!currentConciergeId) {
-        const token = localStorage.getItem("concierge_token");
-        if (token) {
-          try {
-            const concierge = await getCurrentConcierge();
-            if (concierge.id) {
-              currentConciergeId = String(concierge.id);
+      if (!token) {
+        toast.error("Token não encontrado. Faça login novamente.");
+        return;
+      }
+
+      try {
+        // Sempre buscar dados atuais da API para garantir que está usando o porteiro correto
+        const concierge = await getCurrentConcierge();
+        if (concierge.id) {
+          currentConciergeId = String(concierge.id);
+          setConciergeId(currentConciergeId);
+          localStorage.setItem("concierge_id", currentConciergeId);
+        }
+        if (concierge.name) {
+          setConciergeName(concierge.name);
+          localStorage.setItem("concierge_name", concierge.name);
+        }
+      } catch (error: any) {
+        console.error("Erro ao buscar perfil do porteiro:", error);
+        // Tentar decodificar o token JWT como fallback
+        try {
+          const tokenParts = token.split('.');
+          if (tokenParts.length === 3) {
+            const payload = JSON.parse(atob(tokenParts[1]));
+            if (payload.id || payload.sub || payload.userId) {
+              currentConciergeId = String(payload.id || payload.sub || payload.userId);
               setConciergeId(currentConciergeId);
               localStorage.setItem("concierge_id", currentConciergeId);
             }
-          } catch (error: any) {
-            // Tentar decodificar o token JWT como fallback
-            try {
-              const tokenParts = token.split('.');
-              if (tokenParts.length === 3) {
-                const payload = JSON.parse(atob(tokenParts[1]));
-                if (payload.id || payload.sub || payload.userId) {
-                  currentConciergeId = String(payload.id || payload.sub || payload.userId);
-                  setConciergeId(currentConciergeId);
-                  localStorage.setItem("concierge_id", currentConciergeId);
-                }
-              }
-            } catch (decodeError) {
-              // Ignorar erro de decodificação
-            }
           }
+        } catch (decodeError) {
+          console.error("Erro ao decodificar token:", decodeError);
         }
       }
       
@@ -732,11 +770,20 @@ export default function ConciergePackages() {
                 </SelectTrigger>
                 <SelectContent>
                   {apartments.length > 0 ? (
-                    apartments.map((apt) => (
-                      <SelectItem key={apt} value={apt}>
-                        Apartamento {apt}
-                      </SelectItem>
-                    ))
+                    apartments
+                      .sort((a, b) => {
+                        // Sort by block first, then by number
+                        if (a.block && b.block && a.block !== b.block) {
+                          return a.block.localeCompare(b.block);
+                        }
+                        return a.number.localeCompare(b.number, undefined, { numeric: true, sensitivity: 'base' });
+                      })
+                      .map((apt) => (
+                        <SelectItem key={apt._id} value={apt.number}>
+                          {apt.block ? `Bloco ${apt.block} - ` : ""}Apartamento {apt.number}
+                          {apt.floor ? ` (${apt.floor}º andar)` : ""}
+                        </SelectItem>
+                      ))
                   ) : (
                     <SelectItem value="" disabled>
                       Nenhum apartamento disponível

@@ -63,23 +63,50 @@ export async function createPackage(
   payload: CreatePackageRequest,
 ): Promise<CreatePackageResponse> {
   try {
+    // Get concierge token
+    const token = localStorage.getItem("concierge_token") || localStorage.getItem("coliseu_access_token");
+    
+    const headers: HeadersInit = {
+      "Content-Type": "application/json",
+    };
+    
+    if (token) {
+      headers["Authorization"] = `Bearer ${token}`;
+    }
+
     const response = await fetch(
       "http://localhost:3000/api/coliseu/v1/packages",
       {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers,
         body: JSON.stringify(payload),
       },
     );
 
     if (!response.ok) {
       let message = "Erro ao cadastrar encomenda";
+      let errorDetails: any = null;
       try {
         const data = await response.json();
         message = data?.message || message;
+        errorDetails = data;
+        
+        // Se houver detalhes de validação, mostrar mais informações
+        if (data.errors || data.validationErrors) {
+          console.error("Erros de validação:", data.errors || data.validationErrors);
+          message = `${message}. ${JSON.stringify(data.errors || data.validationErrors)}`;
+        }
       } catch {}
+      
+      // Log error details for debugging
+      console.error("Erro ao criar pacote:", {
+        status: response.status,
+        statusText: response.statusText,
+        payload: JSON.stringify(payload, null, 2),
+        errorDetails,
+        headers: Object.fromEntries(response.headers.entries()),
+      });
+      
       throw new Error(message);
     }
 

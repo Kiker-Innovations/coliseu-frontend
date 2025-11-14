@@ -29,16 +29,23 @@ import {
 
 export default function ConciergeLogin() {
   const navigate = useNavigate();
-  const { loginConcierge, isAuthenticated, userType } = useAuth();
+  const { loginConcierge, isAuthenticated, userType, isLoading: isAuthLoading } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
   const [buildings, setBuildings] = useState<Building[]>([]);
   const [isLoadingBuildings, setIsLoadingBuildings] = useState(true);
+  const [isPageReady, setIsPageReady] = useState(false);
 
   useEffect(() => {
     const initialize = async () => {
+      // Wait for auth to finish loading
+      if (isAuthLoading) {
+        return;
+      }
+
       // Redirect if already authenticated
       if (isAuthenticated && userType === "concierge") {
         navigate("/concierge/dashboard");
+        return;
       }
 
       // Load buildings
@@ -50,10 +57,11 @@ export default function ConciergeLogin() {
         console.error("Failed to load buildings:", error);
       } finally {
         setIsLoadingBuildings(false);
+        setIsPageReady(true);
       }
     };
     initialize();
-  }, [isAuthenticated, userType, navigate]);
+  }, [isAuthenticated, userType, navigate, isAuthLoading]);
 
   const {
     register,
@@ -98,6 +106,22 @@ export default function ConciergeLogin() {
       toast.error(error.message || "Erro ao fazer login");
     }
   };
+
+  // Show loading state while auth is loading or page is not ready
+  if (isAuthLoading || !isPageReady) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 via-background to-accent/5 p-4">
+        <Card className="w-full max-w-md border-2 border-primary/20 shadow-xl">
+          <CardContent className="p-8">
+            <div className="flex flex-col items-center justify-center space-y-4">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+              <p className="text-sm text-muted-foreground">Carregando...</p>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 via-background to-accent/5 p-4">

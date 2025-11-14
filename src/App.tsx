@@ -49,6 +49,7 @@ import AdminConciergeView from "./pages/admin/ConciergeView";
 import ConciergeLogin from "./pages/concierge/auth/Login";
 import ConciergeResetPassword from "./pages/concierge/auth/ResetPassword";
 import ConciergeResetPasswordToken from "./pages/concierge/auth/ResetPasswordToken";
+import ConciergeUpdatePassword from "./pages/concierge/auth/UpdatePassword";
 import ConciergeDashboard from "./pages/concierge/Dashboard";
 import ConciergePackages from "./pages/concierge/Packages";
 import ConciergeFines from "./pages/concierge/Fines";
@@ -130,6 +131,10 @@ const App = () => (
             <Route
               path="/concierge/reset-password"
               element={<ConciergeResetPassword />}
+            />
+            <Route
+              path="/concierge/update-password"
+              element={<ConciergeUpdatePassword />}
             />
             <Route
               path="/concierge/reset-password/token"

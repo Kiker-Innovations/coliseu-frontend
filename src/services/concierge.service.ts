@@ -301,7 +301,11 @@ export async function loginConcierge(
  */
 export async function getCurrentConcierge(): Promise<Concierge> {
   try {
-    const token = localStorage.getItem("concierge_token");
+    // Tentar pegar o token do concierge ou do sistema de auth geral
+    const token = localStorage.getItem("concierge_token") || 
+                  localStorage.getItem("coliseu_access_token") ||
+                  sessionStorage.getItem("coliseu_access_token");
+    
     if (!token) {
       throw new Error("Token não encontrado. Faça login novamente.");
     }
