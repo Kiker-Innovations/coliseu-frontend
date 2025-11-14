@@ -29,16 +29,23 @@ import {
 
 export default function ConciergeLogin() {
   const navigate = useNavigate();
-  const { loginConcierge, isAuthenticated, userType } = useAuth();
+  const { loginConcierge, isAuthenticated, userType, isLoading: isAuthLoading } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
   const [buildings, setBuildings] = useState<Building[]>([]);
   const [isLoadingBuildings, setIsLoadingBuildings] = useState(true);
+  const [isPageReady, setIsPageReady] = useState(false);
 
   useEffect(() => {
     const initialize = async () => {
+      // Wait for auth to finish loading
+      if (isAuthLoading) {
+        return;
+      }
+
       // Redirect if already authenticated
       if (isAuthenticated && userType === "concierge") {
         navigate("/concierge/dashboard");
+        return;
       }
 
       // Load buildings
@@ -50,10 +57,11 @@ export default function ConciergeLogin() {
         console.error("Failed to load buildings:", error);
       } finally {
         setIsLoadingBuildings(false);
+        setIsPageReady(true);
       }
     };
     initialize();
-  }, [isAuthenticated, userType, navigate]);
+  }, [isAuthenticated, userType, navigate, isAuthLoading]);
 
   const {
     register,
@@ -84,14 +92,36 @@ export default function ConciergeLogin() {
         },
         data.rememberMe
       );
+      
+      // Salvar buildingId para uso posterior
+      localStorage.setItem("concierge_building_id", data.buildingId);
+      
       toast.success("Login realizado com sucesso!");
+      
+      // Redirect to dashboard after successful login
       setTimeout(() => {
-        window.location.reload();
-      }, 3000);
+        navigate("/concierge/dashboard", { replace: true });
+      }, 500);
     } catch (error: any) {
       toast.error(error.message || "Erro ao fazer login");
     }
   };
+
+  // Show loading state while auth is loading or page is not ready
+  if (isAuthLoading || !isPageReady) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 via-background to-accent/5 p-4">
+        <Card className="w-full max-w-md border-2 border-primary/20 shadow-xl">
+          <CardContent className="p-8">
+            <div className="flex flex-col items-center justify-center space-y-4">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+              <p className="text-sm text-muted-foreground">Carregando...</p>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 via-background to-accent/5 p-4">
@@ -113,7 +143,7 @@ export default function ConciergeLogin() {
         <CardContent>
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
             <div className="space-y-2">
-              <Label htmlFor="building">Prédio</Label>
+              <Label htmlFor="buildingId">Condomínio *</Label>
               <Select
                 value={selectedBuildingId}
                 onValueChange={(value) => setValue("buildingId", value)}
@@ -123,17 +153,23 @@ export default function ConciergeLogin() {
                   <SelectValue
                     placeholder={
                       isLoadingBuildings
-                        ? "Carregando prédios..."
-                        : "Selecione o prédio"
+                        ? "Carregando condomínios..."
+                        : "Selecione o condomínio"
                     }
                   />
                 </SelectTrigger>
                 <SelectContent>
-                  {buildings.map((building) => (
-                    <SelectItem key={building._id} value={building._id}>
-                      {building.name}
+                  {buildings.length > 0 ? (
+                    buildings.map((building) => (
+                      <SelectItem key={building._id} value={building._id}>
+                        {building.name} - {building.city}/{building.state}
+                      </SelectItem>
+                    ))
+                  ) : (
+                    <SelectItem value="" disabled>
+                      {isLoadingBuildings ? "Carregando..." : "Nenhum condomínio disponível"}
                     </SelectItem>
-                  ))}
+                  )}
                 </SelectContent>
               </Select>
               {errors.buildingId && (

@@ -47,9 +47,19 @@ import {
   type DeliverySchema,
 } from "@/schemas/concierge/package.schema";
 import PackagesSkeleton from "@/skeleton/concierge/PackagesSkeleton";
+import {
+  createPackage,
+  getPendingPackages,
+  getDeliveredPackages,
+  confirmPackageDelivery,
+  type PendingPackage,
+  type DeliveredPackage,
+} from "@/services/package.service";
+import { getCurrentConcierge } from "@/services/concierge.service";
+import { getApartmentByNumber, listAllApartments, type Apartment } from "@/services/apartment.service";
 
 interface PackageData {
-  id: number;
+  id: string;
   recipientName: string;
   description: string;
   apartment: string;
@@ -70,13 +80,106 @@ export default function ConciergePackages() {
   );
   const [searchTerm, setSearchTerm] = useState("");
   const [activeTab, setActiveTab] = useState("pending");
+  const [packages, setPackages] = useState<PackageData[]>([]);
+  const [apartments, setApartments] = useState<Apartment[]>([]);
+  const [conciergeId, setConciergeId] = useState<string>("");
+  const [conciergeName, setConciergeName] = useState<string>("Porteiro");
 
-  // Simulated logged-in concierge name (would come from auth context)
-  const conciergeName = "José Silva";
+  useEffect(() => {
+    // Sempre buscar dados atuais do porteiro da API usando o token
+    const loadConciergeData = async () => {
+      // Verificar se há token disponível
+      const token = localStorage.getItem("concierge_token") || localStorage.getItem("coliseu_access_token");
+      
+      if (!token) {
+        console.warn("Token não encontrado no localStorage");
+        return;
+      }
+
+      try {
+        // Sempre buscar dados atuais da API
+        const concierge = await getCurrentConcierge();
+        console.log("Dados do porteiro carregados:", { id: concierge.id, name: concierge.name });
+        if (concierge.id) {
+          const idString = String(concierge.id);
+          setConciergeId(idString);
+          localStorage.setItem("concierge_id", idString);
+        }
+        if (concierge.name) {
+          setConciergeName(concierge.name);
+          localStorage.setItem("concierge_name", concierge.name);
+        }
+      } catch (error: any) {
+        console.warn("Não foi possível buscar o perfil do porteiro:", error.message);
+        // Tentar decodificar o token JWT como fallback
+        try {
+          const tokenParts = token.split('.');
+          if (tokenParts.length === 3) {
+            const payload = JSON.parse(atob(tokenParts[1]));
+            if (payload.id || payload.sub || payload.userId) {
+              const idFromToken = payload.id || payload.sub || payload.userId;
+              setConciergeId(String(idFromToken));
+              localStorage.setItem("concierge_id", String(idFromToken));
+            }
+            if (payload.name) {
+              setConciergeName(payload.name);
+              localStorage.setItem("concierge_name", payload.name);
+            }
+          }
+        } catch (decodeError) {
+          console.warn("Não foi possível decodificar o token:", decodeError);
+        }
+      }
+    };
+
+    loadConciergeData();
+  }, []);
 
   useEffect(() => {
     const loadData = async () => {
-      setIsLoading(false);
+      try {
+        setIsLoading(true);
+        const [pending, delivered, allApartments] = await Promise.all([
+          getPendingPackages(),
+          getDeliveredPackages(),
+          listAllApartments(),
+        ]);
+
+        // Map pending packages
+        const pendingMapped: PackageData[] = pending.map((pkg) => ({
+          id: pkg._id,
+          recipientName: pkg.ownerName,
+          description: pkg.description,
+          apartment: pkg.apartmentNumber,
+          arrivalDate: pkg.receiverDate,
+          status: "pending" as const,
+          registeredBy: pkg.receiverConciergeName,
+          registeredAt: pkg.receiverDate,
+        }));
+
+        // Map delivered packages
+        const deliveredMapped: PackageData[] = delivered.map((pkg) => ({
+          id: pkg._id,
+          recipientName: pkg.ownerName,
+          description: pkg.description,
+          apartment: pkg.apartmentNumber,
+          arrivalDate: pkg.deliveryDate, // Using deliveryDate as reference
+          status: "delivered" as const,
+          deliveredAt: pkg.deliveryDate,
+          receivedBy: pkg.recipientName,
+          registeredBy: pkg.deliveryConciergeName,
+          registeredAt: pkg.deliveryDate,
+        }));
+
+        setPackages([...pendingMapped, ...deliveredMapped]);
+
+        // Set all apartments from API
+        setApartments(allApartments);
+      } catch (error: any) {
+        toast.error(error.message || "Erro ao carregar encomendas");
+      } finally {
+        setIsLoading(false);
+      }
     };
     loadData();
   }, []);
@@ -98,119 +201,6 @@ export default function ConciergePackages() {
     },
   });
 
-  // Mock data - packages
-  const [packages, setPackages] = useState<PackageData[]>([
-    {
-      id: 1,
-      recipientName: "João Silva Santos",
-      description: "Caixa grande - Amazon (eletrônicos)",
-      apartment: "101",
-      arrivalDate: "2025-10-20T09:30:00",
-      status: "pending",
-      registeredBy: "Maria Santos",
-      registeredAt: "2025-10-20T09:30:00",
-    },
-    {
-      id: 2,
-      recipientName: "Maria Oliveira Costa",
-      description: "Envelope - Correios (documentos)",
-      apartment: "102",
-      arrivalDate: "2025-10-20T10:15:00",
-      status: "pending",
-      registeredBy: "José Silva",
-      registeredAt: "2025-10-20T10:15:00",
-    },
-    {
-      id: 3,
-      recipientName: "Pedro Henrique Souza",
-      description: "Caixa média - Mercado Livre",
-      apartment: "103",
-      arrivalDate: "2025-10-20T11:00:00",
-      status: "pending",
-      registeredBy: "José Silva",
-      registeredAt: "2025-10-20T11:00:00",
-    },
-    {
-      id: 4,
-      recipientName: "Ana Paula Ferreira",
-      description: "Caixa pequena - Shopee (roupas)",
-      apartment: "201",
-      arrivalDate: "2025-10-19T16:45:00",
-      status: "delivered",
-      deliveredAt: "2025-10-19T18:30:00",
-      receivedBy: "Ana Paula Ferreira",
-      registeredBy: "Maria Santos",
-      registeredAt: "2025-10-19T16:45:00",
-    },
-    {
-      id: 5,
-      recipientName: "Carlos Eduardo Lima",
-      description: "Envelope - Sedex",
-      apartment: "202",
-      arrivalDate: "2025-10-19T14:20:00",
-      status: "delivered",
-      deliveredAt: "2025-10-19T19:15:00",
-      receivedBy: "Carlos Eduardo Lima",
-      registeredBy: "José Silva",
-      registeredAt: "2025-10-19T14:20:00",
-    },
-    {
-      id: 6,
-      recipientName: "Juliana Martins Rocha",
-      description: "Caixa grande - Americanas (móveis)",
-      apartment: "203",
-      arrivalDate: "2025-10-18T08:00:00",
-      status: "delivered",
-      deliveredAt: "2025-10-18T20:00:00",
-      receivedBy: "Juliana Martins",
-      registeredBy: "Maria Santos",
-      registeredAt: "2025-10-18T08:00:00",
-    },
-    {
-      id: 7,
-      recipientName: "Roberto Carlos Alves",
-      description: "Pacote - DHL (importação)",
-      apartment: "301",
-      arrivalDate: "2025-10-20T07:45:00",
-      status: "pending",
-      registeredBy: "José Silva",
-      registeredAt: "2025-10-20T07:45:00",
-    },
-    {
-      id: 8,
-      recipientName: "Fernanda Costa Dias",
-      description: "Envelope - Carta registrada",
-      apartment: "302",
-      arrivalDate: "2025-10-19T11:30:00",
-      status: "pending",
-      registeredBy: "Maria Santos",
-      registeredAt: "2025-10-19T11:30:00",
-    },
-  ]);
-
-  // Mock data - apartments
-  const apartments = [
-    "101",
-    "102",
-    "103",
-    "104",
-    "105",
-    "201",
-    "202",
-    "203",
-    "204",
-    "205",
-    "301",
-    "302",
-    "303",
-    "304",
-    "305",
-    "401",
-    "402",
-    "403",
-    "404",
-    "405",
-  ];
 
   const pendingPackages = packages.filter((pkg) => pkg.status === "pending");
   const deliveredPackages = packages.filter(
@@ -233,21 +223,151 @@ export default function ConciergePackages() {
 
   const handleAddPackage = async (data: PackageSchema) => {
     try {
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      // Sempre buscar dados atuais do porteiro da API antes de criar o pacote
+      let currentConciergeId = "";
+      const token = localStorage.getItem("concierge_token") || localStorage.getItem("coliseu_access_token");
+      
+      if (!token) {
+        toast.error("Token não encontrado. Faça login novamente.");
+        return;
+      }
 
-      const newPackage: PackageData = {
-        id: packages.length + 1,
-        ...data,
-        status: "pending",
-        registeredBy: conciergeName,
-        registeredAt: new Date().toISOString(),
+      try {
+        // Sempre buscar dados atuais da API para garantir que está usando o porteiro correto
+        const concierge = await getCurrentConcierge();
+        console.log("Dados do porteiro ao criar pacote:", { id: concierge.id, name: concierge.name });
+        if (concierge.id) {
+          currentConciergeId = String(concierge.id);
+          setConciergeId(currentConciergeId);
+          localStorage.setItem("concierge_id", currentConciergeId);
+        }
+        if (concierge.name) {
+          setConciergeName(concierge.name);
+          localStorage.setItem("concierge_name", concierge.name);
+        }
+      } catch (error: any) {
+        console.error("Erro ao buscar perfil do porteiro:", error);
+        // Tentar decodificar o token JWT como fallback
+        try {
+          const tokenParts = token.split('.');
+          if (tokenParts.length === 3) {
+            const payload = JSON.parse(atob(tokenParts[1]));
+            if (payload.id || payload.sub || payload.userId) {
+              currentConciergeId = String(payload.id || payload.sub || payload.userId);
+              setConciergeId(currentConciergeId);
+              localStorage.setItem("concierge_id", currentConciergeId);
+            }
+          }
+        } catch (decodeError) {
+          console.error("Erro ao decodificar token:", decodeError);
+        }
+      }
+      
+      if (!currentConciergeId) {
+        toast.error("ID do porteiro não encontrado. Faça login novamente.");
+        return;
+      }
+
+      // Buscar o ID do apartamento pelo número
+      let apartmentId: string;
+      try {
+        const apartment = await getApartmentByNumber(data.apartment);
+        if (!apartment) {
+          toast.error(`Apartamento ${data.apartment} não encontrado.`);
+          return;
+        }
+        apartmentId = apartment._id;
+        
+        // Validar se o ID é um UUID válido
+        if (!apartmentId || apartmentId.trim() === "") {
+          toast.error("ID do apartamento inválido.");
+          return;
+        }
+      } catch (error: any) {
+        toast.error(error.message || "Erro ao buscar apartamento. Verifique se o número está correto.");
+        return;
+      }
+
+      // Validar ID do concierge
+      if (!currentConciergeId || currentConciergeId.trim() === "") {
+        toast.error("ID do porteiro inválido. Faça login novamente.");
+        return;
+      }
+
+      // Convert datetime-local to ISO string (sem milissegundos, formato Z)
+      const dateObj = new Date(data.arrivalDate);
+      if (isNaN(dateObj.getTime())) {
+        toast.error("Data de chegada inválida.");
+        return;
+      }
+      
+      // Formatar data no formato ISO sem milissegundos (ex: 2025-01-15T10:30:00Z)
+      const receiverDate = dateObj.toISOString().replace(/\.\d{3}Z$/, 'Z');
+
+      // Preparar payload com validação
+      const payload = {
+        ownerName: data.recipientName.trim(),
+        apartmentId: apartmentId.trim(),
+        description: data.description.trim(),
+        receiverDate: receiverDate,
+        receiverConciergeId: currentConciergeId.trim(),
       };
+      
+      // Log para debug
+      console.log("Payload antes de enviar:", JSON.stringify(payload, null, 2));
+      console.log("Tipos dos campos:", {
+        ownerName: typeof payload.ownerName,
+        apartmentId: typeof payload.apartmentId,
+        description: typeof payload.description,
+        receiverDate: typeof payload.receiverDate,
+        receiverConciergeId: typeof payload.receiverConciergeId,
+      });
 
-      setPackages([newPackage, ...packages]);
+      // Validar campos obrigatórios
+      if (!payload.ownerName || !payload.apartmentId || !payload.description || !payload.receiverDate || !payload.receiverConciergeId) {
+        toast.error("Todos os campos são obrigatórios.");
+        return;
+      }
+
+      console.log("Enviando payload:", payload);
+      
+      await createPackage(payload);
 
       toast.success("Encomenda cadastrada com sucesso!");
       setIsAddDialogOpen(false);
       packageForm.reset();
+
+      // Reload packages
+      const [pending, delivered] = await Promise.all([
+        getPendingPackages(),
+        getDeliveredPackages(),
+      ]);
+
+      const pendingMapped: PackageData[] = pending.map((pkg) => ({
+        id: pkg._id,
+        recipientName: pkg.ownerName,
+        description: pkg.description,
+        apartment: pkg.apartmentNumber,
+        arrivalDate: pkg.receiverDate,
+        status: "pending" as const,
+        registeredBy: pkg.receiverConciergeName,
+        registeredAt: pkg.receiverDate,
+      }));
+
+      const deliveredMapped: PackageData[] = delivered.map((pkg) => ({
+        id: pkg._id,
+        recipientName: pkg.ownerName,
+        description: pkg.description,
+        apartment: pkg.apartmentNumber,
+        arrivalDate: pkg.deliveryDate,
+        status: "delivered" as const,
+        deliveredAt: pkg.deliveryDate,
+        receivedBy: pkg.recipientName,
+        registeredBy: pkg.deliveryConciergeName,
+        registeredAt: pkg.deliveryDate,
+      }));
+
+      setPackages([...pendingMapped, ...deliveredMapped]);
     } catch (error: any) {
       toast.error(error.message || "Erro ao cadastrar encomenda");
     }
@@ -257,20 +377,54 @@ export default function ConciergePackages() {
     if (!selectedPackage) return;
 
     try {
-      await new Promise((resolve) => setTimeout(resolve, 800));
+      // Sempre buscar dados atuais do porteiro da API antes de confirmar entrega
+      let currentConciergeId = "";
+      const token = localStorage.getItem("concierge_token") || localStorage.getItem("coliseu_access_token");
+      
+      if (!token) {
+        toast.error("Token não encontrado. Faça login novamente.");
+        return;
+      }
 
-      setPackages(
-        packages.map((pkg) =>
-          pkg.id === selectedPackage.id
-            ? {
-                ...pkg,
-                status: "delivered" as const,
-                deliveredAt: new Date().toISOString(),
-                receivedBy: data.receivedBy,
-              }
-            : pkg
-        )
-      );
+      try {
+        // Sempre buscar dados atuais da API para garantir que está usando o porteiro correto
+        const concierge = await getCurrentConcierge();
+        if (concierge.id) {
+          currentConciergeId = String(concierge.id);
+          setConciergeId(currentConciergeId);
+          localStorage.setItem("concierge_id", currentConciergeId);
+        }
+        if (concierge.name) {
+          setConciergeName(concierge.name);
+          localStorage.setItem("concierge_name", concierge.name);
+        }
+      } catch (error: any) {
+        console.error("Erro ao buscar perfil do porteiro:", error);
+        // Tentar decodificar o token JWT como fallback
+        try {
+          const tokenParts = token.split('.');
+          if (tokenParts.length === 3) {
+            const payload = JSON.parse(atob(tokenParts[1]));
+            if (payload.id || payload.sub || payload.userId) {
+              currentConciergeId = String(payload.id || payload.sub || payload.userId);
+              setConciergeId(currentConciergeId);
+              localStorage.setItem("concierge_id", currentConciergeId);
+            }
+          }
+        } catch (decodeError) {
+          console.error("Erro ao decodificar token:", decodeError);
+        }
+      }
+      
+      if (!currentConciergeId) {
+        toast.error("ID do porteiro não encontrado. Faça login novamente.");
+        return;
+      }
+
+      await confirmPackageDelivery(selectedPackage.id, {
+        recipientName: data.receivedBy,
+        deliveryConciergeId: currentConciergeId,
+      });
 
       toast.success(
         `Encomenda marcada como entregue! Recebida por: ${data.receivedBy}`
@@ -278,6 +432,38 @@ export default function ConciergePackages() {
       setIsDeliveryDialogOpen(false);
       setSelectedPackage(null);
       deliveryForm.reset();
+
+      // Reload packages
+      const [pending, delivered] = await Promise.all([
+        getPendingPackages(),
+        getDeliveredPackages(),
+      ]);
+
+      const pendingMapped: PackageData[] = pending.map((pkg) => ({
+        id: pkg._id,
+        recipientName: pkg.ownerName,
+        description: pkg.description,
+        apartment: pkg.apartmentNumber,
+        arrivalDate: pkg.receiverDate,
+        status: "pending" as const,
+        registeredBy: pkg.receiverConciergeName,
+        registeredAt: pkg.receiverDate,
+      }));
+
+      const deliveredMapped: PackageData[] = delivered.map((pkg) => ({
+        id: pkg._id,
+        recipientName: pkg.ownerName,
+        description: pkg.description,
+        apartment: pkg.apartmentNumber,
+        arrivalDate: pkg.deliveryDate,
+        status: "delivered" as const,
+        deliveredAt: pkg.deliveryDate,
+        receivedBy: pkg.recipientName,
+        registeredBy: pkg.deliveryConciergeName,
+        registeredAt: pkg.deliveryDate,
+      }));
+
+      setPackages([...pendingMapped, ...deliveredMapped]);
     } catch (error: any) {
       toast.error(error.message || "Erro ao marcar encomenda como entregue");
     }
@@ -583,11 +769,26 @@ export default function ConciergePackages() {
                   <SelectValue placeholder="Selecione o apartamento" />
                 </SelectTrigger>
                 <SelectContent>
-                  {apartments.map((apt) => (
-                    <SelectItem key={apt} value={apt}>
-                      Apartamento {apt}
+                  {apartments.length > 0 ? (
+                    apartments
+                      .sort((a, b) => {
+                        // Sort by block first, then by number
+                        if (a.block && b.block && a.block !== b.block) {
+                          return a.block.localeCompare(b.block);
+                        }
+                        return a.number.localeCompare(b.number, undefined, { numeric: true, sensitivity: 'base' });
+                      })
+                      .map((apt) => (
+                        <SelectItem key={apt._id} value={apt.number}>
+                          {apt.block ? `Bloco ${apt.block} - ` : ""}Apartamento {apt.number}
+                          {apt.floor ? ` (${apt.floor}º andar)` : ""}
+                        </SelectItem>
+                      ))
+                  ) : (
+                    <SelectItem value="" disabled>
+                      Nenhum apartamento disponível
                     </SelectItem>
-                  ))}
+                  )}
                 </SelectContent>
               </Select>
               {packageForm.formState.errors.apartment && (

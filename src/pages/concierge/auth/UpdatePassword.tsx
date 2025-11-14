@@ -2,12 +2,11 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useState, useEffect } from "react";
-import { Shield, Mail, Lock, ShieldCheck, ArrowLeft } from "lucide-react";
+import { Shield, Mail, Lock, ShieldCheck } from "lucide-react";
 import { conciergeService, ApiClientError } from "@/services/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
 import coliseuIcon from "@/assets/coliseu-icon.png";
 import {
@@ -79,36 +78,73 @@ export default function ConciergeUpdatePassword() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 via-background to-accent/5 p-4">
-      <Card className="w-full max-w-md border-2 border-primary/20 shadow-xl">
-        <CardHeader className="space-y-4 text-center pb-8">
-          <div className="flex justify-center">
-            <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center">
-              <Lock className="w-8 h-8 text-primary" />
-            </div>
-          </div>
-          <div>
-            <CardTitle className="text-3xl font-bold flex items-center justify-center gap-2">
-              <Shield className="w-8 h-8 text-primary" />
+    <div className="min-h-screen flex">
+      {/* Left side - Branding */}
+      <div className="hidden lg:flex lg:w-1/2 bg-primary items-center justify-center p-12">
+        <div className="text-center">
+          <img src={coliseuIcon} alt="Coliseu" className="w-80 h-80 mx-auto" />
+          <h1 className="text-6xl font-bold text-primary-foreground mb-4">
+            COLISEU
+          </h1>
+          <p className="text-primary-foreground/80 text-lg mb-4">
+            Gestão de Condomínios
+          </p>
+          <div className="flex items-center justify-center gap-2 bg-primary-foreground/20 px-6 py-3 rounded-lg backdrop-blur-sm">
+            <Shield className="w-6 h-6 text-primary-foreground" />
+            <span className="text-primary-foreground font-bold text-xl">
               PORTARIA
-            </CardTitle>
-            <p className="text-sm text-muted-foreground mt-2">
-              Redefinir senha
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {/* Right side - Update Password Form */}
+      <div className="w-full lg:w-1/2 flex items-center justify-center p-8 bg-background">
+        <div className="w-full max-w-md space-y-8">
+          <div className="text-center">
+            <div className="lg:hidden mb-6">
+              <img
+                src={coliseuIcon}
+                alt="Coliseu"
+                className="w-16 h-16 mx-auto mb-4"
+              />
+              <h1 className="text-4xl font-bold text-primary">COLISEU</h1>
+              <div className="flex items-center justify-center gap-2 mt-4 bg-primary/10 px-4 py-2 rounded-lg">
+                <Shield className="w-5 h-5 text-primary" />
+                <span className="text-primary font-bold">PORTARIA</span>
+              </div>
+            </div>
+
+            <div className="hidden lg:flex items-center justify-center gap-2 bg-primary/10 px-6 py-3 rounded-lg mb-6">
+              <Shield className="w-6 h-6 text-primary" />
+              <span className="text-primary font-bold text-xl">PORTARIA</span>
+            </div>
+
+            <div className="flex justify-center mb-6">
+              <div className="bg-primary/10 p-4 rounded-full">
+                <ShieldCheck className="w-12 h-12 text-primary" />
+              </div>
+            </div>
+
+            <h2 className="text-2xl font-semibold text-foreground mb-2">
+              Redefinir Senha
+            </h2>
+            <p className="text-muted-foreground">
+              Digite o código recebido por email e sua nova senha
             </p>
           </div>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
             <div className="space-y-2">
-              <Label htmlFor="email">E-mail</Label>
+              <Label htmlFor="email">Email</Label>
               <div className="relative">
                 <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
                 <Input
                   id="email"
                   type="email"
                   {...register("email")}
-                  className="pl-10"
-                  placeholder="seu@email.com"
+                  className="h-12 pl-10"
+                  placeholder="porteiro@example.com"
                   readOnly
                   disabled
                 />
@@ -126,12 +162,11 @@ export default function ConciergeUpdatePassword() {
                 id="code"
                 type="text"
                 {...register("code")}
-                className="text-center text-2xl font-mono tracking-widest"
+                className="h-12 text-center text-2xl font-mono tracking-widest"
                 placeholder="123456"
                 maxLength={6}
                 autoComplete="off"
                 autoFocus
-                disabled={isSubmitting}
               />
               {errors.code && (
                 <p className="text-sm text-destructive">
@@ -139,19 +174,22 @@ export default function ConciergeUpdatePassword() {
                 </p>
               )}
               <p className="text-xs text-muted-foreground text-center">
-                Digite o código de 6 dígitos recebido por e-mail
+                O código contém 6 dígitos numéricos
               </p>
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="newPassword">Nova Senha</Label>
-              <Input
-                id="newPassword"
-                type="password"
-                {...register("newPassword")}
-                placeholder="Digite sua nova senha"
-                disabled={isSubmitting}
-              />
+              <div className="relative">
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                <Input
+                  id="newPassword"
+                  type="password"
+                  {...register("newPassword")}
+                  className="h-12 pl-10"
+                  placeholder="Digite sua nova senha"
+                />
+              </div>
               {errors.newPassword && (
                 <p className="text-sm text-destructive">
                   {errors.newPassword.message}
@@ -161,13 +199,16 @@ export default function ConciergeUpdatePassword() {
 
             <div className="space-y-2">
               <Label htmlFor="confirmPassword">Confirmar Nova Senha</Label>
-              <Input
-                id="confirmPassword"
-                type="password"
-                {...register("confirmPassword")}
-                placeholder="Confirme sua nova senha"
-                disabled={isSubmitting}
-              />
+              <div className="relative">
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                <Input
+                  id="confirmPassword"
+                  type="password"
+                  {...register("confirmPassword")}
+                  className="h-12 pl-10"
+                  placeholder="Confirme sua nova senha"
+                />
+              </div>
               {errors.confirmPassword && (
                 <p className="text-sm text-destructive">
                   {errors.confirmPassword.message}
@@ -175,30 +216,27 @@ export default function ConciergeUpdatePassword() {
               )}
             </div>
 
-            <div className="space-y-4">
-              <Button
-                type="submit"
-                className="w-full"
-                size="lg"
-                disabled={isSubmitting}
-              >
-                {isSubmitting ? "Alterando senha..." : "Alterar Senha"}
-              </Button>
+            <Button
+              type="submit"
+              className="w-full h-12 bg-primary hover:bg-primary/90"
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? "Alterando senha..." : "Alterar Senha"}
+            </Button>
 
+            <div className="text-center">
               <Button
                 type="button"
-                variant="outline"
-                className="w-full"
+                variant="link"
+                className="text-primary"
                 onClick={() => navigate("/concierge/login")}
-                disabled={isSubmitting}
               >
-                <ArrowLeft className="w-4 h-4 mr-2" />
-                Voltar ao Login
+                Voltar para o login da portaria
               </Button>
             </div>
           </form>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     </div>
   );
 }
