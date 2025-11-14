@@ -47,9 +47,19 @@ import {
   type DeliverySchema,
 } from "@/schemas/concierge/package.schema";
 import PackagesSkeleton from "@/skeleton/concierge/PackagesSkeleton";
+import {
+  createPackage,
+  getPendingPackages,
+  getDeliveredPackages,
+  confirmPackageDelivery,
+  type PendingPackage,
+  type DeliveredPackage,
+} from "@/services/package.service";
+import { getCurrentConcierge } from "@/services/concierge.service";
+import { getApartmentByNumber } from "@/services/apartment.service";
 
 interface PackageData {
-  id: number;
+  id: string;
   recipientName: string;
   description: string;
   apartment: string;
@@ -70,13 +80,115 @@ export default function ConciergePackages() {
   );
   const [searchTerm, setSearchTerm] = useState("");
   const [activeTab, setActiveTab] = useState("pending");
+  const [packages, setPackages] = useState<PackageData[]>([]);
+  const [apartments, setApartments] = useState<string[]>([]);
+  const [conciergeId, setConciergeId] = useState<string>("");
+  const [conciergeName, setConciergeName] = useState<string>("Porteiro");
 
-  // Simulated logged-in concierge name (would come from auth context)
-  const conciergeName = "José Silva";
+  useEffect(() => {
+    // Carregar dados do porteiro do localStorage
+    const loadConciergeData = async () => {
+      const storedConciergeId = localStorage.getItem("concierge_id") || "";
+      const storedConciergeName = localStorage.getItem("concierge_name") || "Porteiro";
+      
+      setConciergeId(storedConciergeId);
+      setConciergeName(storedConciergeName);
+
+      // Se não tiver ID, tentar buscar do perfil usando o token
+      if (!storedConciergeId) {
+        const token = localStorage.getItem("concierge_token");
+        if (token) {
+          try {
+            const concierge = await getCurrentConcierge();
+            if (concierge.id) {
+              const idString = String(concierge.id);
+              setConciergeId(idString);
+              localStorage.setItem("concierge_id", idString);
+            }
+            if (concierge.name) {
+              setConciergeName(concierge.name);
+              localStorage.setItem("concierge_name", concierge.name);
+            }
+          } catch (error: any) {
+            console.warn("Não foi possível buscar o perfil do porteiro:", error.message);
+            // Tentar decodificar o token JWT se possível (fallback)
+            try {
+              const tokenParts = token.split('.');
+              if (tokenParts.length === 3) {
+                const payload = JSON.parse(atob(tokenParts[1]));
+                if (payload.id || payload.sub || payload.userId) {
+                  const idFromToken = payload.id || payload.sub || payload.userId;
+                  setConciergeId(String(idFromToken));
+                  localStorage.setItem("concierge_id", String(idFromToken));
+                }
+                if (payload.name) {
+                  setConciergeName(payload.name);
+                  localStorage.setItem("concierge_name", payload.name);
+                }
+              }
+            } catch (decodeError) {
+              console.warn("Não foi possível decodificar o token:", decodeError);
+            }
+          }
+        } else {
+          console.warn("Token não encontrado no localStorage");
+        }
+      }
+    };
+
+    loadConciergeData();
+  }, []);
 
   useEffect(() => {
     const loadData = async () => {
-      setIsLoading(false);
+      try {
+        setIsLoading(true);
+        const [pending, delivered] = await Promise.all([
+          getPendingPackages(),
+          getDeliveredPackages(),
+        ]);
+
+        // Map pending packages
+        const pendingMapped: PackageData[] = pending.map((pkg) => ({
+          id: pkg._id,
+          recipientName: pkg.ownerName,
+          description: pkg.description,
+          apartment: pkg.apartmentNumber,
+          arrivalDate: pkg.receiverDate,
+          status: "pending" as const,
+          registeredBy: pkg.receiverConciergeName,
+          registeredAt: pkg.receiverDate,
+        }));
+
+        // Map delivered packages
+        const deliveredMapped: PackageData[] = delivered.map((pkg) => ({
+          id: pkg._id,
+          recipientName: pkg.ownerName,
+          description: pkg.description,
+          apartment: pkg.apartmentNumber,
+          arrivalDate: pkg.deliveryDate, // Using deliveryDate as reference
+          status: "delivered" as const,
+          deliveredAt: pkg.deliveryDate,
+          receivedBy: pkg.recipientName,
+          registeredBy: pkg.deliveryConciergeName,
+          registeredAt: pkg.deliveryDate,
+        }));
+
+        setPackages([...pendingMapped, ...deliveredMapped]);
+
+        // Extract unique apartment numbers for the select
+        const uniqueApartments = Array.from(
+          new Set([
+            ...pending.map((p) => p.apartmentNumber),
+            ...delivered.map((p) => p.apartmentNumber),
+          ])
+        ).sort();
+        setApartments(uniqueApartments);
+      } catch (error: any) {
+        toast.error(error.message || "Erro ao carregar encomendas");
+      } finally {
+        setIsLoading(false);
+      }
     };
     loadData();
   }, []);
@@ -98,119 +210,6 @@ export default function ConciergePackages() {
     },
   });
 
-  // Mock data - packages
-  const [packages, setPackages] = useState<PackageData[]>([
-    {
-      id: 1,
-      recipientName: "João Silva Santos",
-      description: "Caixa grande - Amazon (eletrônicos)",
-      apartment: "101",
-      arrivalDate: "2025-10-20T09:30:00",
-      status: "pending",
-      registeredBy: "Maria Santos",
-      registeredAt: "2025-10-20T09:30:00",
-    },
-    {
-      id: 2,
-      recipientName: "Maria Oliveira Costa",
-      description: "Envelope - Correios (documentos)",
-      apartment: "102",
-      arrivalDate: "2025-10-20T10:15:00",
-      status: "pending",
-      registeredBy: "José Silva",
-      registeredAt: "2025-10-20T10:15:00",
-    },
-    {
-      id: 3,
-      recipientName: "Pedro Henrique Souza",
-      description: "Caixa média - Mercado Livre",
-      apartment: "103",
-      arrivalDate: "2025-10-20T11:00:00",
-      status: "pending",
-      registeredBy: "José Silva",
-      registeredAt: "2025-10-20T11:00:00",
-    },
-    {
-      id: 4,
-      recipientName: "Ana Paula Ferreira",
-      description: "Caixa pequena - Shopee (roupas)",
-      apartment: "201",
-      arrivalDate: "2025-10-19T16:45:00",
-      status: "delivered",
-      deliveredAt: "2025-10-19T18:30:00",
-      receivedBy: "Ana Paula Ferreira",
-      registeredBy: "Maria Santos",
-      registeredAt: "2025-10-19T16:45:00",
-    },
-    {
-      id: 5,
-      recipientName: "Carlos Eduardo Lima",
-      description: "Envelope - Sedex",
-      apartment: "202",
-      arrivalDate: "2025-10-19T14:20:00",
-      status: "delivered",
-      deliveredAt: "2025-10-19T19:15:00",
-      receivedBy: "Carlos Eduardo Lima",
-      registeredBy: "José Silva",
-      registeredAt: "2025-10-19T14:20:00",
-    },
-    {
-      id: 6,
-      recipientName: "Juliana Martins Rocha",
-      description: "Caixa grande - Americanas (móveis)",
-      apartment: "203",
-      arrivalDate: "2025-10-18T08:00:00",
-      status: "delivered",
-      deliveredAt: "2025-10-18T20:00:00",
-      receivedBy: "Juliana Martins",
-      registeredBy: "Maria Santos",
-      registeredAt: "2025-10-18T08:00:00",
-    },
-    {
-      id: 7,
-      recipientName: "Roberto Carlos Alves",
-      description: "Pacote - DHL (importação)",
-      apartment: "301",
-      arrivalDate: "2025-10-20T07:45:00",
-      status: "pending",
-      registeredBy: "José Silva",
-      registeredAt: "2025-10-20T07:45:00",
-    },
-    {
-      id: 8,
-      recipientName: "Fernanda Costa Dias",
-      description: "Envelope - Carta registrada",
-      apartment: "302",
-      arrivalDate: "2025-10-19T11:30:00",
-      status: "pending",
-      registeredBy: "Maria Santos",
-      registeredAt: "2025-10-19T11:30:00",
-    },
-  ]);
-
-  // Mock data - apartments
-  const apartments = [
-    "101",
-    "102",
-    "103",
-    "104",
-    "105",
-    "201",
-    "202",
-    "203",
-    "204",
-    "205",
-    "301",
-    "302",
-    "303",
-    "304",
-    "305",
-    "401",
-    "402",
-    "403",
-    "404",
-    "405",
-  ];
 
   const pendingPackages = packages.filter((pkg) => pkg.status === "pending");
   const deliveredPackages = packages.filter(
@@ -233,21 +232,110 @@ export default function ConciergePackages() {
 
   const handleAddPackage = async (data: PackageSchema) => {
     try {
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      // Validar se temos o ID do porteiro - tentar buscar novamente se não tiver
+      let currentConciergeId = conciergeId || localStorage.getItem("concierge_id") || "";
+      
+      // Se ainda não tiver ID, tentar buscar do perfil
+      if (!currentConciergeId) {
+        const token = localStorage.getItem("concierge_token");
+        if (token) {
+          try {
+            const concierge = await getCurrentConcierge();
+            if (concierge.id) {
+              currentConciergeId = String(concierge.id);
+              setConciergeId(currentConciergeId);
+              localStorage.setItem("concierge_id", currentConciergeId);
+            }
+          } catch (error: any) {
+            // Tentar decodificar o token JWT como fallback
+            try {
+              const tokenParts = token.split('.');
+              if (tokenParts.length === 3) {
+                const payload = JSON.parse(atob(tokenParts[1]));
+                if (payload.id || payload.sub || payload.userId) {
+                  currentConciergeId = String(payload.id || payload.sub || payload.userId);
+                  setConciergeId(currentConciergeId);
+                  localStorage.setItem("concierge_id", currentConciergeId);
+                }
+              }
+            } catch (decodeError) {
+              // Ignorar erro de decodificação
+            }
+          }
+        }
+      }
+      
+      if (!currentConciergeId) {
+        toast.error("ID do porteiro não encontrado. Faça login novamente.");
+        return;
+      }
 
-      const newPackage: PackageData = {
-        id: packages.length + 1,
-        ...data,
-        status: "pending",
-        registeredBy: conciergeName,
-        registeredAt: new Date().toISOString(),
-      };
+      // Buscar o ID do apartamento pelo número
+      const buildingId = localStorage.getItem("concierge_building_id");
+      if (!buildingId) {
+        toast.error("ID do condomínio não encontrado. Faça login novamente.");
+        return;
+      }
 
-      setPackages([newPackage, ...packages]);
+      let apartmentId: string;
+      try {
+        const apartment = await getApartmentByNumber(buildingId, data.apartment);
+        if (!apartment) {
+          toast.error(`Apartamento ${data.apartment} não encontrado no condomínio.`);
+          return;
+        }
+        apartmentId = apartment._id;
+      } catch (error: any) {
+        toast.error(error.message || "Erro ao buscar apartamento. Verifique se o número está correto.");
+        return;
+      }
+
+      // Convert datetime-local to ISO string
+      const receiverDate = new Date(data.arrivalDate).toISOString();
+
+      await createPackage({
+        ownerName: data.recipientName,
+        apartmentId: apartmentId,
+        description: data.description,
+        receiverDate: receiverDate,
+        receiverConciergeId: currentConciergeId,
+      });
 
       toast.success("Encomenda cadastrada com sucesso!");
       setIsAddDialogOpen(false);
       packageForm.reset();
+
+      // Reload packages
+      const [pending, delivered] = await Promise.all([
+        getPendingPackages(),
+        getDeliveredPackages(),
+      ]);
+
+      const pendingMapped: PackageData[] = pending.map((pkg) => ({
+        id: pkg._id,
+        recipientName: pkg.ownerName,
+        description: pkg.description,
+        apartment: pkg.apartmentNumber,
+        arrivalDate: pkg.receiverDate,
+        status: "pending" as const,
+        registeredBy: pkg.receiverConciergeName,
+        registeredAt: pkg.receiverDate,
+      }));
+
+      const deliveredMapped: PackageData[] = delivered.map((pkg) => ({
+        id: pkg._id,
+        recipientName: pkg.ownerName,
+        description: pkg.description,
+        apartment: pkg.apartmentNumber,
+        arrivalDate: pkg.deliveryDate,
+        status: "delivered" as const,
+        deliveredAt: pkg.deliveryDate,
+        receivedBy: pkg.recipientName,
+        registeredBy: pkg.deliveryConciergeName,
+        registeredAt: pkg.deliveryDate,
+      }));
+
+      setPackages([...pendingMapped, ...deliveredMapped]);
     } catch (error: any) {
       toast.error(error.message || "Erro ao cadastrar encomenda");
     }
@@ -257,20 +345,48 @@ export default function ConciergePackages() {
     if (!selectedPackage) return;
 
     try {
-      await new Promise((resolve) => setTimeout(resolve, 800));
-
-      setPackages(
-        packages.map((pkg) =>
-          pkg.id === selectedPackage.id
-            ? {
-                ...pkg,
-                status: "delivered" as const,
-                deliveredAt: new Date().toISOString(),
-                receivedBy: data.receivedBy,
+      // Validar se temos o ID do porteiro - tentar buscar novamente se não tiver
+      let currentConciergeId = conciergeId || localStorage.getItem("concierge_id") || "";
+      
+      // Se ainda não tiver ID, tentar buscar do perfil
+      if (!currentConciergeId) {
+        const token = localStorage.getItem("concierge_token");
+        if (token) {
+          try {
+            const concierge = await getCurrentConcierge();
+            if (concierge.id) {
+              currentConciergeId = String(concierge.id);
+              setConciergeId(currentConciergeId);
+              localStorage.setItem("concierge_id", currentConciergeId);
+            }
+          } catch (error: any) {
+            // Tentar decodificar o token JWT como fallback
+            try {
+              const tokenParts = token.split('.');
+              if (tokenParts.length === 3) {
+                const payload = JSON.parse(atob(tokenParts[1]));
+                if (payload.id || payload.sub || payload.userId) {
+                  currentConciergeId = String(payload.id || payload.sub || payload.userId);
+                  setConciergeId(currentConciergeId);
+                  localStorage.setItem("concierge_id", currentConciergeId);
+                }
               }
-            : pkg
-        )
-      );
+            } catch (decodeError) {
+              // Ignorar erro de decodificação
+            }
+          }
+        }
+      }
+      
+      if (!currentConciergeId) {
+        toast.error("ID do porteiro não encontrado. Faça login novamente.");
+        return;
+      }
+
+      await confirmPackageDelivery(selectedPackage.id, {
+        recipientName: data.receivedBy,
+        deliveryConciergeId: currentConciergeId,
+      });
 
       toast.success(
         `Encomenda marcada como entregue! Recebida por: ${data.receivedBy}`
@@ -278,6 +394,38 @@ export default function ConciergePackages() {
       setIsDeliveryDialogOpen(false);
       setSelectedPackage(null);
       deliveryForm.reset();
+
+      // Reload packages
+      const [pending, delivered] = await Promise.all([
+        getPendingPackages(),
+        getDeliveredPackages(),
+      ]);
+
+      const pendingMapped: PackageData[] = pending.map((pkg) => ({
+        id: pkg._id,
+        recipientName: pkg.ownerName,
+        description: pkg.description,
+        apartment: pkg.apartmentNumber,
+        arrivalDate: pkg.receiverDate,
+        status: "pending" as const,
+        registeredBy: pkg.receiverConciergeName,
+        registeredAt: pkg.receiverDate,
+      }));
+
+      const deliveredMapped: PackageData[] = delivered.map((pkg) => ({
+        id: pkg._id,
+        recipientName: pkg.ownerName,
+        description: pkg.description,
+        apartment: pkg.apartmentNumber,
+        arrivalDate: pkg.deliveryDate,
+        status: "delivered" as const,
+        deliveredAt: pkg.deliveryDate,
+        receivedBy: pkg.recipientName,
+        registeredBy: pkg.deliveryConciergeName,
+        registeredAt: pkg.deliveryDate,
+      }));
+
+      setPackages([...pendingMapped, ...deliveredMapped]);
     } catch (error: any) {
       toast.error(error.message || "Erro ao marcar encomenda como entregue");
     }
@@ -583,11 +731,17 @@ export default function ConciergePackages() {
                   <SelectValue placeholder="Selecione o apartamento" />
                 </SelectTrigger>
                 <SelectContent>
-                  {apartments.map((apt) => (
-                    <SelectItem key={apt} value={apt}>
-                      Apartamento {apt}
+                  {apartments.length > 0 ? (
+                    apartments.map((apt) => (
+                      <SelectItem key={apt} value={apt}>
+                        Apartamento {apt}
+                      </SelectItem>
+                    ))
+                  ) : (
+                    <SelectItem value="" disabled>
+                      Nenhum apartamento disponível
                     </SelectItem>
-                  ))}
+                  )}
                 </SelectContent>
               </Select>
               {packageForm.formState.errors.apartment && (

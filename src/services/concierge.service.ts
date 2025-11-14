@@ -251,14 +251,18 @@ export async function resetPasswordConcierge(
 }
 
 export type LoginConciergeRequest = {
+  buildingId: string;
   email: string;
   password: string;
 };
 
 export type LoginConciergeResponse = {
-  token?: string;
-  user?: any;
-  message?: string;
+  success: boolean;
+  message: string;
+  data: {
+    token: string;
+    refreshToken: string;
+  };
 };
 
 export async function loginConcierge(
@@ -266,7 +270,7 @@ export async function loginConcierge(
 ): Promise<LoginConciergeResponse> {
   try {
     const res = await fetch(
-      "http://localhost:3000/api/coliseu/v1/concierges/login",
+      "http://localhost:3000/api/coliseu/v1/auth/login/concierge",
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -282,7 +286,61 @@ export async function loginConcierge(
       throw new Error(message);
     }
     const data = await res.json();
-    return (data && (data.data || data)) as LoginConciergeResponse;
+    return data as LoginConciergeResponse;
+  } catch (error: any) {
+    if (error instanceof TypeError && error.message === "Failed to fetch") {
+      throw new Error("Erro de conexão. Verifique se o servidor está rodando.");
+    }
+    throw error;
+  }
+}
+
+/**
+ * Busca o perfil do concierge logado usando o token
+ * Endpoint esperado: GET /api/coliseu/v1/concierges/me
+ */
+export async function getCurrentConcierge(): Promise<Concierge> {
+  try {
+    const token = localStorage.getItem("concierge_token");
+    if (!token) {
+      throw new Error("Token não encontrado. Faça login novamente.");
+    }
+
+    const res = await fetch(
+      "http://localhost:3000/api/coliseu/v1/concierges/me",
+      {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+      },
+    );
+
+    if (!res.ok) {
+      let message = "Erro ao carregar perfil do porteiro";
+      try {
+        const data = await res.json();
+        message = data?.message || message;
+      } catch {}
+      throw new Error(message);
+    }
+
+    const data = await res.json();
+    const item = data && ((data as any).data || data);
+    if (!item) throw new Error("Perfil não encontrado");
+
+    // Normalize id field from _id/id/uuid
+    return {
+      id: item._id ?? item.id ?? item.uuid,
+      name: item.name,
+      email: item.email,
+      phone: item.phone,
+      shift: item.shift,
+      status: item.status,
+      createdAt: item.createdAt,
+      updatedAt: item.updatedAt,
+    } as Concierge;
   } catch (error: any) {
     if (error instanceof TypeError && error.message === "Failed to fetch") {
       throw new Error("Erro de conexão. Verifique se o servidor está rodando.");

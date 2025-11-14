@@ -119,7 +119,7 @@ export default function ConciergeLogin() {
         <CardContent>
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
             <div className="space-y-2">
-              <Label htmlFor="building">Prédio</Label>
+              <Label htmlFor="buildingId">Condomínio *</Label>
               <Select
                 value={selectedBuildingId}
                 onValueChange={(value) => setValue("buildingId", value)}
@@ -129,17 +129,23 @@ export default function ConciergeLogin() {
                   <SelectValue
                     placeholder={
                       isLoadingBuildings
-                        ? "Carregando prédios..."
-                        : "Selecione o prédio"
+                        ? "Carregando condomínios..."
+                        : "Selecione o condomínio"
                     }
                   />
                 </SelectTrigger>
                 <SelectContent>
-                  {buildings.map((building) => (
-                    <SelectItem key={building._id} value={building._id}>
-                      {building.name}
+                  {buildings.length > 0 ? (
+                    buildings.map((building) => (
+                      <SelectItem key={building._id} value={building._id}>
+                        {building.name} - {building.city}/{building.state}
+                      </SelectItem>
+                    ))
+                  ) : (
+                    <SelectItem value="" disabled>
+                      {isLoadingBuildings ? "Carregando..." : "Nenhum condomínio disponível"}
                     </SelectItem>
-                  ))}
+                  )}
                 </SelectContent>
               </Select>
               {errors.buildingId && (

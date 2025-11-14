@@ -1,0 +1,222 @@
+export type CreatePackageRequest = {
+  ownerName: string;
+  apartmentId: string;
+  description: string;
+  receiverDate: string;
+  receiverConciergeId: string;
+};
+
+export type CreatePackageResponse = {
+  success: boolean;
+  message: string;
+  data: {
+    id: string;
+    ownerName: string;
+    description: string;
+  };
+};
+
+export type PendingPackage = {
+  _id: string;
+  ownerName: string;
+  description: string;
+  apartmentNumber: string;
+  receiverDate: string;
+  receiverConciergeName: string;
+};
+
+export type DeliveredPackage = {
+  _id: string;
+  ownerName: string;
+  description: string;
+  apartmentNumber: string;
+  deliveryDate: string;
+  recipientName: string;
+  deliveryConciergeName: string;
+};
+
+export type Package = {
+  _id: string;
+  apartmentId: string;
+  receiverConciergeId: string;
+  deliveryConciergeId?: string;
+  ownerName: string;
+  courierName?: string;
+  recipientName?: string;
+  description: string;
+  receiverDate: string;
+  deliveryDate?: string;
+  status: string;
+  createdAt: string;
+  updatedAt: string;
+  apartmentNumber?: string;
+  receiverConciergeName?: string;
+  deliveryConciergeName?: string;
+};
+
+export type ConfirmDeliveryRequest = {
+  recipientName: string;
+  deliveryConciergeId: string;
+};
+
+export async function createPackage(
+  payload: CreatePackageRequest,
+): Promise<CreatePackageResponse> {
+  try {
+    const response = await fetch(
+      "http://localhost:3000/api/coliseu/v1/packages",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      },
+    );
+
+    if (!response.ok) {
+      let message = "Erro ao cadastrar encomenda";
+      try {
+        const data = await response.json();
+        message = data?.message || message;
+      } catch {}
+      throw new Error(message);
+    }
+
+    return response.json();
+  } catch (error: any) {
+    if (error instanceof TypeError && error.message === "Failed to fetch") {
+      throw new Error("Erro de conexão. Verifique se o servidor está rodando.");
+    }
+    throw error;
+  }
+}
+
+export async function getPendingPackages(): Promise<PendingPackage[]> {
+  try {
+    const res = await fetch(
+      "http://localhost:3000/api/coliseu/v1/packages/pending",
+    );
+
+    if (!res.ok) {
+      let message = "Erro ao carregar encomendas pendentes";
+      try {
+        const data = await res.json();
+        message = data?.message || message;
+      } catch {}
+      throw new Error(message);
+    }
+
+    const data = await res.json();
+    const arr = Array.isArray(data)
+      ? data
+      : Array.isArray((data as any)?.data)
+      ? (data as any).data
+      : [];
+
+    return arr as PendingPackage[];
+  } catch (error: any) {
+    if (error instanceof TypeError && error.message === "Failed to fetch") {
+      throw new Error("Erro de conexão. Verifique se o servidor está rodando.");
+    }
+    throw error;
+  }
+}
+
+export async function getDeliveredPackages(): Promise<DeliveredPackage[]> {
+  try {
+    const res = await fetch(
+      "http://localhost:3000/api/coliseu/v1/packages/delivered",
+    );
+
+    if (!res.ok) {
+      let message = "Erro ao carregar encomendas entregues";
+      try {
+        const data = await res.json();
+        message = data?.message || message;
+      } catch {}
+      throw new Error(message);
+    }
+
+    const data = await res.json();
+    const arr = Array.isArray(data)
+      ? data
+      : Array.isArray((data as any)?.data)
+      ? (data as any).data
+      : [];
+
+    return arr as DeliveredPackage[];
+  } catch (error: any) {
+    if (error instanceof TypeError && error.message === "Failed to fetch") {
+      throw new Error("Erro de conexão. Verifique se o servidor está rodando.");
+    }
+    throw error;
+  }
+}
+
+export async function getPackageById(id: string): Promise<Package> {
+  try {
+    const res = await fetch(
+      `http://localhost:3000/api/coliseu/v1/packages/${id}`,
+    );
+
+    if (!res.ok) {
+      let message = "Erro ao carregar encomenda";
+      try {
+        const data = await res.json();
+        message = data?.message || message;
+      } catch {}
+      throw new Error(message);
+    }
+
+    const data = await res.json();
+    const item = data && ((data as any).data || data);
+    if (!item) throw new Error("Encomenda não encontrada");
+
+    return item as Package;
+  } catch (error: any) {
+    if (error instanceof TypeError && error.message === "Failed to fetch") {
+      throw new Error("Erro de conexão. Verifique se o servidor está rodando.");
+    }
+    throw error;
+  }
+}
+
+export async function confirmPackageDelivery(
+  id: string,
+  payload: ConfirmDeliveryRequest,
+): Promise<Package> {
+  try {
+    const res = await fetch(
+      `http://localhost:3000/api/coliseu/v1/packages/${id}/confirm-delivery`,
+      {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      },
+    );
+
+    if (!res.ok) {
+      let message = "Erro ao confirmar entrega";
+      try {
+        const data = await res.json();
+        message = data?.message || message;
+      } catch {}
+      throw new Error(message);
+    }
+
+    const data = await res.json();
+    const item = data && ((data as any).data || data);
+    if (!item) throw new Error("Erro ao processar resposta");
+
+    return item as Package;
+  } catch (error: any) {
+    if (error instanceof TypeError && error.message === "Failed to fetch") {
+      throw new Error("Erro de conexão. Verifique se o servidor está rodando.");
+    }
+    throw error;
+  }
+}
+
