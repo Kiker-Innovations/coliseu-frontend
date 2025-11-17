@@ -1,74 +1,87 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Package, CheckCircle2, Clock, User } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Package, CheckCircle2, Clock, User, ExternalLink } from "lucide-react";
 import DashboardSkeleton from "@/skeleton/concierge/DashboardSkeleton";
+import { toast } from "sonner";
+import {
+  getPendingPackages,
+  getPackageStats,
+  type PendingPackage,
+  type PackageStats,
+} from "@/services/package.service";
+import { getCurrentConcierge } from "@/services/concierge.service";
+
+interface PackageData {
+  id: string;
+  recipientName: string;
+  description: string;
+  apartment: string;
+  arrivalDate: string;
+}
 
 export default function ConciergeDashboard() {
+  const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(true);
+  const [pendingPackages, setPendingPackages] = useState<PackageData[]>([]);
+  const [stats, setStats] = useState<PackageStats>({
+    totalPendings: 0,
+    totalConfirmed: 0,
+    totalPendingsWeek: 0,
+  });
+  const [apartmentWithMostPackages, setApartmentWithMostPackages] = useState<{
+    apartment: string;
+    packageCount: number;
+  } | null>(null);
 
   useEffect(() => {
     const loadData = async () => {
-      setIsLoading(false);
+      try {
+        setIsLoading(true);
+        const [pending, packageStats] = await Promise.all([
+          getPendingPackages(),
+          getPackageStats(),
+        ]);
+
+        // Map pending packages
+        const pendingMapped: PackageData[] = pending.map((pkg) => ({
+          id: pkg._id,
+          recipientName: pkg.ownerName,
+          description: pkg.description,
+          apartment: pkg.apartmentNumber,
+          arrivalDate: pkg.receiverDate,
+        }));
+
+        // Calculate apartment with most packages
+        const apartmentCounts: { [key: string]: number } = {};
+        pendingMapped.forEach((pkg) => {
+          apartmentCounts[pkg.apartment] = (apartmentCounts[pkg.apartment] || 0) + 1;
+        });
+
+        const sortedApartments = Object.entries(apartmentCounts).sort(
+          (a, b) => b[1] - a[1]
+        );
+
+        if (sortedApartments.length > 0) {
+          const [apartment, count] = sortedApartments[0];
+          setApartmentWithMostPackages({
+            apartment,
+            packageCount: count,
+          });
+        }
+
+        setPendingPackages(pendingMapped);
+        setStats(packageStats);
+      } catch (error: any) {
+        toast.error(error.message || "Erro ao carregar dados do dashboard");
+      } finally {
+        setIsLoading(false);
+      }
     };
+
     loadData();
   }, []);
-
-  // Mock data
-  const stats = {
-    pendingPackages: 12,
-    deliveredToday: 8,
-    totalToday: 20,
-  };
-
-  const pendingPackages = [
-    {
-      id: 1,
-      recipientName: "João Silva Santos",
-      description: "Caixa grande - Amazon",
-      apartment: "101",
-      arrivalDate: "2025-10-20T09:30:00",
-    },
-    {
-      id: 2,
-      recipientName: "Maria Oliveira Costa",
-      description: "Envelope - Correios",
-      apartment: "102",
-      arrivalDate: "2025-10-20T10:15:00",
-    },
-    {
-      id: 3,
-      recipientName: "Pedro Henrique Souza",
-      description: "Caixa média - Mercado Livre",
-      apartment: "103",
-      arrivalDate: "2025-10-20T11:00:00",
-    },
-    {
-      id: 4,
-      recipientName: "Ana Paula Ferreira",
-      description: "Caixa pequena - Shopee",
-      apartment: "201",
-      arrivalDate: "2025-10-19T16:45:00",
-    },
-    {
-      id: 5,
-      recipientName: "Carlos Eduardo Lima",
-      description: "Envelope - Sedex",
-      apartment: "202",
-      arrivalDate: "2025-10-19T14:20:00",
-    },
-  ];
-
-  const apartmentWithMostPackages = {
-    apartment: "202",
-    packageCount: 5,
-    residents: [
-      {
-        name: "Carlos Eduardo Lima",
-        email: "carlos.lima@email.com",
-        phone: "(11) 98765-4321",
-      },
-    ],
-  };
 
   if (isLoading) {
     return <DashboardSkeleton />;
@@ -91,7 +104,7 @@ export default function ConciergeDashboard() {
               <div>
                 <p className="text-sm text-muted-foreground">A Entregar</p>
                 <p className="text-3xl font-bold text-destructive">
-                  {stats.pendingPackages}
+                  {stats.totalPendings}
                 </p>
               </div>
               <div className="w-12 h-12 rounded-full bg-destructive/10 flex items-center justify-center">
@@ -107,7 +120,7 @@ export default function ConciergeDashboard() {
               <div>
                 <p className="text-sm text-muted-foreground">Entregues Hoje</p>
                 <p className="text-3xl font-bold text-green-600">
-                  {stats.deliveredToday}
+                  {stats.totalConfirmed}
                 </p>
               </div>
               <div className="w-12 h-12 rounded-full bg-green-500/10 flex items-center justify-center">
@@ -121,13 +134,13 @@ export default function ConciergeDashboard() {
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-muted-foreground">Total Hoje</p>
-                <p className="text-3xl font-bold text-primary">
-                  {stats.totalToday}
+                <p className="text-sm text-muted-foreground">Entregues nesta semana</p>
+                <p className="text-3xl font-bold text-green-600">
+                  {stats.totalPendingsWeek}
                 </p>
               </div>
-              <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
-                <Package className="w-6 h-6 text-primary" />
+              <div className="w-12 h-12 rounded-full bg-green-500/10 flex items-center justify-center">
+                <Package className="w-6 h-6 text-green-600" />
               </div>
             </div>
           </CardContent>
@@ -137,78 +150,81 @@ export default function ConciergeDashboard() {
       {/* Pending Packages List */}
       <Card>
         <CardHeader>
-          <CardTitle>Encomendas Pendentes</CardTitle>
+          <div className="flex items-center justify-between">
+            <CardTitle>Encomendas Pendentes</CardTitle>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => navigate("/concierge/packages")}
+              className="gap-2"
+            >
+              Ver todas
+              <ExternalLink className="w-4 h-4" />
+            </Button>
+          </div>
         </CardHeader>
         <CardContent>
           <div className="space-y-3">
-            {pendingPackages.map((pkg) => (
-              <div
-                key={pkg.id}
-                className="flex items-center justify-between p-4 border rounded-lg hover:bg-accent/5 transition-colors"
-              >
-                <div className="flex items-center gap-4">
-                  <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-                    <Package className="w-5 h-5 text-primary" />
-                  </div>
-                  <div>
-                    <p className="font-medium">{pkg.recipientName}</p>
-                    <p className="text-sm text-muted-foreground">
-                      {pkg.description}
-                    </p>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Chegou em:{" "}
-                      {new Date(pkg.arrivalDate).toLocaleString("pt-BR")}
-                    </p>
-                  </div>
-                </div>
-                <div className="text-right">
-                  <p className="font-bold text-lg">Apto {pkg.apartment}</p>
-                </div>
+            {pendingPackages.length === 0 ? (
+              <div className="p-4 border rounded-lg text-center text-muted-foreground">
+                Nenhuma encomenda pendente encontrada
               </div>
-            ))}
+            ) : (
+              pendingPackages.map((pkg) => (
+                <div
+                  key={pkg.id}
+                  className="flex items-center justify-between p-4 border rounded-lg hover:bg-accent/5 transition-colors"
+                >
+                  <div className="flex items-center gap-4">
+                    <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                      <Package className="w-5 h-5 text-primary" />
+                    </div>
+                    <div>
+                      <p className="font-medium">{pkg.recipientName}</p>
+                      <p className="text-sm text-muted-foreground">
+                        {pkg.description || "Sem descrição"}
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Chegou em:{" "}
+                        {new Date(pkg.arrivalDate).toLocaleString("pt-BR")}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <p className="font-bold text-lg">Apto {pkg.apartment}</p>
+                  </div>
+                </div>
+              ))
+            )}
           </div>
         </CardContent>
       </Card>
 
       {/* Apartment with Most Packages */}
-      <Card className="border-2 border-primary/50">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <User className="w-5 h-5 text-primary" />
-            Apartamento com Mais Encomendas
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            <div className="flex items-center justify-between p-4 bg-primary/5 rounded-lg">
-              <div>
-                <p className="text-2xl font-bold">
-                  Apartamento {apartmentWithMostPackages.apartment}
-                </p>
-                <p className="text-sm text-muted-foreground">
-                  {apartmentWithMostPackages.packageCount} encomendas pendentes
-                </p>
+      {apartmentWithMostPackages && (
+        <Card className="border-2 border-primary/50">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <User className="w-5 h-5 text-primary" />
+              Apartamento com Mais Encomendas
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <div className="flex items-center justify-between p-4 bg-primary/5 rounded-lg">
+                <div>
+                  <p className="text-2xl font-bold">
+                    Apartamento {apartmentWithMostPackages.apartment}
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    {apartmentWithMostPackages.packageCount} encomenda(s) pendente(s)
+                  </p>
+                </div>
               </div>
             </div>
-
-            <div className="space-y-3">
-              <p className="font-medium">Moradores:</p>
-              {apartmentWithMostPackages.residents.map((resident, idx) => (
-                <div
-                  key={idx}
-                  className="p-4 border rounded-lg bg-card space-y-2"
-                >
-                  <p className="font-medium text-lg">{resident.name}</p>
-                  <div className="space-y-1 text-sm text-muted-foreground">
-                    <p>📧 {resident.email}</p>
-                    <p>📱 {resident.phone}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

@@ -42,10 +42,10 @@ export default function ConciergeLogin() {
         return;
       }
 
-      // Redirect if already authenticated
+      // If already authenticated as concierge, logout first to allow access to login page
       if (isAuthenticated && userType === "concierge") {
-        navigate("/concierge/dashboard");
-        return;
+        // Don't redirect - allow access to login page directly
+        // User can log in again if needed
       }
 
       // Load buildings
@@ -61,7 +61,7 @@ export default function ConciergeLogin() {
       }
     };
     initialize();
-  }, [isAuthenticated, userType, navigate, isAuthLoading]);
+  }, [isAuthenticated, userType, isAuthLoading]);
 
   const {
     register,
