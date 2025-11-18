@@ -44,7 +44,7 @@ import {
   type CondominiumBasicInfoSchema,
   commonAreaSchema,
   type CommonAreaSchema,
-} from "@/schemas/admin/condominium-info.schema";
+} from "@/schemas/admin/condominiumInfo.schema";
 import CondominiumInfoSkeleton from "@/skeleton/admin/CondominiumInfoSkeleton";
 
 export default function CondominiumInfo() {

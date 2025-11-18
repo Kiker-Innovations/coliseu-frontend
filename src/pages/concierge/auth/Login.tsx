@@ -29,7 +29,12 @@ import {
 
 export default function ConciergeLogin() {
   const navigate = useNavigate();
-  const { loginConcierge, isAuthenticated, userType, isLoading: isAuthLoading } = useAuth();
+  const {
+    loginConcierge,
+    isAuthenticated,
+    userType,
+    isLoading: isAuthLoading,
+  } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
   const [buildings, setBuildings] = useState<Building[]>([]);
   const [isLoadingBuildings, setIsLoadingBuildings] = useState(true);
@@ -92,15 +97,15 @@ export default function ConciergeLogin() {
         },
         data.rememberMe
       );
-      
+
       // Salvar buildingId para uso posterior
       localStorage.setItem("concierge_building_id", data.buildingId);
-      
+
       toast.success("Login realizado com sucesso!");
-      
+
       // Redirect to dashboard after successful login
       setTimeout(() => {
-        navigate("/concierge/dashboard", { replace: true });
+        window.location.reload();
       }, 500);
     } catch (error: any) {
       toast.error(error.message || "Erro ao fazer login");
@@ -167,7 +172,9 @@ export default function ConciergeLogin() {
                     ))
                   ) : (
                     <SelectItem value="" disabled>
-                      {isLoadingBuildings ? "Carregando..." : "Nenhum condomínio disponível"}
+                      {isLoadingBuildings
+                        ? "Carregando..."
+                        : "Nenhum condomínio disponível"}
                     </SelectItem>
                   )}
                 </SelectContent>

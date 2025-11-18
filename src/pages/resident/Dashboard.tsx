@@ -43,7 +43,18 @@ export default function Dashboard() {
   ];
 
   const financialData = {
-    totalBudget: 50000,
+    condominiumFund: 40000,
+    recurringExpenses: [
+      { name: "Manutenção Predial", value: 3200 },
+      { name: "Limpeza", value: 2800 },
+      { name: "Segurança", value: 4500 },
+      { name: "Energia Elétrica", value: 1800 },
+      { name: "Água", value: 1200 },
+    ],
+    oneTimeExpenses: [
+      { name: "Reparo do Portão Principal", value: 850 },
+      { name: "Compra de Materiais de Limpeza", value: 450 },
+    ],
     approvedSuggestions: [
       { name: "Reforma da Piscina", total: 15000, installments: 10, paid: 3 },
       { name: "Nova Churrasqueira", total: 8000, installments: 8, paid: 2 },
@@ -51,17 +62,32 @@ export default function Dashboard() {
     ],
   };
 
-  const monthlyPayment = financialData.approvedSuggestions.reduce(
+  // Cálculos
+  const totalRecurringExpenses = financialData.recurringExpenses.reduce(
+    (sum, exp) => sum + exp.value,
+    0
+  );
+
+  const totalOneTimeExpenses = financialData.oneTimeExpenses.reduce(
+    (sum, exp) => sum + exp.value,
+    0
+  );
+
+  const totalSuggestionsMonthly = financialData.approvedSuggestions.reduce(
     (sum, s) => sum + s.total / s.installments,
     0
   );
-  const totalCommitted = financialData.approvedSuggestions.reduce(
+
+  const totalMonthlyExpenses =
+    totalRecurringExpenses + totalOneTimeExpenses + totalSuggestionsMonthly;
+
+  const totalSuggestionsRemaining = financialData.approvedSuggestions.reduce(
     (sum, s) => sum + s.total,
     0
   );
-  const remainingBudget = financialData.totalBudget - monthlyPayment;
-  const budgetBalance = financialData.totalBudget - totalCommitted;
-  const isPositiveBalance = budgetBalance >= 0;
+
+  const monthlyBalance = financialData.condominiumFund - totalMonthlyExpenses;
+  const isPositiveMonthlyBalance = monthlyBalance >= 0;
 
   const availableMonths = [
     { value: "2025-10", label: "Outubro 2025" },
@@ -166,70 +192,120 @@ export default function Dashboard() {
           <CardContent className="space-y-4">
             <div className="p-4 bg-primary/10 rounded-lg">
               <p className="text-sm text-muted-foreground">
-                Caixa Total do Condomínio
+                Caixa do Condomínio
               </p>
               <p className="text-2xl font-bold text-primary">
-                R$ {financialData.totalBudget.toLocaleString("pt-BR")}
+                R$ {financialData.condominiumFund.toLocaleString("pt-BR")}
               </p>
             </div>
 
+            {/* Despesas do Mês */}
+            <div className="space-y-2">
+              <h4 className="font-semibold text-sm">Despesas do Mês</h4>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div className="p-3 bg-orange-500/5 border border-orange-500/20 rounded-lg">
+                  <p className="text-xs text-muted-foreground">Recorrentes</p>
+                  <p className="text-lg font-bold text-orange-600 dark:text-orange-500">
+                    R$ {totalRecurringExpenses.toLocaleString("pt-BR")}
+                  </p>
+                </div>
+
+                <div className="p-3 bg-pink-500/5 border border-pink-500/20 rounded-lg">
+                  <p className="text-xs text-muted-foreground">Avulsas</p>
+                  <p className="text-lg font-bold text-pink-600 dark:text-pink-500">
+                    R$ {totalOneTimeExpenses.toLocaleString("pt-BR")}
+                  </p>
+                </div>
+              </div>
+
+              <div className="p-3 bg-blue-500/5 border border-blue-500/20 rounded-lg">
+                <p className="text-xs text-muted-foreground">
+                  Sugestões Aprovadas (Parcela Mensal)
+                </p>
+                <p className="text-lg font-bold text-blue-600 dark:text-blue-500">
+                  R${" "}
+                  {totalSuggestionsMonthly.toLocaleString("pt-BR", {
+                    maximumFractionDigits: 0,
+                  })}
+                </p>
+              </div>
+
+              <div className="p-4 bg-amber-500/10 rounded-lg border-2 border-amber-500/50">
+                <p className="text-sm text-muted-foreground">
+                  Total de Despesas do Mês
+                </p>
+                <p className="text-2xl font-bold text-amber-600 dark:text-amber-500">
+                  R${" "}
+                  {totalMonthlyExpenses.toLocaleString("pt-BR", {
+                    maximumFractionDigits: 0,
+                  })}
+                </p>
+              </div>
+            </div>
+
+            {/* Saldo do Mês */}
             <div
-              className={`p-4 rounded-lg ${
-                isPositiveBalance
-                  ? "bg-green-500/10 border-2 border-green-500/50"
-                  : "bg-red-500/10 border-2 border-red-500/50"
+              className={`p-4 rounded-lg border-2 ${
+                isPositiveMonthlyBalance
+                  ? "bg-green-500/10 border-green-500/50"
+                  : "bg-red-500/10 border-red-500/50"
               }`}
             >
-              <p className="text-sm text-muted-foreground">
-                Total Comprometido
-              </p>
+              <p className="text-sm text-muted-foreground">Saldo do Mês</p>
               <p
                 className={`text-2xl font-bold ${
-                  isPositiveBalance
+                  isPositiveMonthlyBalance
                     ? "text-green-600 dark:text-green-500"
                     : "text-red-600 dark:text-red-500"
                 }`}
               >
-                R$ {totalCommitted.toLocaleString("pt-BR")}
-              </p>
-            </div>
-
-            <div className="space-y-3">
-              <h4 className="font-semibold">Sugestões Aprovadas</h4>
-              {financialData.approvedSuggestions.map((suggestion) => (
-                <div
-                  key={suggestion.name}
-                  className="p-3 border border-border rounded-md"
-                >
-                  <p className="font-medium mb-2">{suggestion.name}</p>
-                  <div className="grid grid-cols-2 gap-2 text-sm">
-                    <div>
-                      <p className="text-muted-foreground">Valor Total</p>
-                      <p className="font-semibold">
-                        R$ {suggestion.total.toLocaleString("pt-BR")}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-muted-foreground">Parcelas</p>
-                      <p className="font-semibold">
-                        {suggestion.paid}/{suggestion.installments}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            <div className="p-4 bg-accent/10 rounded-lg border-2 border-accent">
-              <p className="text-sm text-muted-foreground">
-                Caixa Restante (após parcelas)
-              </p>
-              <p className="text-2xl font-bold text-accent">
                 R${" "}
-                {remainingBudget.toLocaleString("pt-BR", {
+                {monthlyBalance.toLocaleString("pt-BR", {
                   maximumFractionDigits: 0,
                 })}
               </p>
+              <p className="text-xs text-muted-foreground mt-1">
+                Caixa - Despesas Mensais
+              </p>
+            </div>
+
+            {/* Sugestões em Andamento */}
+            <div className="space-y-2">
+              <h4 className="font-semibold text-sm">Sugestões em Andamento</h4>
+              <div className="space-y-2 max-h-48 overflow-y-auto">
+                {financialData.approvedSuggestions.map((suggestion) => {
+                  const monthlyValue =
+                    suggestion.total / suggestion.installments;
+                  return (
+                    <div
+                      key={suggestion.name}
+                      className="p-3 bg-muted/50 rounded-md"
+                    >
+                      <p className="font-medium text-sm mb-1">
+                        {suggestion.name}
+                      </p>
+                      <div className="flex justify-between items-center text-xs">
+                        <span className="text-muted-foreground">
+                          Parcela: {suggestion.paid}/{suggestion.installments}
+                        </span>
+                        <div className="text-right">
+                          <p className="font-bold text-blue-600 dark:text-blue-500">
+                            R${" "}
+                            {monthlyValue.toLocaleString("pt-BR", {
+                              maximumFractionDigits: 0,
+                            })}
+                            /mês
+                          </p>
+                          <p className="text-muted-foreground text-[10px]">
+                            Total: R$ {suggestion.total.toLocaleString("pt-BR")}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           </CardContent>
         </Card>

@@ -89,7 +89,7 @@ export default function Login() {
       toast.success("Login realizado com sucesso!");
       setTimeout(() => {
         window.location.reload();
-      }, 3000);
+      }, 2000);
     } catch (error: any) {
       toast.error(error.message || "Erro ao fazer login");
     }

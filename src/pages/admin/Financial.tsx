@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Dialog,
   DialogContent,
@@ -34,6 +35,8 @@ import {
   Edit,
   Trash2,
   AlertCircle,
+  Image as ImageIcon,
+  Upload,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -43,14 +46,26 @@ import {
 import {
   recurringExpenseSchema,
   type RecurringExpenseSchema,
-} from "@/schemas/admin/recurring-expense.schema";
+} from "@/schemas/admin/recurringExpense.schema";
+import {
+  oneTimeExpenseSchema,
+  type OneTimeExpenseSchema,
+} from "@/schemas/admin/oneTimeExpense.schema";
 import FinancialSkeleton from "@/skeleton/admin/FinancialSkeleton";
 
 export default function Financial() {
   const [isLoading, setIsLoading] = useState(true);
   const [isExpenseDialogOpen, setIsExpenseDialogOpen] = useState(false);
   const [editingExpenseId, setEditingExpenseId] = useState<number | null>(null);
+  const [isOneTimeExpenseDialogOpen, setIsOneTimeExpenseDialogOpen] =
+    useState(false);
+  const [editingOneTimeExpenseId, setEditingOneTimeExpenseId] = useState<
+    number | null
+  >(null);
   const [selectedMonth, setSelectedMonth] = useState("2025-10");
+  const [selectedReceiptImage, setSelectedReceiptImage] = useState<File | null>(
+    null
+  );
 
   useEffect(() => {
     const loadData = async () => {
@@ -74,6 +89,15 @@ export default function Financial() {
       value: 0,
       hasExpirationDate: false,
       expirationDate: "",
+    },
+  });
+
+  const oneTimeExpenseForm = useForm<OneTimeExpenseSchema>({
+    resolver: zodResolver(oneTimeExpenseSchema),
+    defaultValues: {
+      name: "",
+      description: "",
+      value: 0,
     },
   });
 
@@ -125,6 +149,53 @@ export default function Financial() {
     },
   ];
 
+  // Despesas avulsas (específicas do mês)
+  const allOneTimeExpenses = [
+    {
+      id: 1,
+      name: "Reparo do Portão Principal",
+      description:
+        "Conserto do portão principal que estava com problema na trava eletrônica",
+      value: 850,
+      referenceMonth: "2025-10",
+      receiptImage:
+        "https://via.placeholder.com/400x300/4f46e5/ffffff?text=Recibo+Portão",
+    },
+    {
+      id: 2,
+      name: "Compra de Materiais de Limpeza",
+      description:
+        "Produtos de limpeza para uso geral no condomínio - detergentes, desinfetantes e sabão",
+      value: 450,
+      referenceMonth: "2025-10",
+      receiptImage: "",
+    },
+    {
+      id: 3,
+      name: "Manutenção do Elevador 2",
+      description:
+        "Manutenção preventiva e troca de cabos do elevador do bloco 2",
+      value: 1200,
+      referenceMonth: "2025-09",
+      receiptImage:
+        "https://via.placeholder.com/400x300/10b981/ffffff?text=Recibo+Elevador",
+    },
+    {
+      id: 4,
+      name: "Pintura do Hall de Entrada",
+      description:
+        "Pintura completa do hall de entrada com tinta acrílica premium",
+      value: 2300,
+      referenceMonth: "2025-09",
+      receiptImage: "",
+    },
+  ];
+
+  // Filtrar despesas avulsas do mês selecionado
+  const oneTimeExpenses = allOneTimeExpenses.filter(
+    (expense) => expense.referenceMonth === selectedMonth
+  );
+
   // Sugestões aprovadas com despesas
   const approvedSuggestions = [
     {
@@ -156,6 +227,11 @@ export default function Financial() {
     0
   );
 
+  const totalOneTimeExpenses = oneTimeExpenses.reduce(
+    (sum, exp) => sum + exp.value,
+    0
+  );
+
   const totalSuggestionsMonthlyExpense = approvedSuggestions.reduce(
     (sum, sug) => sum + sug.monthlyExpense,
     0
@@ -168,7 +244,9 @@ export default function Financial() {
 
   // Cálculos MENSAIS
   const totalMonthlyExpenses =
-    totalRecurringExpenses + totalSuggestionsMonthlyExpense;
+    totalRecurringExpenses +
+    totalSuggestionsMonthlyExpense +
+    totalOneTimeExpenses;
   const monthlyFund = financialData.condominiumFund - totalMonthlyExpenses;
   const isMonthlyFundPositive = monthlyFund >= 0;
 
@@ -241,6 +319,96 @@ export default function Financial() {
     expenseForm.reset();
   };
 
+  const handleReceiptImageSelect = (
+    event: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      setSelectedReceiptImage(file);
+      // Criar um FileList-like object para o react-hook-form
+      const dataTransfer = new DataTransfer();
+      dataTransfer.items.add(file);
+      oneTimeExpenseForm.setValue("receiptImage", dataTransfer.files, {
+        shouldValidate: true,
+      });
+      toast.success("Imagem selecionada com sucesso!");
+    }
+  };
+
+  const handleRemoveReceiptImage = () => {
+    setSelectedReceiptImage(null);
+    oneTimeExpenseForm.setValue("receiptImage", undefined);
+  };
+
+  const onOneTimeExpenseSubmit = async (data: OneTimeExpenseSchema) => {
+    try {
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+
+      // TODO: Implementar integração com API
+      // 1. Criar despesa avulsa e receber URL pré-assinada
+      // 2. Se houver imagem, fazer upload para a URL pré-assinada
+      // Exemplo:
+      // const response = await oneTimeExpensesService.create({
+      //   name: data.name,
+      //   description: data.description,
+      //   value: data.value,
+      //   referenceMonth: selectedMonth,
+      // });
+      //
+      // if (data.receiptImage?.[0] && response.data?.presignedUrl) {
+      //   await oneTimeExpensesService.uploadReceipt(
+      //     response.data.presignedUrl,
+      //     data.receiptImage[0]
+      //   );
+      // }
+
+      if (editingOneTimeExpenseId) {
+        toast.success("Despesa avulsa atualizada com sucesso!");
+      } else {
+        toast.success("Despesa avulsa cadastrada com sucesso!");
+      }
+
+      oneTimeExpenseForm.reset();
+      setSelectedReceiptImage(null);
+      setIsOneTimeExpenseDialogOpen(false);
+      setEditingOneTimeExpenseId(null);
+    } catch (error: any) {
+      toast.error(error.message || "Erro ao salvar despesa avulsa");
+    }
+  };
+
+  const handleEditOneTimeExpense = (expense: any) => {
+    setEditingOneTimeExpenseId(expense.id);
+    oneTimeExpenseForm.reset({
+      name: expense.name,
+      description: expense.description,
+      value: expense.value,
+    });
+    // Se tiver imagem salva, pode ser carregada aqui no futuro
+    setSelectedReceiptImage(null);
+    setIsOneTimeExpenseDialogOpen(true);
+  };
+
+  const handleDeleteOneTimeExpense = async (expenseId: number) => {
+    try {
+      await new Promise((resolve) => setTimeout(resolve, 500));
+      toast.success("Despesa avulsa removida com sucesso!");
+    } catch (error: any) {
+      toast.error("Erro ao remover despesa avulsa");
+    }
+  };
+
+  const handleCloseOneTimeExpenseDialog = () => {
+    setIsOneTimeExpenseDialogOpen(false);
+    setEditingOneTimeExpenseId(null);
+    setSelectedReceiptImage(null);
+    oneTimeExpenseForm.reset({
+      name: "",
+      description: "",
+      value: 0,
+    });
+  };
+
   if (isLoading) {
     return <FinancialSkeleton />;
   }
@@ -280,6 +448,7 @@ export default function Financial() {
           <TabsTrigger value="view">Consultar</TabsTrigger>
           <TabsTrigger value="register">Cadastrar Caixa</TabsTrigger>
           <TabsTrigger value="expenses">Despesas Recorrentes</TabsTrigger>
+          <TabsTrigger value="one-time-expenses">Despesas Avulsas</TabsTrigger>
         </TabsList>
 
         {/* Aba de Consulta */}
@@ -377,7 +546,7 @@ export default function Financial() {
                 Situação financeira considerando apenas o mês atual
               </p>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
               {/* Despesas Recorrentes Mensais */}
               <Card className="border-orange-500/50 bg-orange-500/5">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -392,6 +561,24 @@ export default function Financial() {
                   </div>
                   <p className="text-xs text-muted-foreground">
                     {recurringExpenses.length} despesa(s) mensal(is)
+                  </p>
+                </CardContent>
+              </Card>
+
+              {/* Despesas Avulsas */}
+              <Card className="border-pink-500/50 bg-pink-500/5">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">
+                    Despesas Avulsas
+                  </CardTitle>
+                  <Receipt className="h-4 w-4 text-pink-500" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold text-pink-600 dark:text-pink-500">
+                    R$ {totalOneTimeExpenses.toLocaleString("pt-BR")}
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    {oneTimeExpenses.length} despesa(s) do mês
                   </p>
                 </CardContent>
               </Card>
@@ -427,7 +614,7 @@ export default function Financial() {
                     R$ {totalMonthlyExpenses.toLocaleString("pt-BR")}
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    Recorrentes + Sugestões
+                    Todas as despesas
                   </p>
                 </CardContent>
               </Card>
@@ -597,6 +784,55 @@ export default function Financial() {
                 </div>
               </div>
 
+              {/* Despesas Avulsas */}
+              <div>
+                <h3 className="font-semibold text-lg mb-3 flex items-center gap-2">
+                  <Receipt className="w-5 h-5 text-pink-500" />
+                  Despesas Avulsas do Mês
+                </h3>
+                <div className="space-y-2">
+                  {oneTimeExpenses.length > 0 ? (
+                    <>
+                      {oneTimeExpenses.map((expense) => (
+                        <div
+                          key={expense.id}
+                          className="flex justify-between items-start p-3 rounded-lg bg-muted/50 hover:bg-muted/80 transition-colors"
+                        >
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2">
+                              <span className="font-medium">
+                                {expense.name}
+                              </span>
+                              {expense.receiptImage && (
+                                <ImageIcon className="w-4 h-4 text-primary" />
+                              )}
+                            </div>
+                            <p className="text-xs text-muted-foreground mt-1">
+                              {expense.description}
+                            </p>
+                          </div>
+                          <span className="text-lg font-bold">
+                            R$ {expense.value.toLocaleString("pt-BR")}
+                          </span>
+                        </div>
+                      ))}
+                      <div className="flex justify-between items-center p-3 rounded-lg bg-pink-500/10 border-2 border-pink-500/50">
+                        <span className="font-bold">Subtotal Avulsas</span>
+                        <span className="text-xl font-bold text-pink-600 dark:text-pink-500">
+                          R$ {totalOneTimeExpenses.toLocaleString("pt-BR")}
+                        </span>
+                      </div>
+                    </>
+                  ) : (
+                    <div className="p-3 rounded-lg bg-muted/30 text-center">
+                      <p className="text-sm text-muted-foreground">
+                        Nenhuma despesa avulsa neste mês
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
               {/* Despesas das Sugestões Aprovadas */}
               <div>
                 <h3 className="font-semibold text-lg mb-3 flex items-center gap-2">
@@ -648,10 +884,7 @@ export default function Financial() {
                   Total de Despesas Mensais
                 </span>
                 <span className="text-2xl font-bold text-primary">
-                  R${" "}
-                  {(
-                    totalRecurringExpenses + totalSuggestionsMonthlyExpense
-                  ).toLocaleString("pt-BR")}
+                  R$ {totalMonthlyExpenses.toLocaleString("pt-BR")}
                 </span>
               </div>
             </CardContent>
@@ -928,6 +1161,288 @@ export default function Financial() {
                   Nenhuma despesa recorrente cadastrada
                 </p>
                 <Button onClick={() => setIsExpenseDialogOpen(true)}>
+                  <Plus className="w-4 h-4 mr-2" />
+                  Cadastrar Primeira Despesa
+                </Button>
+              </CardContent>
+            </Card>
+          )}
+        </TabsContent>
+
+        {/* Aba de Despesas Avulsas */}
+        <TabsContent value="one-time-expenses" className="space-y-6">
+          <div className="flex justify-between items-center">
+            <div>
+              <h2 className="text-2xl font-bold">Despesas Avulsas do Mês</h2>
+              <p className="text-sm text-muted-foreground">
+                Despesas que aparecem apenas no mês selecionado
+              </p>
+            </div>
+            <Dialog
+              open={isOneTimeExpenseDialogOpen}
+              onOpenChange={(open) => {
+                if (!open) handleCloseOneTimeExpenseDialog();
+                else setIsOneTimeExpenseDialogOpen(true);
+              }}
+            >
+              <DialogTrigger asChild>
+                <Button>
+                  <Plus className="w-4 h-4 mr-2" />
+                  Nova Despesa Avulsa
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>
+                    {editingOneTimeExpenseId ? "Editar" : "Cadastrar"} Despesa
+                    Avulsa
+                  </DialogTitle>
+                  <DialogDescription>
+                    Despesa única que será contabilizada apenas no mês
+                    selecionado
+                  </DialogDescription>
+                </DialogHeader>
+                <form
+                  onSubmit={oneTimeExpenseForm.handleSubmit(
+                    onOneTimeExpenseSubmit
+                  )}
+                  className="space-y-4"
+                >
+                  <div className="space-y-2">
+                    <Label htmlFor="oneTimeName">Nome da Despesa</Label>
+                    <Input
+                      id="oneTimeName"
+                      placeholder="Ex: Reparo do Portão"
+                      {...oneTimeExpenseForm.register("name")}
+                    />
+                    {oneTimeExpenseForm.formState.errors.name && (
+                      <p className="text-sm text-destructive">
+                        {oneTimeExpenseForm.formState.errors.name.message}
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="oneTimeDescription">Descrição</Label>
+                    <Textarea
+                      id="oneTimeDescription"
+                      placeholder="Descreva os detalhes da despesa..."
+                      rows={3}
+                      {...oneTimeExpenseForm.register("description")}
+                    />
+                    {oneTimeExpenseForm.formState.errors.description && (
+                      <p className="text-sm text-destructive">
+                        {
+                          oneTimeExpenseForm.formState.errors.description
+                            .message
+                        }
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="oneTimeValue">Valor (R$)</Label>
+                    <div className="relative">
+                      <DollarSign className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        id="oneTimeValue"
+                        type="number"
+                        step="0.01"
+                        placeholder="0.00"
+                        {...oneTimeExpenseForm.register("value", {
+                          valueAsNumber: true,
+                        })}
+                        className="pl-9"
+                      />
+                    </div>
+                    {oneTimeExpenseForm.formState.errors.value && (
+                      <p className="text-sm text-destructive">
+                        {oneTimeExpenseForm.formState.errors.value.message}
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="receiptImage">
+                      Imagem do Recibo (Opcional)
+                    </Label>
+
+                    {selectedReceiptImage ? (
+                      <div className="space-y-3">
+                        <div className="relative border rounded-lg overflow-hidden bg-muted">
+                          <img
+                            src={URL.createObjectURL(selectedReceiptImage)}
+                            alt="Preview do recibo"
+                            className="w-full h-64 object-contain"
+                          />
+                          <div className="absolute top-2 right-2 flex gap-2">
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="secondary"
+                              onClick={() =>
+                                document.getElementById("receiptImage")?.click()
+                              }
+                            >
+                              <Upload className="mr-2 h-4 w-4" />
+                              Trocar Imagem
+                            </Button>
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="destructive"
+                              onClick={handleRemoveReceiptImage}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          {selectedReceiptImage.name} (
+                          {(selectedReceiptImage.size / 1024).toFixed(2)} KB)
+                        </p>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        className="w-full border-2 border-dashed rounded-lg p-8 text-center cursor-pointer hover:bg-muted/50 transition-colors"
+                        onClick={() =>
+                          document.getElementById("receiptImage")?.click()
+                        }
+                      >
+                        <div className="flex flex-col items-center gap-2">
+                          <div className="p-3 rounded-full bg-primary/10">
+                            <Upload className="h-8 w-8 text-primary" />
+                          </div>
+                          <div>
+                            <p className="font-medium">
+                              Clique para selecionar
+                            </p>
+                            <p className="text-xs text-muted-foreground mt-1">
+                              ou arraste a imagem aqui
+                            </p>
+                          </div>
+                          <p className="text-xs text-muted-foreground">
+                            PNG, JPG, JPEG ou WebP (máx. 5MB)
+                          </p>
+                        </div>
+                      </button>
+                    )}
+
+                    <input
+                      id="receiptImage"
+                      type="file"
+                      accept="image/jpeg,image/jpg,image/png,image/webp"
+                      {...oneTimeExpenseForm.register("receiptImage")}
+                      onChange={handleReceiptImageSelect}
+                      className="hidden"
+                    />
+
+                    {oneTimeExpenseForm.formState.errors.receiptImage && (
+                      <p className="text-sm text-destructive">
+                        {
+                          oneTimeExpenseForm.formState.errors.receiptImage
+                            .message
+                        }
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="flex gap-4">
+                    <Button
+                      type="submit"
+                      className="flex-1"
+                      disabled={oneTimeExpenseForm.formState.isSubmitting}
+                    >
+                      {oneTimeExpenseForm.formState.isSubmitting
+                        ? "Salvando..."
+                        : editingOneTimeExpenseId
+                        ? "Atualizar"
+                        : "Cadastrar"}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={handleCloseOneTimeExpenseDialog}
+                    >
+                      Cancelar
+                    </Button>
+                  </div>
+                </form>
+              </DialogContent>
+            </Dialog>
+          </div>
+
+          <div className="grid grid-cols-1 gap-4">
+            {oneTimeExpenses.map((expense) => (
+              <Card key={expense.id}>
+                <CardHeader>
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex-1 space-y-2">
+                      <CardTitle className="flex items-center gap-2">
+                        <Receipt className="w-5 h-5" />
+                        {expense.name}
+                      </CardTitle>
+                      <p className="text-sm text-muted-foreground">
+                        {expense.description}
+                      </p>
+                      <div className="flex items-center gap-4">
+                        <p className="text-2xl font-bold text-primary">
+                          R$ {expense.value.toLocaleString("pt-BR")}
+                        </p>
+                        <p className="text-sm text-muted-foreground flex items-center gap-1">
+                          <Calendar className="w-4 h-4" />
+                          {new Date(
+                            `${expense.referenceMonth}-01`
+                          ).toLocaleDateString("pt-BR", {
+                            month: "long",
+                            year: "numeric",
+                          })}
+                        </p>
+                      </div>
+                      {expense.receiptImage && (
+                        <div className="mt-3">
+                          <p className="text-xs text-muted-foreground mb-2 flex items-center gap-1">
+                            <ImageIcon className="w-3 h-3" />
+                            Recibo/Nota Fiscal
+                          </p>
+                          <img
+                            src={expense.receiptImage}
+                            alt="Recibo"
+                            className="max-w-xs h-auto rounded-lg border"
+                          />
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex gap-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleEditOneTimeExpense(expense)}
+                      >
+                        <Edit className="w-4 h-4" />
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleDeleteOneTimeExpense(expense.id)}
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  </div>
+                </CardHeader>
+              </Card>
+            ))}
+          </div>
+
+          {oneTimeExpenses.length === 0 && (
+            <Card>
+              <CardContent className="flex flex-col items-center justify-center h-32">
+                <p className="text-muted-foreground mb-4">
+                  Nenhuma despesa avulsa cadastrada para este mês
+                </p>
+                <Button onClick={() => setIsOneTimeExpenseDialogOpen(true)}>
                   <Plus className="w-4 h-4 mr-2" />
                   Cadastrar Primeira Despesa
                 </Button>

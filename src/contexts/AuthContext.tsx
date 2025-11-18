@@ -146,8 +146,9 @@ function AuthProvider({ children }: AuthProviderProps) {
     await authService.logout();
     setUser(null);
     setUserType(null);
-    navigate("/login", { replace: true });
-  }, [navigate]);
+    const loginPath = authService.getLoginPath(userType);
+    navigate(loginPath, { replace: true });
+  }, [navigate, userType]);
 
   /**
    * Validate session manually
