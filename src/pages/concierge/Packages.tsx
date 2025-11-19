@@ -74,7 +74,10 @@ import {
   type CreatePackageRequest,
 } from "@/services/package.service";
 import { getCurrentConcierge } from "@/services/concierge.service";
-import { getApartmentByNumber, listAllApartments, type Apartment } from "@/services/apartment.service";
+import {
+	apartmentsService,
+	type Apartment,
+} from "@/services/api";
 
 interface PackageData {
   id: string;
@@ -176,7 +179,7 @@ export default function ConciergePackages() {
           getPendingPackages(),
           getDeliveredPackages(),
           getCancelledPackages(),
-          listAllApartments(),
+          apartmentsService.getAllApartments(),
           getPackageStats(),
         ]);
 
@@ -372,7 +375,7 @@ export default function ConciergePackages() {
       // Buscar o ID do apartamento pelo número
       let apartmentId: string;
       try {
-        const apartment = await getApartmentByNumber(data.apartment);
+        const apartment = await apartmentsService.getApartmentByNumber(data.apartment);
         if (!apartment) {
           toast.error(`Apartamento ${data.apartment} não encontrado.`);
           return;

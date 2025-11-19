@@ -6,18 +6,12 @@ const ACCEPTED_IMAGE_TYPES = ["image/jpeg", "image/jpg", "image/png", "image/web
 export const registerSchema = z
 	.object({
 		buildingId: z.string().min(1, "Prédio é obrigatório"),
-		blockName: z.string().default(""),
+		apartmentId: z.string().min(1, "Apartamento é obrigatório"),
 		name: z
 			.string()
 			.min(1, "Nome é obrigatório")
 			.min(3, "Nome deve ter no mínimo 3 caracteres")
 			.max(100, "Nome deve ter no máximo 100 caracteres")
-			.trim(),
-		apartmentNumber: z
-			.string()
-			.min(1, "Número do apartamento é obrigatório")
-			.max(4, "Número do apartamento deve ter no máximo 4 dígitos")
-			.regex(/^\d+$/, "Número do apartamento deve conter apenas dígitos")
 			.trim(),
 		email: z.string().min(1, "Email é obrigatório").email("Email inválido").trim(),
 		password: z.string().min(6, "A senha deve ter no mínimo 6 caracteres").trim(),

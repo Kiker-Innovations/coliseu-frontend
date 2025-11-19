@@ -33,120 +33,122 @@ import {
   Lock,
 } from "lucide-react";
 import { toast } from "sonner";
-import { pollSchema, type PollSchema } from "@/schemas/admin/polls.schema";
+import { pollSchema, type PollSchema, type PollOptionSchema } from "@/schemas/admin/polls.schema";
 import PollsSkeleton from "@/skeleton/admin/PollsSkeleton";
+import { pollsService, adminService, type ActivePoll, type FinishedCancelledPoll } from "@/services/api";
+
+const defaultOption: PollOptionSchema = {
+  optionDescription: "",
+  optionVotes: 0,
+  optionPercente: 0,
+};
 
 export default function Polls() {
   const [isLoading, setIsLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [pollOptions, setPollOptions] = useState<string[]>(["", ""]);
-  const [selectedMonth, setSelectedMonth] = useState("2025-10");
+  const [pollOptions, setPollOptions] = useState<PollOptionSchema[]>([{ ...defaultOption }, { ...defaultOption }]);
+  const [selectedMonth, setSelectedMonth] = useState(() => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+  });
+  const [buildingId, setBuildingId] = useState<string>("");
+  const [activePolls, setActivePolls] = useState<ActivePoll[]>([]);
+  const [closedPolls, setClosedPolls] = useState<FinishedCancelledPoll[]>([]);
 
+  // Load buildingId on mount
+  useEffect(() => {
+    const loadBuildingId = async () => {
+      try {
+        const token = localStorage.getItem("coliseu_access_token") || sessionStorage.getItem("coliseu_access_token");
+        
+        if (!token) {
+          toast.error("Token não encontrado. Faça login novamente.");
+          return;
+        }
+
+        try {
+          const adminResponse = await adminService.getCurrentAdmin();
+          if (adminResponse.success && adminResponse.data?.buildingId) {
+            setBuildingId(adminResponse.data.buildingId);
+          }
+        } catch (error: any) {
+          console.warn("Não foi possível buscar o perfil do admin:", error);
+          // Tentar decodificar o token JWT como fallback
+          try {
+            const tokenParts = token.split('.');
+            if (tokenParts.length === 3) {
+              const payload = JSON.parse(atob(tokenParts[1]));
+              if (payload.buildingId) {
+                setBuildingId(payload.buildingId);
+              }
+            }
+          } catch (decodeError) {
+            console.warn("Não foi possível decodificar o token:", decodeError);
+          }
+        }
+      } catch (error: any) {
+        console.error("Erro ao carregar buildingId:", error);
+      }
+    };
+    loadBuildingId();
+  }, []);
+
+  // Load polls data
   useEffect(() => {
     const loadData = async () => {
-      setIsLoading(false);
+      if (!buildingId) {
+        setIsLoading(false);
+        return;
+      }
+
+      try {
+        setIsLoading(true);
+        const [month, year] = selectedMonth.split("-").map(Number);
+        
+        // Load active polls
+        const activeResponse = await pollsService.getActivePolls({
+          buildingId,
+          month,
+          year,
+        });
+        if (activeResponse.success && activeResponse.data) {
+          setActivePolls(activeResponse.data);
+        }
+
+        // Load finished/cancelled polls
+        const finishedResponse = await pollsService.getFinishedCancelledPolls({
+          buildingId,
+          month,
+          year,
+        });
+        if (finishedResponse.success && finishedResponse.data) {
+          setClosedPolls(finishedResponse.data);
+        }
+      } catch (error: any) {
+        toast.error(error.message || "Erro ao carregar enquetes");
+        console.error("Erro ao carregar enquetes:", error);
+      } finally {
+        setIsLoading(false);
+      }
     };
     loadData();
-  }, []);
+  }, [buildingId, selectedMonth]);
 
   const form = useForm<PollSchema>({
     resolver: zodResolver(pollSchema),
     defaultValues: {
       question: "",
-      options: ["", ""],
+      options: [{ ...defaultOption }, { ...defaultOption }],
       startDate: "",
-      startTime: "",
-      durationHours: 24,
+      endDate: "",
+      status: "ATIVO",
     },
   });
 
-  // Mock data - enquetes ativas
-  const activePolls = [
-    {
-      id: 1,
-      question: "Qual horário preferem para manutenção da piscina?",
-      options: [
-        { text: "Manhã (8h-12h)", votes: 23, percentage: 51 },
-        { text: "Tarde (14h-18h)", votes: 15, percentage: 33 },
-        { text: "Fins de semana", votes: 7, percentage: 16 },
-      ],
-      totalVotes: 45,
-      totalResidents: 80,
-      startDate: "2025-10-18T00:00:00",
-      endDate: "2025-10-22T23:59:59",
-      isActive: true,
-    },
-    {
-      id: 2,
-      question: "Devemos permitir pets na área comum?",
-      options: [
-        { text: "Sim, sem restrições", votes: 18, percentage: 35 },
-        {
-          text: "Sim, apenas em horários específicos",
-          votes: 28,
-          percentage: 54,
-        },
-        { text: "Não", votes: 6, percentage: 11 },
-      ],
-      totalVotes: 52,
-      totalResidents: 80,
-      startDate: "2025-10-19T00:00:00",
-      endDate: "2025-10-23T23:59:59",
-      isActive: true,
-    },
-  ];
-
-  // Mock data - enquetes encerradas
-  const closedPolls = [
-    {
-      id: 3,
-      question: "Melhor dia para coleta seletiva?",
-      options: [
-        { text: "Segunda-feira", votes: 15, percentage: 24 },
-        { text: "Quarta-feira", votes: 42, percentage: 68 },
-        { text: "Sexta-feira", votes: 5, percentage: 8 },
-      ],
-      totalVotes: 62,
-      totalResidents: 80,
-      startDate: "2025-10-05T00:00:00",
-      endDate: "2025-10-10T23:59:59",
-      isActive: false,
-      result: "Quarta-feira",
-    },
-    {
-      id: 4,
-      question: "Aprovam a troca da empresa de segurança?",
-      options: [
-        { text: "Sim", votes: 54, percentage: 81 },
-        { text: "Não", votes: 13, percentage: 19 },
-      ],
-      totalVotes: 67,
-      totalResidents: 80,
-      startDate: "2025-09-15T00:00:00",
-      endDate: "2025-09-18T23:59:59",
-      isActive: false,
-      result: "Aprovado",
-    },
-    {
-      id: 5,
-      question: "Horário de silêncio deve começar às:",
-      options: [
-        { text: "21h", votes: 12, percentage: 17 },
-        { text: "22h", votes: 48, percentage: 68 },
-        { text: "23h", votes: 11, percentage: 15 },
-      ],
-      totalVotes: 71,
-      totalResidents: 80,
-      startDate: "2025-09-10T00:00:00",
-      endDate: "2025-09-14T23:59:59",
-      isActive: false,
-      result: "22h",
-    },
-  ];
 
   const handleAddOption = () => {
     if (pollOptions.length < 5) {
-      setPollOptions([...pollOptions, ""]);
+      setPollOptions([...pollOptions, { ...defaultOption }]);
     }
   };
 
@@ -159,7 +161,12 @@ export default function Polls() {
 
   const handleOptionChange = (index: number, value: string) => {
     const newOptions = [...pollOptions];
-    newOptions[index] = value;
+    newOptions[index] = {
+      ...newOptions[index],
+      optionDescription: value,
+      optionVotes: 0,
+      optionPercente: 0,
+    };
     setPollOptions(newOptions);
   };
 
@@ -183,39 +190,99 @@ export default function Polls() {
 
   const onSubmit = async (data: PollSchema) => {
     try {
-      const validOptions = pollOptions.filter((opt) => opt.trim() !== "");
+      if (!buildingId) {
+        toast.error("BuildingId não encontrado. Faça login novamente.");
+        return;
+      }
+
+      const validOptions = pollOptions.filter((opt) => opt.optionDescription.trim() !== "");
 
       if (validOptions.length < 2) {
         toast.error("A enquete deve ter no mínimo 2 opções!");
         return;
       }
 
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      // Convert datetime-local to ISO string format (YYYY-MM-DDTHH:mm:ssZ)
+      // datetime-local returns format: YYYY-MM-DDTHH:mm (local time)
+      // We need to convert to UTC and format as: YYYY-MM-DDTHH:mm:ssZ
+      const formatDateTimeToISO = (datetimeLocal: string): string => {
+        // Parse the datetime-local value (it's in local timezone)
+        // Create a Date object which will interpret it as local time
+        const localDate = new Date(datetimeLocal);
+        
+        // Convert to ISO string (which includes UTC conversion)
+        // Format: "2025-01-15T10:00:00.000Z"
+        // We need: "2025-01-15T10:00:00Z"
+        const isoString = localDate.toISOString();
+        
+        // Remove milliseconds and keep the Z
+        return isoString.replace(/\.\d{3}Z$/, 'Z');
+      };
 
-      toast.success("Enquete agendada com sucesso!");
-      form.reset();
-      setPollOptions(["", ""]);
-      setIsDialogOpen(false);
+      const startDateISO = formatDateTimeToISO(data.startDate);
+      const endDateISO = formatDateTimeToISO(data.endDate);
+
+      // Prepare options array (just strings for the API)
+      const optionsArray = validOptions.map((opt) => opt.optionDescription);
+
+      // Create poll request
+      const pollRequest = {
+        buildingId,
+        description: data.question,
+        options: optionsArray,
+        startDate: startDateISO,
+        endDate: endDateISO,
+      };
+
+      const response = await pollsService.createPoll(pollRequest);
+
+      if (response.success) {
+        toast.success("Enquete agendada com sucesso!");
+        form.reset({
+          question: "",
+          options: [{ ...defaultOption }, { ...defaultOption }],
+          startDate: "",
+          endDate: "",
+          status: "ATIVO",
+        });
+        setPollOptions([{ ...defaultOption }, { ...defaultOption }]);
+        setIsDialogOpen(false);
+        
+        // Reload polls data
+        const [month, year] = selectedMonth.split("-").map(Number);
+        const activeResponse = await pollsService.getActivePolls({
+          buildingId,
+          month,
+          year,
+        });
+        if (activeResponse.success && activeResponse.data) {
+          setActivePolls(activeResponse.data);
+        }
+      } else {
+        toast.error(response.message || "Erro ao agendar enquete");
+      }
     } catch (error: any) {
       toast.error(error.message || "Erro ao agendar enquete");
+      console.error("Erro ao criar enquete:", error);
     }
   };
 
-  const availableMonths = [
-    { value: "2025-10", label: "Outubro 2025" },
-    { value: "2025-09", label: "Setembro 2025" },
-    { value: "2025-08", label: "Agosto 2025" },
-    { value: "2025-07", label: "Julho 2025" },
-  ];
+  // Generate available months (current month and previous 5 months)
+  const availableMonths = (() => {
+    const months = [];
+    const now = new Date();
+    for (let i = 0; i < 6; i++) {
+      const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const value = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+      const label = date.toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
+      months.push({ value, label: label.charAt(0).toUpperCase() + label.slice(1) });
+    }
+    return months;
+  })();
 
-  // Filtrar enquetes por mês
-  const filteredActivePolls = activePolls.filter((poll) =>
-    poll.startDate.startsWith(selectedMonth)
-  );
-
-  const filteredClosedPolls = closedPolls.filter((poll) =>
-    poll.startDate.startsWith(selectedMonth)
-  );
+  // Filter polls by month (already filtered by API, but keep for consistency)
+  const filteredActivePolls = activePolls;
+  const filteredClosedPolls = closedPolls;
 
   if (isLoading) {
     return <PollsSkeleton />;
@@ -274,7 +341,7 @@ export default function Polls() {
                   </p>
                   <p className="text-4xl font-bold text-accent">
                     {filteredActivePolls.reduce(
-                      (sum, poll) => sum + poll.totalVotes,
+                      (sum, poll) => sum + poll.votes,
                       0
                     )}
                   </p>
@@ -285,17 +352,17 @@ export default function Polls() {
               <CardContent className="pt-6">
                 <div className="text-center">
                   <p className="text-sm text-muted-foreground mb-2">
-                    Participação Média
+                    Média de Votos
                   </p>
                   <p className="text-4xl font-bold text-muted-foreground">
-                    {Math.round(
-                      filteredActivePolls.reduce(
-                        (sum, poll) =>
-                          sum + (poll.totalVotes / poll.totalResidents) * 100,
-                        0
-                      ) / filteredActivePolls.length || 0
-                    )}
-                    %
+                    {filteredActivePolls.length > 0
+                      ? Math.round(
+                          filteredActivePolls.reduce(
+                            (sum, poll) => sum + poll.votes,
+                            0
+                          ) / filteredActivePolls.length
+                        )
+                      : 0}
                   </p>
                 </div>
               </CardContent>
@@ -312,9 +379,9 @@ export default function Polls() {
                 </CardContent>
               </Card>
             ) : (
-              filteredActivePolls.map((poll) => (
+              filteredActivePolls.map((poll, index) => (
                 <Card
-                  key={poll.id}
+                  key={`active-${index}`}
                   className="border-2 border-primary/50 bg-primary/5"
                 >
                   <CardHeader>
@@ -322,7 +389,7 @@ export default function Polls() {
                       <div>
                         <CardTitle className="flex items-center gap-2">
                           <BarChart3 className="w-5 h-5" />
-                          {poll.question}
+                          {poll.description}
                         </CardTitle>
                       </div>
                       <Badge className="bg-green-500">Ativa</Badge>
@@ -343,8 +410,7 @@ export default function Polls() {
                       <div className="flex items-center gap-1">
                         <Users className="w-4 h-4" />
                         <span>
-                          {poll.totalVotes} votos ({poll.totalResidents}{" "}
-                          condôminos)
+                          {poll.votes} votos
                         </span>
                       </div>
                     </div>
@@ -353,12 +419,12 @@ export default function Polls() {
                       {poll.options.map((option, idx) => (
                         <div key={idx} className="space-y-1">
                           <div className="flex justify-between text-sm">
-                            <span className="font-medium">{option.text}</span>
+                            <span className="font-medium">{option.description}</span>
                             <span className="text-muted-foreground">
-                              {option.votes} votos ({option.percentage}%)
+                              {option.votes} votos ({option.percent}%)
                             </span>
                           </div>
-                          <Progress value={option.percentage} className="h-2" />
+                          <Progress value={option.percent} className="h-2" />
                         </div>
                       ))}
                     </div>
@@ -380,23 +446,28 @@ export default function Polls() {
               </CardContent>
             </Card>
           ) : (
-            filteredClosedPolls.map((poll) => (
-              <Card key={poll.id}>
+            filteredClosedPolls.map((poll, index) => (
+              <Card key={`closed-${index}`}>
                 <CardHeader>
                   <div className="flex items-start justify-between">
                     <div>
                       <CardTitle className="flex items-center gap-2">
                         <CheckCircle2 className="w-5 h-5 text-primary" />
-                        {poll.question}
+                        {poll.description}
                       </CardTitle>
                       <p className="text-sm text-muted-foreground mt-2">
                         {new Date(poll.startDate).toLocaleDateString("pt-BR")}{" "}
                         até {new Date(poll.endDate).toLocaleDateString("pt-BR")}
                       </p>
+                      {poll.cancelReason && (
+                        <p className="text-sm text-destructive mt-1">
+                          Cancelada: {poll.cancelReason}
+                        </p>
+                      )}
                     </div>
                     <Badge variant="secondary">
                       <Lock className="w-3 h-3 mr-1" />
-                      Encerrada
+                      {poll.status === "CANCELADA" ? "Cancelada" : "Encerrada"}
                     </Badge>
                   </div>
                 </CardHeader>
@@ -405,24 +476,19 @@ export default function Polls() {
                     {poll.options.map((option, idx) => (
                       <div key={idx} className="space-y-1">
                         <div className="flex justify-between text-sm">
-                          <span className="font-medium">{option.text}</span>
+                          <span className="font-medium">{option.description}</span>
                           <span className="text-muted-foreground">
-                            {option.votes} votos ({option.percentage}%)
+                            {option.votes} votos ({option.percent}%)
                           </span>
                         </div>
-                        <Progress value={option.percentage} className="h-2" />
+                        <Progress value={option.percent} className="h-2" />
                       </div>
                     ))}
                   </div>
 
                   <div className="pt-2 border-t">
                     <p className="text-sm text-muted-foreground">
-                      Participação: {poll.totalVotes} de {poll.totalResidents}{" "}
-                      moradores (
-                      {Math.round(
-                        (poll.totalVotes / poll.totalResidents) * 100
-                      )}
-                      %)
+                      Participação: {poll.votes} votos
                     </p>
                   </div>
                 </CardContent>
@@ -465,7 +531,7 @@ export default function Polls() {
                     <div key={index} className="flex items-center gap-2">
                       <Input
                         placeholder={`Opção ${index + 1}`}
-                        value={option}
+                        value={option.optionDescription}
                         onChange={(e) =>
                           handleOptionChange(index, e.target.value)
                         }
@@ -498,10 +564,10 @@ export default function Polls() {
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="startDate">Data de Início</Label>
+                    <Label htmlFor="startDate">Data e Hora de Início</Label>
                     <Input
                       id="startDate"
-                      type="date"
+                      type="datetime-local"
                       {...form.register("startDate")}
                     />
                     {form.formState.errors.startDate && (
@@ -512,36 +578,18 @@ export default function Polls() {
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="startTime">Horário de Início</Label>
+                    <Label htmlFor="endDate">Data e Hora Final</Label>
                     <Input
-                      id="startTime"
-                      type="time"
-                      {...form.register("startTime")}
+                      id="endDate"
+                      type="datetime-local"
+                      {...form.register("endDate")}
                     />
-                    {form.formState.errors.startTime && (
+                    {form.formState.errors.endDate && (
                       <p className="text-sm text-destructive">
-                        {form.formState.errors.startTime.message}
+                        {form.formState.errors.endDate.message}
                       </p>
                     )}
                   </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="durationHours">Duração (horas)</Label>
-                  <Input
-                    id="durationHours"
-                    type="number"
-                    min="12"
-                    step="1"
-                    {...form.register("durationHours", {
-                      valueAsNumber: true,
-                    })}
-                  />
-                  {form.formState.errors.durationHours && (
-                    <p className="text-sm text-destructive">
-                      {form.formState.errors.durationHours.message}
-                    </p>
-                  )}
                 </div>
 
                 <div className="flex gap-4">
@@ -559,8 +607,14 @@ export default function Polls() {
                     type="button"
                     variant="outline"
                     onClick={() => {
-                      form.reset();
-                      setPollOptions(["", ""]);
+                      form.reset({
+                        question: "",
+                        options: [{ ...defaultOption }, { ...defaultOption }],
+                        startDate: "",
+                        endDate: "",
+                        status: "ATIVO",
+                      });
+                      setPollOptions([{ ...defaultOption }, { ...defaultOption }]);
                     }}
                     disabled={form.formState.isSubmitting}
                   >

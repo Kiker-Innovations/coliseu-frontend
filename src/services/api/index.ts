@@ -55,3 +55,19 @@ export type {
 // Buildings service
 export { buildingsService } from "./buildings.service";
 export type { Building, BuildingsResponse } from "./buildings.service";
+
+// Apartments service
+export { apartmentsService } from "./apartments.service";
+export type { Apartment } from "./apartments.service";
+
+// Polls service
+export { pollsService } from "./polls.service";
+export type {
+	PollOption,
+	ActivePoll,
+	FinishedCancelledPoll,
+	CreatePollRequest,
+	CreatePollResponse,
+	GetActivePollsParams,
+	GetFinishedCancelledPollsParams,
+} from "./polls.service";
