@@ -181,6 +181,28 @@ class AdminService {
 		return apiClient.delete<void>(`${this.basePath}/notices/${id}`);
 	}
 
+	/**
+	 * Get current admin profile
+	 * GET /v1/admins/me
+	 */
+	async getCurrentAdmin(): Promise<ApiResponse<{
+		_id: string;
+		id: string;
+		email: string;
+		name: string;
+		buildingId: string;
+		role?: string;
+	}>> {
+		return apiClient.get<{
+			_id: string;
+			id: string;
+			email: string;
+			name: string;
+			buildingId: string;
+			role?: string;
+		}>(`${this.basePath}/me`);
+	}
+
 	// TODO: Add more admin endpoints as needed:
 	// - Financial management
 	// - Fines management

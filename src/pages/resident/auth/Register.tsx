@@ -28,6 +28,10 @@ import {
   buildingsService,
   type Building,
 } from "@/services/api/buildings.service";
+import {
+  apartmentsService,
+  type Apartment,
+} from "@/services/api";
 
 export default function Register() {
   const navigate = useNavigate();
@@ -36,6 +40,8 @@ export default function Register() {
   const [capturedPhoto, setCapturedPhoto] = useState<File | null>(null);
   const [buildings, setBuildings] = useState<Building[]>([]);
   const [isLoadingBuildings, setIsLoadingBuildings] = useState(true);
+  const [apartments, setApartments] = useState<Apartment[]>([]);
+  const [isLoadingApartments, setIsLoadingApartments] = useState(false);
 
   useEffect(() => {
     const initialize = async () => {
@@ -65,9 +71,8 @@ export default function Register() {
     resolver: zodResolver(registerSchema),
     defaultValues: {
       buildingId: "",
-      blockName: "",
+      apartmentId: "",
       name: "",
-      apartmentNumber: "",
       email: "",
       password: "",
       confirmPassword: "",
@@ -76,6 +81,35 @@ export default function Register() {
   });
 
   const selectedBuildingId = watch("buildingId");
+  const selectedApartmentId = watch("apartmentId");
+
+  // Fetch apartments when building is selected
+  useEffect(() => {
+    const fetchApartments = async () => {
+      if (!selectedBuildingId) {
+        setApartments([]);
+        setValue("apartmentId", "");
+        return;
+      }
+
+      try {
+        setIsLoadingApartments(true);
+        const apartmentsList = await apartmentsService.getApartmentsByBuildingId(selectedBuildingId);
+        setApartments(apartmentsList);
+        // Reset apartment selection when building changes
+        setValue("apartmentId", "");
+      } catch (error) {
+        toast.error("Erro ao carregar apartamentos");
+        console.error("Failed to load apartments:", error);
+        setApartments([]);
+        setValue("apartmentId", "");
+      } finally {
+        setIsLoadingApartments(false);
+      }
+    };
+
+    fetchApartments();
+  }, [selectedBuildingId, setValue]);
 
   const handlePhotoCapture = (file: File) => {
     setCapturedPhoto(file);
@@ -103,11 +137,10 @@ export default function Register() {
       // Register resident
       const response = await residentsService.register({
         buildingId: data.buildingId,
-        blockName: data.blockName || "",
+        apartmentId: data.apartmentId,
         name: data.name,
         email: data.email,
         password: data.password,
-        apartmentNumber: data.apartmentNumber,
         phone: formattedPhone,
       });
 
@@ -204,39 +237,36 @@ export default function Register() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="blockName">
-                Nome do Bloco{" "}
-                <span className="text-muted-foreground text-xs">
-                  (opcional)
-                </span>
-              </Label>
-              <Input
-                id="blockName"
-                type="text"
-                placeholder="Ex: Bloco A"
-                {...register("blockName")}
-                className="h-12"
-              />
-              {errors.blockName && (
+              <Label htmlFor="apartment">Apartamento</Label>
+              <Select
+                value={selectedApartmentId}
+                onValueChange={(value) => setValue("apartmentId", value)}
+                disabled={!selectedBuildingId || isLoadingApartments || isSubmitting}
+              >
+                <SelectTrigger className="h-12">
+                  <SelectValue
+                    placeholder={
+                      !selectedBuildingId
+                        ? "Selecione primeiro o prédio"
+                        : isLoadingApartments
+                        ? "Carregando apartamentos..."
+                        : "Selecione o apartamento"
+                    }
+                  />
+                </SelectTrigger>
+                <SelectContent>
+                  {apartments.map((apartment) => (
+                    <SelectItem key={apartment._id} value={apartment._id}>
+                      {apartment.number}
+                      {apartment.block ? ` - ${apartment.block}` : ""}
+                      {apartment.floor ? ` (${apartment.floor}º andar)` : ""}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {errors.apartmentId && (
                 <p className="text-sm text-destructive">
-                  {errors.blockName.message}
-                </p>
-              )}
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="apartment">Número do Apartamento</Label>
-              <Input
-                id="apartment"
-                type="text"
-                {...register("apartmentNumber")}
-                maxLength={4}
-                className="h-12"
-                placeholder="Ex: 101"
-              />
-              {errors.apartmentNumber && (
-                <p className="text-sm text-destructive">
-                  {errors.apartmentNumber.message}
+                  {errors.apartmentId.message}
                 </p>
               )}
             </div>
