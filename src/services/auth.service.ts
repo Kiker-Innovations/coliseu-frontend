@@ -124,6 +124,7 @@ class AuthService {
 		storage.setItem(STORAGE_KEYS.USER_TYPE, userType);
 
 		// Also save token to apiClient for automatic header injection
+		// This ensures the token is available in both localStorage and sessionStorage
 		apiClient.setAuthToken(tokens.token);
 	}
 
@@ -131,7 +132,12 @@ class AuthService {
 	 * Get current auth token
 	 */
 	getToken(): string | null {
-		return localStorage.getItem(STORAGE_KEYS.TOKEN) || sessionStorage.getItem(STORAGE_KEYS.TOKEN);
+		const token = localStorage.getItem(STORAGE_KEYS.TOKEN) || sessionStorage.getItem(STORAGE_KEYS.TOKEN);
+		// Ensure token is also set in apiClient if it exists
+		if (token) {
+			apiClient.setAuthToken(token);
+		}
+		return token;
 	}
 
 	/**

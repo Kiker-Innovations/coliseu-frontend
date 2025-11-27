@@ -40,7 +40,6 @@ import ConciergeSkeleton from "@/skeleton/admin/ConciergeSkeleton";
 import { UserPlus, Edit, Trash2, RefreshCw, KeyRound, Copy, Shield, Eye } from "lucide-react";
 import { registerConcierge, listConcierges, updateConcierge, deleteConcierge as apiDeleteConcierge, forgetPasswordConcierge, type Concierge } from "@/services/concierge.service";
 import { useNavigate } from "react-router-dom";
-import { adminService } from "@/services/api";
 
 export default function Concierge() {
   const [isLoading, setIsLoading] = useState(true);
@@ -51,40 +50,16 @@ export default function Concierge() {
   const [selectedForReset, setSelectedForReset] = useState<Concierge | null>(null);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [selectedForDelete, setSelectedForDelete] = useState<Concierge | null>(null);
-  const [buildingId, setBuildingId] = useState<string>("");
-
   useEffect(() => {
     const load = async () => {
       try {
-        // Buscar buildingId do admin logado
+        // Verificar se o token está disponível
         const token = localStorage.getItem("coliseu_access_token") || sessionStorage.getItem("coliseu_access_token");
         
         if (!token) {
           toast.error("Token não encontrado. Faça login novamente.");
           setIsLoading(false);
           return;
-        }
-
-        try {
-          // Tentar buscar da API primeiro
-          const adminResponse = await adminService.getCurrentAdmin();
-          if (adminResponse.success && adminResponse.data?.buildingId) {
-            setBuildingId(adminResponse.data.buildingId);
-          }
-        } catch (error: any) {
-          console.warn("Não foi possível buscar o perfil do admin:", error);
-          // Tentar decodificar o token JWT como fallback
-          try {
-            const tokenParts = token.split('.');
-            if (tokenParts.length === 3) {
-              const payload = JSON.parse(atob(tokenParts[1]));
-              if (payload.buildingId) {
-                setBuildingId(payload.buildingId);
-              }
-            }
-          } catch (decodeError) {
-            console.warn("Não foi possível decodificar o token:", decodeError);
-          }
         }
 
         const items = await listConcierges();
@@ -174,43 +149,12 @@ export default function Concierge() {
 
   const onSubmit = async (data: ConciergeSchema) => {
     try {
-      // Verificar se buildingId está disponível, se não buscar novamente
-      let currentBuildingId = buildingId;
+      // Verificar se o token está disponível
+      const token = localStorage.getItem("coliseu_access_token") || sessionStorage.getItem("coliseu_access_token");
       
-      if (!currentBuildingId) {
-        // Tentar buscar novamente se não estiver disponível
-        const token = localStorage.getItem("coliseu_access_token") || sessionStorage.getItem("coliseu_access_token");
-        
-        if (!token) {
-          toast.error("Token não encontrado. Faça login novamente.");
-          return;
-        }
-
-        try {
-          const adminResponse = await adminService.getCurrentAdmin();
-          if (adminResponse.success && adminResponse.data?.buildingId) {
-            currentBuildingId = adminResponse.data.buildingId;
-            setBuildingId(currentBuildingId);
-          } else {
-            // Tentar decodificar o token JWT como fallback
-            const tokenParts = token.split('.');
-            if (tokenParts.length === 3) {
-              const payload = JSON.parse(atob(tokenParts[1]));
-              if (payload.buildingId) {
-                currentBuildingId = payload.buildingId;
-                setBuildingId(currentBuildingId);
-              }
-            }
-          }
-        } catch (error: any) {
-          toast.error("Erro ao obter buildingId. Faça login novamente.");
-          return;
-        }
-
-        if (!currentBuildingId) {
-          toast.error("buildingId não encontrado. Faça login novamente.");
-          return;
-        }
+      if (!token) {
+        toast.error("Token não encontrado. Faça login novamente.");
+        return;
       }
 
       await new Promise((r) => setTimeout(r, 700));
@@ -218,7 +162,6 @@ export default function Concierge() {
         // Edição não é feita nesta tela
       } else {
         await registerConcierge({
-          buildingId: currentBuildingId,
           name: data.name,
           email: data.email,
           password: data.passwordHash,

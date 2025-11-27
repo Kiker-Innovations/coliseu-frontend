@@ -68,6 +68,26 @@ export type {
 	FinishedCancelledPoll,
 	CreatePollRequest,
 	CreatePollResponse,
+	GetPollsParams,
 	GetActivePollsParams,
 	GetFinishedCancelledPollsParams,
+	CancelPollRequest,
+	CancelPollResponse,
+	VotePollRequest,
+	VotePollResponse,
+	GetMyVoteResponse,
 } from "./polls.service";
+
+// Package service
+export { packageService } from "./package.service";
+export type {
+	CreatePackageRequest,
+	CreatePackageResponse,
+	PendingPackage,
+	DeliveredPackage,
+	Package,
+	ConfirmDeliveryRequest,
+	CancelledPackage,
+	CancelPackageRequest,
+	PackageStats,
+} from "./package.service";
