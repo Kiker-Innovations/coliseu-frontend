@@ -147,6 +147,14 @@ class ResidentsService {
 	}
 
 	/**
+	 * Get current resident profile
+	 * GET /v1/residents/me
+	 */
+	async getCurrentResident(): Promise<ApiResponse<Resident>> {
+		return apiClient.get<Resident>(`${this.basePath}/me`);
+	}
+
+	/**
 	 * Get resident profile
 	 * GET /v1/residents/:id
 	 * (Prepared for future implementation)

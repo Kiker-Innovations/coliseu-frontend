@@ -6,12 +6,10 @@ import { Package, CheckCircle2, Clock, User, ExternalLink } from "lucide-react";
 import DashboardSkeleton from "@/skeleton/concierge/DashboardSkeleton";
 import { toast } from "sonner";
 import {
-  getPendingPackages,
-  getPackageStats,
+  packageService,
   type PendingPackage,
   type PackageStats,
-} from "@/services/package.service";
-import { getCurrentConcierge } from "@/services/concierge.service";
+} from "@/services/api";
 
 interface PackageData {
   id: string;
@@ -39,10 +37,17 @@ export default function ConciergeDashboard() {
     const loadData = async () => {
       try {
         setIsLoading(true);
-        const [pending, packageStats] = await Promise.all([
-          getPendingPackages(),
-          getPackageStats(),
+        const [pendingResponse, packageStatsResponse] = await Promise.all([
+          packageService.getPendingPackages(),
+          packageService.getPackageStats(),
         ]);
+        
+        const pending = pendingResponse.data || [];
+        const packageStats = packageStatsResponse.data || {
+          totalPendings: 0,
+          totalConfirmed: 0,
+          totalPendingsWeek: 0,
+        };
 
         // Map pending packages
         const pendingMapped: PackageData[] = pending.map((pkg) => ({

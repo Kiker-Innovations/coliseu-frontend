@@ -28,10 +28,21 @@ class ApartmentsService {
 	private readonly basePath = `/${API_CONFIG.version}/apartments`;
 
 	/**
-	 * Get apartments by buildingId (public route, no authentication required)
+	 * Get apartments by buildingId
 	 * GET /v1/apartments?buildingId=...
+	 * Uses concierge token if available (like polls)
 	 */
 	async getApartmentsByBuildingId(buildingId: string): Promise<Apartment[]> {
+		// Ensure concierge token is set in apiClient (if available)
+		const token = localStorage.getItem("concierge_token") || 
+		              sessionStorage.getItem("concierge_token") ||
+		              localStorage.getItem("coliseu_access_token") ||
+		              sessionStorage.getItem("coliseu_access_token");
+		
+		if (token) {
+			apiClient.setAuthToken(token);
+		}
+		
 		const response = await apiClient.get<Apartment[]>(this.basePath, {
 			params: {
 				buildingId,
@@ -76,7 +87,7 @@ class ApartmentsService {
 	}
 
 	/**
-	 * Get apartment by number and buildingId (legacy method)
+	 * Get apartment by number and buildingId
 	 * @param buildingId - The building ID
 	 * @param apartmentNumber - The apartment number to search for
 	 * @returns The apartment if found, null otherwise
@@ -86,7 +97,8 @@ class ApartmentsService {
 		apartmentNumber: string,
 	): Promise<Apartment | null> {
 		try {
-			const apartments = await this.getApartmentsByBuilding(buildingId);
+			// Use getApartmentsByBuildingId which uses query params (like polls)
+			const apartments = await this.getApartmentsByBuildingId(buildingId);
 			const apartment = apartments.find((apt) => apt.number === apartmentNumber);
 			return apartment || null;
 		} catch (error) {

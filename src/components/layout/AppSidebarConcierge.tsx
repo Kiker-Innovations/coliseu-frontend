@@ -21,7 +21,6 @@ import {
 } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/use-auth";
-import { getCurrentConcierge } from "@/services/concierge.service";
 import coliseuIcon from "@/assets/coliseu-icon.png";
 
 const menuItems = [
@@ -41,18 +40,33 @@ export function AppSidebarConcierge() {
   const isActive = (path: string) => location.pathname === path;
 
   useEffect(() => {
-    const loadConciergeName = async () => {
-      try {
-        const concierge = await getCurrentConcierge();
-        if (concierge.name) {
-          setConciergeName(concierge.name);
+    const loadConciergeName = () => {
+      // Extract name from token (rota /concierges/me não existe mais)
+      const token = localStorage.getItem("concierge_token") || 
+                    sessionStorage.getItem("concierge_token") ||
+                    localStorage.getItem("coliseu_access_token") ||
+                    sessionStorage.getItem("coliseu_access_token");
+      
+      if (token) {
+        try {
+          const tokenParts = token.split('.');
+          if (tokenParts.length === 3) {
+            const payload = JSON.parse(atob(tokenParts[1]));
+            if (payload.name) {
+              setConciergeName(payload.name);
+              localStorage.setItem("concierge_name", payload.name);
+              return;
+            }
+          }
+        } catch (decodeError) {
+          console.warn("Não foi possível decodificar token:", decodeError);
         }
-      } catch (error) {
-        // Tentar pegar do localStorage como fallback
-        const storedName = localStorage.getItem("concierge_name");
-        if (storedName) {
-          setConciergeName(storedName);
-        }
+      }
+      
+      // Fallback: tentar pegar do localStorage
+      const storedName = localStorage.getItem("concierge_name");
+      if (storedName) {
+        setConciergeName(storedName);
       }
     };
 

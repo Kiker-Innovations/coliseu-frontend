@@ -1,5 +1,4 @@
 export type RegisterConciergeRequest = {
-  buildingId: string;
   name: string;
   email: string;
   password: string;
@@ -10,12 +9,21 @@ export type RegisterConciergeRequest = {
 
 export async function registerConcierge(payload: RegisterConciergeRequest) {
   try {
+    // Get token from storage (admin token)
+    const token = localStorage.getItem("coliseu_access_token") || 
+                  sessionStorage.getItem("coliseu_access_token");
+    
+    if (!token) {
+      throw new Error("Token não encontrado. Faça login novamente.");
+    }
+
     const response = await fetch(
       "http://localhost:3000/api/coliseu/v1/concierges",
       {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`,
         },
         body: JSON.stringify(payload),
       },

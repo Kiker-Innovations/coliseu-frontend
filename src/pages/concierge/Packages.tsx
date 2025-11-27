@@ -60,20 +60,13 @@ import {
 } from "@/schemas/concierge/package.schema";
 import PackagesSkeleton from "@/skeleton/concierge/PackagesSkeleton";
 import {
-  createPackage,
-  getPendingPackages,
-  getDeliveredPackages,
-  getCancelledPackages,
-  confirmPackageDelivery,
-  cancelPackage,
-  getPackageStats,
+  packageService,
   type PendingPackage,
   type DeliveredPackage,
   type CancelledPackage,
   type PackageStats,
   type CreatePackageRequest,
-} from "@/services/package.service";
-import { getCurrentConcierge } from "@/services/concierge.service";
+} from "@/services/api";
 import {
 	apartmentsService,
 	type Apartment,
@@ -125,47 +118,36 @@ export default function ConciergePackages() {
     // Sempre buscar dados atuais do porteiro da API usando o token
     const loadConciergeData = async () => {
       // Verificar se há token disponível
-      const token = localStorage.getItem("concierge_token") || localStorage.getItem("coliseu_access_token");
+      const token = localStorage.getItem("concierge_token") || 
+                    sessionStorage.getItem("concierge_token") ||
+                    localStorage.getItem("coliseu_access_token") ||
+                    sessionStorage.getItem("coliseu_access_token");
       
       if (!token) {
         console.warn("Token não encontrado no localStorage");
         return;
       }
 
+      // Tentar decodificar o token JWT primeiro (mais rápido e não depende da API)
       try {
-        // Sempre buscar dados atuais da API
-        const concierge = await getCurrentConcierge();
-        console.log("Dados do porteiro carregados:", { id: concierge.id, name: concierge.name });
-        if (concierge.id) {
-          const idString = String(concierge.id);
-          setConciergeId(idString);
-          localStorage.setItem("concierge_id", idString);
-        }
-        if (concierge.name) {
-          setConciergeName(concierge.name);
-          localStorage.setItem("concierge_name", concierge.name);
-        }
-      } catch (error: any) {
-        console.warn("Não foi possível buscar o perfil do porteiro:", error.message);
-        // Tentar decodificar o token JWT como fallback
-        try {
-          const tokenParts = token.split('.');
-          if (tokenParts.length === 3) {
-            const payload = JSON.parse(atob(tokenParts[1]));
-            if (payload.id || payload.sub || payload.userId) {
-              const idFromToken = payload.id || payload.sub || payload.userId;
-              setConciergeId(String(idFromToken));
-              localStorage.setItem("concierge_id", String(idFromToken));
-            }
-            if (payload.name) {
-              setConciergeName(payload.name);
-              localStorage.setItem("concierge_name", payload.name);
-            }
+        const tokenParts = token.split('.');
+        if (tokenParts.length === 3) {
+          const payload = JSON.parse(atob(tokenParts[1]));
+          if (payload.id || payload.sub || payload.userId) {
+            const idFromToken = payload.id || payload.sub || payload.userId;
+            setConciergeId(String(idFromToken));
+            localStorage.setItem("concierge_id", String(idFromToken));
           }
-        } catch (decodeError) {
-          console.warn("Não foi possível decodificar o token:", decodeError);
+          if (payload.name) {
+            setConciergeName(payload.name);
+            localStorage.setItem("concierge_name", payload.name);
+          }
         }
+      } catch (decodeError) {
+        console.warn("Não foi possível decodificar o token:", decodeError);
       }
+
+      // Não usa mais a rota /concierges/me - todos os dados vêm do token
     };
 
     loadConciergeData();
@@ -175,13 +157,49 @@ export default function ConciergePackages() {
     const loadData = async () => {
       try {
         setIsLoading(true);
-        const [pending, delivered, cancelled, allApartments, packageStats] = await Promise.all([
-          getPendingPackages(),
-          getDeliveredPackages(),
-          getCancelledPackages(),
-          apartmentsService.getAllApartments(),
-          getPackageStats(),
+        
+        // Get buildingId from token
+        let buildingId = "";
+        const token = localStorage.getItem("concierge_token") || 
+                      sessionStorage.getItem("concierge_token") ||
+                      localStorage.getItem("coliseu_access_token") ||
+                      sessionStorage.getItem("coliseu_access_token");
+        
+        if (token) {
+          try {
+            // Try to decode token to get buildingId
+            const tokenParts = token.split('.');
+            if (tokenParts.length === 3) {
+              const payload = JSON.parse(atob(tokenParts[1]));
+              buildingId = payload.buildingId || payload.building_id || "";
+            }
+          } catch (e) {
+            console.warn("Não foi possível decodificar token para obter buildingId:", e);
+          }
+        }
+        
+        if (!buildingId) {
+          toast.error("BuildingId não encontrado no token. Faça login novamente.");
+          setIsLoading(false);
+          return;
+        }
+        
+        const [pendingResponse, deliveredResponse, cancelledResponse, allApartments, packageStatsResponse] = await Promise.all([
+          packageService.getPendingPackages(),
+          packageService.getDeliveredPackages(),
+          packageService.getCancelledPackages(),
+          apartmentsService.getApartmentsByBuildingId(buildingId),
+          packageService.getPackageStats(),
         ]);
+        
+        const pending = pendingResponse.data || [];
+        const delivered = deliveredResponse.data || [];
+        const cancelled = cancelledResponse.data || [];
+        const packageStats = packageStatsResponse.data || {
+          totalPendings: 0,
+          totalConfirmed: 0,
+          totalPendingsWeek: 0,
+        };
 
         // Map pending packages
         const pendingMapped: PackageData[] = pending.map((pkg) => ({
@@ -327,44 +345,38 @@ export default function ConciergePackages() {
 
   const handleAddPackage = async (data: PackageSchema) => {
     try {
-      // Sempre buscar dados atuais do porteiro da API antes de criar o pacote
-      let currentConciergeId = "";
-      const token = localStorage.getItem("concierge_token") || localStorage.getItem("coliseu_access_token");
+      // Get token and extract conciergeId and buildingId
+      const token = localStorage.getItem("concierge_token") || 
+                    sessionStorage.getItem("concierge_token") ||
+                    localStorage.getItem("coliseu_access_token") ||
+                    sessionStorage.getItem("coliseu_access_token");
       
       if (!token) {
         toast.error("Token não encontrado. Faça login novamente.");
         return;
       }
 
+      // Extract conciergeId and buildingId from token
+      let currentConciergeId = "";
+      let buildingId = "";
       try {
-        // Sempre buscar dados atuais da API para garantir que está usando o porteiro correto
-        const concierge = await getCurrentConcierge();
-        console.log("Dados do porteiro ao criar pacote:", { id: concierge.id, name: concierge.name });
-        if (concierge.id) {
-          currentConciergeId = String(concierge.id);
-          setConciergeId(currentConciergeId);
-          localStorage.setItem("concierge_id", currentConciergeId);
-        }
-        if (concierge.name) {
-          setConciergeName(concierge.name);
-          localStorage.setItem("concierge_name", concierge.name);
-        }
-      } catch (error: any) {
-        console.error("Erro ao buscar perfil do porteiro:", error);
-        // Tentar decodificar o token JWT como fallback
-        try {
-          const tokenParts = token.split('.');
-          if (tokenParts.length === 3) {
-            const payload = JSON.parse(atob(tokenParts[1]));
-            if (payload.id || payload.sub || payload.userId) {
-              currentConciergeId = String(payload.id || payload.sub || payload.userId);
-              setConciergeId(currentConciergeId);
-              localStorage.setItem("concierge_id", currentConciergeId);
-            }
+        const tokenParts = token.split('.');
+        if (tokenParts.length === 3) {
+          const payload = JSON.parse(atob(tokenParts[1]));
+          currentConciergeId = String(payload.id || payload.sub || payload.userId || "");
+          buildingId = payload.buildingId || payload.building_id || "";
+          
+          if (currentConciergeId) {
+            setConciergeId(currentConciergeId);
+            localStorage.setItem("concierge_id", currentConciergeId);
           }
-        } catch (decodeError) {
-          console.error("Erro ao decodificar token:", decodeError);
+          if (payload.name) {
+            setConciergeName(payload.name);
+            localStorage.setItem("concierge_name", payload.name);
+          }
         }
+      } catch (decodeError) {
+        console.error("Erro ao decodificar token:", decodeError);
       }
       
       if (!currentConciergeId) {
@@ -372,10 +384,15 @@ export default function ConciergePackages() {
         return;
       }
 
-      // Buscar o ID do apartamento pelo número
+      if (!buildingId) {
+        toast.error("BuildingId não encontrado no token. Faça login novamente.");
+        return;
+      }
+
+      // Buscar o ID do apartamento pelo número e buildingId
       let apartmentId: string;
       try {
-        const apartment = await apartmentsService.getApartmentByNumber(data.apartment);
+        const apartment = await apartmentsService.getApartmentByNumberAndBuilding(buildingId, data.apartment);
         if (!apartment) {
           toast.error(`Apartamento ${data.apartment} não encontrado.`);
           return;
@@ -409,13 +426,13 @@ export default function ConciergePackages() {
       const receiverDate = dateObj.toISOString().replace(/\.\d{3}Z$/, 'Z');
 
       // Preparar payload com validação
+      // receiverConciergeId removed - backend extracts from token
       const payload: CreatePackageRequest = {
         ownerName: data.recipientName?.trim() || undefined,
         apartmentId: apartmentId.trim(),
         description: data.description?.trim() || undefined,
         courierName: data.courierName?.trim() || undefined,
         receiverDate: receiverDate,
-        receiverConciergeId: currentConciergeId.trim(),
       };
       
       // Log para debug
@@ -426,30 +443,38 @@ export default function ConciergePackages() {
         description: typeof payload.description,
         courierName: typeof payload.courierName,
         receiverDate: typeof payload.receiverDate,
-        receiverConciergeId: typeof payload.receiverConciergeId,
       });
 
       // Validar campos obrigatórios
-      if (!payload.apartmentId || !payload.receiverDate || !payload.receiverConciergeId) {
+      if (!payload.apartmentId || !payload.receiverDate) {
         toast.error("Apartamento, data de chegada são obrigatórios.");
         return;
       }
 
       console.log("Enviando payload:", payload);
       
-      await createPackage(payload);
+      await packageService.createPackage(payload);
 
       toast.success("Encomenda cadastrada com sucesso!");
       setIsAddDialogOpen(false);
       packageForm.reset();
 
       // Reload packages
-      const [pending, delivered, cancelled, packageStats] = await Promise.all([
-        getPendingPackages(),
-        getDeliveredPackages(),
-        getCancelledPackages(),
-        getPackageStats(),
+      const [pendingResponse, deliveredResponse, cancelledResponse, packageStatsResponse] = await Promise.all([
+          packageService.getPendingPackages(),
+          packageService.getDeliveredPackages(),
+          packageService.getCancelledPackages(),
+          packageService.getPackageStats(),
       ]);
+      
+      const pending = pendingResponse.data || [];
+      const delivered = deliveredResponse.data || [];
+      const cancelled = cancelledResponse.data || [];
+      const packageStats = packageStatsResponse.data || {
+        totalPendings: 0,
+        totalConfirmed: 0,
+        totalPendingsWeek: 0,
+      };
 
       const pendingMapped: PackageData[] = pending.map((pkg) => ({
         id: pkg._id,
@@ -505,43 +530,35 @@ export default function ConciergePackages() {
     if (!selectedPackage) return;
 
     try {
-      // Sempre buscar dados atuais do porteiro da API antes de confirmar entrega
-      let currentConciergeId = "";
-      const token = localStorage.getItem("concierge_token") || localStorage.getItem("coliseu_access_token");
+      // Get token and extract conciergeId from token
+      const token = localStorage.getItem("concierge_token") || 
+                    sessionStorage.getItem("concierge_token") ||
+                    localStorage.getItem("coliseu_access_token") ||
+                    sessionStorage.getItem("coliseu_access_token");
       
       if (!token) {
         toast.error("Token não encontrado. Faça login novamente.");
         return;
       }
 
+      // Extract conciergeId from token
+      let currentConciergeId = "";
       try {
-        // Sempre buscar dados atuais da API para garantir que está usando o porteiro correto
-        const concierge = await getCurrentConcierge();
-        if (concierge.id) {
-          currentConciergeId = String(concierge.id);
-          setConciergeId(currentConciergeId);
-          localStorage.setItem("concierge_id", currentConciergeId);
-        }
-        if (concierge.name) {
-          setConciergeName(concierge.name);
-          localStorage.setItem("concierge_name", concierge.name);
-        }
-      } catch (error: any) {
-        console.error("Erro ao buscar perfil do porteiro:", error);
-        // Tentar decodificar o token JWT como fallback
-        try {
-          const tokenParts = token.split('.');
-          if (tokenParts.length === 3) {
-            const payload = JSON.parse(atob(tokenParts[1]));
-            if (payload.id || payload.sub || payload.userId) {
-              currentConciergeId = String(payload.id || payload.sub || payload.userId);
-              setConciergeId(currentConciergeId);
-              localStorage.setItem("concierge_id", currentConciergeId);
-            }
+        const tokenParts = token.split('.');
+        if (tokenParts.length === 3) {
+          const payload = JSON.parse(atob(tokenParts[1]));
+          currentConciergeId = String(payload.id || payload.sub || payload.userId || "");
+          if (currentConciergeId) {
+            setConciergeId(currentConciergeId);
+            localStorage.setItem("concierge_id", currentConciergeId);
           }
-        } catch (decodeError) {
-          console.error("Erro ao decodificar token:", decodeError);
+          if (payload.name) {
+            setConciergeName(payload.name);
+            localStorage.setItem("concierge_name", payload.name);
+          }
         }
+      } catch (decodeError) {
+        console.error("Erro ao decodificar token:", decodeError);
       }
       
       if (!currentConciergeId) {
@@ -549,9 +566,9 @@ export default function ConciergePackages() {
         return;
       }
 
-      await confirmPackageDelivery(selectedPackage.id, {
+      // deliveryConciergeId removed - backend extracts from token
+      await packageService.confirmPackageDelivery(selectedPackage.id, {
         recipientName: data.receivedBy?.trim() || undefined,
-        deliveryConciergeId: currentConciergeId,
       });
 
       toast.success(
@@ -564,12 +581,21 @@ export default function ConciergePackages() {
       deliveryForm.reset();
 
       // Reload packages
-      const [pending, delivered, cancelled, packageStats] = await Promise.all([
-        getPendingPackages(),
-        getDeliveredPackages(),
-        getCancelledPackages(),
-        getPackageStats(),
+      const [pendingResponse, deliveredResponse, cancelledResponse, packageStatsResponse] = await Promise.all([
+          packageService.getPendingPackages(),
+          packageService.getDeliveredPackages(),
+          packageService.getCancelledPackages(),
+          packageService.getPackageStats(),
       ]);
+      
+      const pending = pendingResponse.data || [];
+      const delivered = deliveredResponse.data || [];
+      const cancelled = cancelledResponse.data || [];
+      const packageStats = packageStatsResponse.data || {
+        totalPendings: 0,
+        totalConfirmed: 0,
+        totalPendingsWeek: 0,
+      };
 
       const pendingMapped: PackageData[] = pending.map((pkg) => ({
         id: pkg._id,
@@ -625,43 +651,35 @@ export default function ConciergePackages() {
     if (!selectedPackage) return;
 
     try {
-      // Sempre buscar dados atuais do porteiro da API antes de cancelar
+      // Get token and extract conciergeId from token
       let currentConciergeId = "";
-      const token = localStorage.getItem("concierge_token") || localStorage.getItem("coliseu_access_token");
+      const token = localStorage.getItem("concierge_token") || 
+                    sessionStorage.getItem("concierge_token") ||
+                    localStorage.getItem("coliseu_access_token") ||
+                    sessionStorage.getItem("coliseu_access_token");
       
       if (!token) {
         toast.error("Token não encontrado. Faça login novamente.");
         return;
       }
 
+      // Extract conciergeId from token
       try {
-        // Sempre buscar dados atuais da API para garantir que está usando o porteiro correto
-        const concierge = await getCurrentConcierge();
-        if (concierge.id) {
-          currentConciergeId = String(concierge.id);
-          setConciergeId(currentConciergeId);
-          localStorage.setItem("concierge_id", currentConciergeId);
-        }
-        if (concierge.name) {
-          setConciergeName(concierge.name);
-          localStorage.setItem("concierge_name", concierge.name);
-        }
-      } catch (error: any) {
-        console.error("Erro ao buscar perfil do porteiro:", error);
-        // Tentar decodificar o token JWT como fallback
-        try {
-          const tokenParts = token.split('.');
-          if (tokenParts.length === 3) {
-            const payload = JSON.parse(atob(tokenParts[1]));
-            if (payload.id || payload.sub || payload.userId) {
-              currentConciergeId = String(payload.id || payload.sub || payload.userId);
-              setConciergeId(currentConciergeId);
-              localStorage.setItem("concierge_id", currentConciergeId);
-            }
+        const tokenParts = token.split('.');
+        if (tokenParts.length === 3) {
+          const payload = JSON.parse(atob(tokenParts[1]));
+          currentConciergeId = String(payload.id || payload.sub || payload.userId || "");
+          if (currentConciergeId) {
+            setConciergeId(currentConciergeId);
+            localStorage.setItem("concierge_id", currentConciergeId);
           }
-        } catch (decodeError) {
-          console.error("Erro ao decodificar token:", decodeError);
+          if (payload.name) {
+            setConciergeName(payload.name);
+            localStorage.setItem("concierge_name", payload.name);
+          }
         }
+      } catch (decodeError) {
+        console.error("Erro ao decodificar token:", decodeError);
       }
       
       if (!currentConciergeId) {
@@ -669,10 +687,14 @@ export default function ConciergePackages() {
         return;
       }
 
-      await cancelPackage(selectedPackage.id, {
+      // cancelledConciergeId removed - backend extracts from token
+      const cancelResponse = await packageService.cancelPackage(selectedPackage.id, {
         cancelReason: data.cancelReason.trim(),
-        cancelledConciergeId: currentConciergeId,
       });
+      if (!cancelResponse.success) {
+        toast.error(cancelResponse.message || "Erro ao cancelar encomenda");
+        return;
+      }
 
       toast.success("Encomenda cancelada com sucesso!");
 
@@ -681,12 +703,21 @@ export default function ConciergePackages() {
       setSelectedPackage(null);
 
       // Reload packages
-      const [pending, delivered, cancelled, packageStats] = await Promise.all([
-        getPendingPackages(),
-        getDeliveredPackages(),
-        getCancelledPackages(),
-        getPackageStats(),
+      const [pendingResponse, deliveredResponse, cancelledResponse, packageStatsResponse] = await Promise.all([
+          packageService.getPendingPackages(),
+          packageService.getDeliveredPackages(),
+          packageService.getCancelledPackages(),
+          packageService.getPackageStats(),
       ]);
+      
+      const pending = pendingResponse.data || [];
+      const delivered = deliveredResponse.data || [];
+      const cancelled = cancelledResponse.data || [];
+      const packageStats = packageStatsResponse.data || {
+        totalPendings: 0,
+        totalConfirmed: 0,
+        totalPendingsWeek: 0,
+      };
 
       const pendingMapped: PackageData[] = pending.map((pkg) => ({
         id: pkg._id,
@@ -1410,7 +1441,7 @@ export default function ConciergePackages() {
                         </SelectItem>
                       ))
                   ) : (
-                    <SelectItem value="" disabled>
+                    <SelectItem value="no-apartments" disabled>
                       Nenhum apartamento disponível
                     </SelectItem>
                   )}

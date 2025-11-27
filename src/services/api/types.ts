@@ -29,7 +29,7 @@ export interface ApiError {
  * Request configuration options
  */
 export interface RequestConfig extends RequestInit {
-	params?: Record<string, string | number | boolean>;
+	params?: Record<string, string | number | boolean | string[] | number[]>;
 	timeout?: number;
 }
 

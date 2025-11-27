@@ -27,10 +27,27 @@ export class ApiClientError extends Error {
 class ApiClient {
 	private baseURL: string;
 	private timeout: number;
+	private token: string | null = null;
 
 	constructor() {
 		this.baseURL = API_CONFIG.baseURL;
 		this.timeout = API_CONFIG.timeout;
+		
+		// Initialize token from storage on construction
+		// This ensures the token is available even if setAuthToken wasn't called
+		this.initializeTokenFromStorage();
+	}
+	
+	/**
+	 * Initialize token from storage
+	 * Ensures token is available even if setAuthToken wasn't called explicitly
+	 */
+	private initializeTokenFromStorage(): void {
+		const token = this.getAuthToken();
+		if (token) {
+			// Token already exists in storage, ensure it's in both places
+			this.setAuthToken(token);
+		}
 	}
 
 	/**
@@ -38,18 +55,39 @@ class ApiClient {
 	 * Will be used for JWT authentication in the future
 	 */
 	private getAuthToken(): string | null {
-		return localStorage.getItem(AUTH_STORAGE_KEYS.accessToken);
+		// Try multiple sources to ensure we get the token
+		const token = 
+			this.token || // First check in-memory token
+			localStorage.getItem(AUTH_STORAGE_KEYS.accessToken) ||
+			sessionStorage.getItem(AUTH_STORAGE_KEYS.accessToken) ||
+			localStorage.getItem("concierge_token") || // Fallback for concierge
+			null;
+		
+		// If token found but not in memory, update it
+		if (token && !this.token) {
+			this.token = token;
+		}
+		
+		return token;
 	}
 
 	/**
 	 * Build complete URL with query parameters
+	 * Supports arrays for multiple values with the same key (e.g., status=ATIVO&status=PROGRAMADO)
 	 */
-	private buildURL(endpoint: string, params?: Record<string, string | number | boolean>): string {
+	private buildURL(endpoint: string, params?: Record<string, string | number | boolean | string[] | number[]>): string {
 		const url = new URL(`${this.baseURL}${endpoint}`);
 
 		if (params) {
 			for (const [key, value] of Object.entries(params)) {
-				url.searchParams.append(key, String(value));
+				if (Array.isArray(value)) {
+					// For arrays, append each value as a separate parameter
+					for (const item of value) {
+						url.searchParams.append(key, String(item));
+					}
+				} else if (value !== undefined && value !== null) {
+					url.searchParams.append(key, String(value));
+				}
 			}
 		}
 
@@ -67,10 +105,17 @@ class ApiClient {
 			headers.set("Content-Type", "application/json");
 		}
 
-		// Add authentication token if available (for future JWT implementation)
+		// Always refresh token from storage before building headers
+		// This ensures we have the latest token
 		const token = this.getAuthToken();
 		if (token) {
 			headers.set("Authorization", `Bearer ${token}`);
+			console.log("Token adicionado ao header Authorization");
+		} else {
+			console.warn("No authentication token found. Request may fail if authentication is required.");
+			console.warn("localStorage token:", localStorage.getItem(AUTH_STORAGE_KEYS.accessToken));
+			console.warn("sessionStorage token:", sessionStorage.getItem(AUTH_STORAGE_KEYS.accessToken));
+			console.warn("concierge_token:", localStorage.getItem("concierge_token"));
 		}
 
 		return headers;
@@ -85,18 +130,34 @@ class ApiClient {
 
 		let data: ApiResponse<T> | ApiError;
 
-		if (isJSON) {
-			data = await response.json();
-		} else {
-			// Handle non-JSON responses
-			const text = await response.text();
+		try {
+			if (isJSON) {
+				data = await response.json();
+			} else {
+				// Handle non-JSON responses
+				const text = await response.text();
+				data = {
+					success: response.ok,
+					message: text || response.statusText,
+				};
+			}
+		} catch (parseError) {
+			console.error("Error parsing response:", parseError);
+			const text = await response.text().catch(() => "Erro ao processar resposta");
 			data = {
-				success: response.ok,
-				message: text || response.statusText,
-			};
+				success: false,
+				message: text || response.statusText || "Erro desconhecido",
+			} as ApiError;
 		}
 
 		if (!response.ok) {
+			// Log error details for debugging
+			console.error("API Error Response:", {
+				status: response.status,
+				statusText: response.statusText,
+				data,
+				url: response.url,
+			});
 			throw new ApiClientError(response.status, data as ApiError);
 		}
 
@@ -109,6 +170,15 @@ class ApiClient {
 	private async executeRequest<T>(url: string, config: RequestConfig): Promise<ApiResponse<T>> {
 		const controller = new AbortController();
 		const timeoutId = setTimeout(() => controller.abort(), config.timeout || this.timeout);
+
+		// Log request details for debugging
+		const token = this.getAuthToken();
+		console.log("Executing request:", {
+			url,
+			method: config.method || "GET",
+			hasToken: !!token,
+			headers: config.headers ? Object.fromEntries(new Headers(config.headers).entries()) : undefined,
+		});
 
 		try {
 			const response = await fetch(url, {
@@ -144,6 +214,13 @@ class ApiClient {
 		const url = this.buildURL(endpoint, params);
 		const headers = this.buildHeaders(customHeaders);
 
+		// Log headers for debugging (without exposing full token)
+		const authHeader = headers.get("Authorization");
+		console.log("Request headers:", {
+			"Content-Type": headers.get("Content-Type"),
+			"Authorization": authHeader ? `${authHeader.substring(0, 20)}...` : "NOT SET",
+		});
+
 		return this.executeRequest<T>(url, {
 			...fetchConfig,
 			headers,
@@ -164,6 +241,13 @@ class ApiClient {
 	 * POST request
 	 */
 	async post<T>(endpoint: string, data?: unknown, config?: RequestConfig): Promise<ApiResponse<T>> {
+		// Ensure token is synchronized before making request
+		const token = this.getAuthToken();
+		if (!token) {
+			console.error("No authentication token found for POST request to:", endpoint);
+			console.error("localStorage token:", localStorage.getItem(AUTH_STORAGE_KEYS.accessToken));
+			console.error("sessionStorage token:", sessionStorage.getItem(AUTH_STORAGE_KEYS.accessToken));
+		}
 		return this.request<T>(endpoint, {
 			...config,
 			method: "POST",
@@ -235,9 +319,11 @@ class ApiClient {
 	/**
 	 * Set authentication token
 	 * For future JWT implementation
+	 * Saves to both localStorage and sessionStorage to ensure it's available
 	 */
 	setAuthToken(token: string): void {
 		localStorage.setItem(AUTH_STORAGE_KEYS.accessToken, token);
+		sessionStorage.setItem(AUTH_STORAGE_KEYS.accessToken, token);
 	}
 
 	/**

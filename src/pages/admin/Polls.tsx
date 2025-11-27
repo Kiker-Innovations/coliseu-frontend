@@ -6,6 +6,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import {
@@ -31,11 +32,12 @@ import {
   X,
   CheckCircle2,
   Lock,
+  XCircle,
 } from "lucide-react";
 import { toast } from "sonner";
 import { pollSchema, type PollSchema, type PollOptionSchema } from "@/schemas/admin/polls.schema";
 import PollsSkeleton from "@/skeleton/admin/PollsSkeleton";
-import { pollsService, adminService, type ActivePoll, type FinishedCancelledPoll } from "@/services/api";
+import { pollsService, adminService, ApiClientError, type ActivePoll, type FinishedCancelledPoll } from "@/services/api";
 
 const defaultOption: PollOptionSchema = {
   optionDescription: "",
@@ -46,10 +48,18 @@ const defaultOption: PollOptionSchema = {
 export default function Polls() {
   const [isLoading, setIsLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isCancelDialogOpen, setIsCancelDialogOpen] = useState(false);
+  const [selectedPollToCancel, setSelectedPollToCancel] = useState<ActivePoll | null>(null);
+  const [cancelReason, setCancelReason] = useState("");
+  const [isCancelling, setIsCancelling] = useState(false);
   const [pollOptions, setPollOptions] = useState<PollOptionSchema[]>([{ ...defaultOption }, { ...defaultOption }]);
   const [selectedMonth, setSelectedMonth] = useState(() => {
     const now = new Date();
-    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+    return now.getMonth() + 1; // 1-12
+  });
+  const [selectedYear, setSelectedYear] = useState(() => {
+    const now = new Date();
+    return now.getFullYear();
   });
   const [buildingId, setBuildingId] = useState<string>("");
   const [activePolls, setActivePolls] = useState<ActivePoll[]>([]);
@@ -96,43 +106,106 @@ export default function Polls() {
   // Load polls data
   useEffect(() => {
     const loadData = async () => {
-      if (!buildingId) {
+      if (!buildingId || buildingId.trim() === "") {
+        console.warn("buildingId não disponível, aguardando...");
         setIsLoading(false);
         return;
       }
 
       try {
         setIsLoading(true);
-        const [month, year] = selectedMonth.split("-").map(Number);
+        const year = selectedYear;
+        const month = selectedMonth;
         
-        // Load active polls
-        const activeResponse = await pollsService.getActivePolls({
-          buildingId,
-          month,
-          year,
-        });
-        if (activeResponse.success && activeResponse.data) {
-          setActivePolls(activeResponse.data);
+        console.log("Loading polls for:", { selectedMonth, selectedYear, year, month, buildingId });
+        
+        // Load active polls (ATIVO and PROGRAMADO)
+        const activeParams: any = { buildingId: buildingId.trim() };
+        if (month && !isNaN(month) && month > 0 && month <= 12) {
+          activeParams.month = month;
+        }
+        if (year && !isNaN(year) && year > 0) {
+          activeParams.year = year;
+        }
+        activeParams.status = ["ATIVO", "PROGRAMADO"];
+        
+        console.log("Active polls params:", activeParams);
+        try {
+          const activeResponse = await pollsService.getPolls(activeParams);
+          console.log("Active polls response:", activeResponse);
+          if (activeResponse.success && activeResponse.data) {
+            setActivePolls(Array.isArray(activeResponse.data) ? activeResponse.data : []);
+          } else {
+            setActivePolls([]);
+          }
+        } catch (activeError: any) {
+          console.error("Erro ao carregar enquetes ativas:", activeError);
+          if (activeError instanceof ApiClientError) {
+            if (activeError.statusCode === 400 || activeError.statusCode === 404) {
+              console.log("Nenhuma enquete ativa encontrada para o período selecionado");
+              setActivePolls([]);
+            } else if (activeError.statusCode === 500) {
+              console.error("Erro interno do servidor ao carregar enquetes ativas");
+              toast.error("Erro ao carregar enquetes. Tente novamente mais tarde.");
+              setActivePolls([]);
+            } else {
+              toast.error("Erro ao carregar enquetes ativas");
+              setActivePolls([]);
+            }
+          } else {
+            setActivePolls([]);
+          }
         }
 
-        // Load finished/cancelled polls
-        const finishedResponse = await pollsService.getFinishedCancelledPolls({
-          buildingId,
-          month,
-          year,
-        });
-        if (finishedResponse.success && finishedResponse.data) {
-          setClosedPolls(finishedResponse.data);
+        // Load finished/cancelled polls (FINALIZADO and CANCELADO)
+        const finishedParams: any = { buildingId: buildingId.trim() };
+        if (month && !isNaN(month) && month > 0 && month <= 12) {
+          finishedParams.month = month;
+        }
+        if (year && !isNaN(year) && year > 0) {
+          finishedParams.year = year;
+        }
+        finishedParams.status = ["FINALIZADO", "CANCELADO"];
+        
+        console.log("Finished polls params:", finishedParams);
+        try {
+          const finishedResponse = await pollsService.getPolls(finishedParams);
+          console.log("Finished polls response:", finishedResponse);
+          if (finishedResponse.success && finishedResponse.data) {
+            setClosedPolls(Array.isArray(finishedResponse.data) ? finishedResponse.data : []);
+          } else {
+            setClosedPolls([]);
+          }
+        } catch (finishedError: any) {
+          console.error("Erro ao carregar enquetes finalizadas:", finishedError);
+          if (finishedError instanceof ApiClientError) {
+            if (finishedError.statusCode === 400 || finishedError.statusCode === 404) {
+              console.log("Nenhuma enquete finalizada encontrada para o período selecionado");
+              setClosedPolls([]);
+            } else if (finishedError.statusCode === 500) {
+              console.error("Erro interno do servidor ao carregar enquetes finalizadas");
+              // Não mostrar toast para erro 500 em enquetes finalizadas para não poluir a UI
+              setClosedPolls([]);
+            } else {
+              setClosedPolls([]);
+            }
+          } else {
+            setClosedPolls([]);
+          }
         }
       } catch (error: any) {
-        toast.error(error.message || "Erro ao carregar enquetes");
-        console.error("Erro ao carregar enquetes:", error);
+        // Apenas logar erro, não mostrar toast para o usuário
+        // Se não houver enquetes, é normal, não é um erro
+        console.error("Erro geral ao carregar enquetes:", error);
+        // Definir arrays vazios em caso de erro
+        setActivePolls([]);
+        setClosedPolls([]);
       } finally {
         setIsLoading(false);
       }
     };
     loadData();
-  }, [buildingId, selectedMonth]);
+  }, [buildingId, selectedMonth, selectedYear]);
 
   const form = useForm<PollSchema>({
     resolver: zodResolver(pollSchema),
@@ -148,7 +221,10 @@ export default function Polls() {
 
   const handleAddOption = () => {
     if (pollOptions.length < 5) {
-      setPollOptions([...pollOptions, { ...defaultOption }]);
+      const newOptions = [...pollOptions, { ...defaultOption }];
+      setPollOptions(newOptions);
+      // Sincronizar com o formulário
+      form.setValue("options", newOptions);
     }
   };
 
@@ -156,6 +232,8 @@ export default function Polls() {
     if (pollOptions.length > 2) {
       const newOptions = pollOptions.filter((_, i) => i !== index);
       setPollOptions(newOptions);
+      // Sincronizar com o formulário
+      form.setValue("options", newOptions);
     }
   };
 
@@ -168,6 +246,8 @@ export default function Polls() {
       optionPercente: 0,
     };
     setPollOptions(newOptions);
+    // Sincronizar com o formulário
+    form.setValue("options", newOptions);
   };
 
   const calculateTimeRemaining = (endDate: string) => {
@@ -189,38 +269,31 @@ export default function Polls() {
   };
 
   const onSubmit = async (data: PollSchema) => {
+    console.log("Form submitted with data:", data);
+    console.log("BuildingId:", buildingId);
+    console.log("Poll options:", pollOptions);
+    
     try {
       if (!buildingId) {
         toast.error("BuildingId não encontrado. Faça login novamente.");
         return;
       }
 
-      const validOptions = pollOptions.filter((opt) => opt.optionDescription.trim() !== "");
+      // Validar opções - usar pollOptions do estado ou data.options do formulário
+      const optionsToValidate = pollOptions.length > 0 ? pollOptions : data.options;
+      const validOptions = optionsToValidate.filter((opt) => 
+        opt.optionDescription && opt.optionDescription.trim() !== ""
+      );
 
       if (validOptions.length < 2) {
-        toast.error("A enquete deve ter no mínimo 2 opções!");
+        toast.error("A enquete deve ter no mínimo 2 opções preenchidas!");
         return;
       }
 
-      // Convert datetime-local to ISO string format (YYYY-MM-DDTHH:mm:ssZ)
-      // datetime-local returns format: YYYY-MM-DDTHH:mm (local time)
-      // We need to convert to UTC and format as: YYYY-MM-DDTHH:mm:ssZ
-      const formatDateTimeToISO = (datetimeLocal: string): string => {
-        // Parse the datetime-local value (it's in local timezone)
-        // Create a Date object which will interpret it as local time
-        const localDate = new Date(datetimeLocal);
-        
-        // Convert to ISO string (which includes UTC conversion)
-        // Format: "2025-01-15T10:00:00.000Z"
-        // We need: "2025-01-15T10:00:00Z"
-        const isoString = localDate.toISOString();
-        
-        // Remove milliseconds and keep the Z
-        return isoString.replace(/\.\d{3}Z$/, 'Z');
-      };
-
-      const startDateISO = formatDateTimeToISO(data.startDate);
-      const endDateISO = formatDateTimeToISO(data.endDate);
+      // Date input returns format: YYYY-MM-DD
+      // API expects format: YYYY-MM-DD (same format, no conversion needed)
+      const startDate = data.startDate; // Already in YYYY-MM-DD format
+      const endDate = data.endDate; // Already in YYYY-MM-DD format
 
       // Prepare options array (just strings for the API)
       const optionsArray = validOptions.map((opt) => opt.optionDescription);
@@ -230,11 +303,15 @@ export default function Polls() {
         buildingId,
         description: data.question,
         options: optionsArray,
-        startDate: startDateISO,
-        endDate: endDateISO,
+        startDate: startDate,
+        endDate: endDate,
       };
 
+      console.log("Creating poll with data:", pollRequest);
+
+      console.log("Sending request to API...");
       const response = await pollsService.createPoll(pollRequest);
+      console.log("API Response:", response);
 
       if (response.success) {
         toast.success("Enquete agendada com sucesso!");
@@ -249,40 +326,180 @@ export default function Polls() {
         setIsDialogOpen(false);
         
         // Reload polls data
-        const [month, year] = selectedMonth.split("-").map(Number);
-        const activeResponse = await pollsService.getActivePolls({
-          buildingId,
-          month,
-          year,
-        });
-        if (activeResponse.success && activeResponse.data) {
-          setActivePolls(activeResponse.data);
+        try {
+          const year = selectedYear;
+          const month = selectedMonth;
+          
+          const activeParams: any = { buildingId };
+          if (month && !isNaN(month) && month > 0 && month <= 12) {
+            activeParams.month = month;
+          }
+          if (year && !isNaN(year) && year > 0) {
+            activeParams.year = year;
+          }
+          activeParams.status = ["ATIVO", "PROGRAMADO"];
+          
+          const activeResponse = await pollsService.getPolls(activeParams);
+          if (activeResponse.success) {
+            setActivePolls(activeResponse.data || []);
+          } else {
+            setActivePolls([]);
+          }
+        } catch (reloadError) {
+          console.error("Erro ao recarregar enquetes:", reloadError);
+          setActivePolls([]);
+          // Não mostrar erro ao usuário, apenas logar
         }
       } else {
         toast.error(response.message || "Erro ao agendar enquete");
+        console.error("API Error Response:", response);
       }
     } catch (error: any) {
+      console.error("Erro completo ao criar enquete:", error);
       toast.error(error.message || "Erro ao agendar enquete");
-      console.error("Erro ao criar enquete:", error);
+      
+      // Log mais detalhes do erro
+      if (error.response) {
+        console.error("Error response:", error.response);
+      }
+      if (error.request) {
+        console.error("Error request:", error.request);
+      }
     }
   };
 
-  // Generate available months (current month and previous 5 months)
-  const availableMonths = (() => {
-    const months = [];
+  // Generate all 12 months
+  const allMonths = [
+    { value: 1, label: "Janeiro" },
+    { value: 2, label: "Fevereiro" },
+    { value: 3, label: "Março" },
+    { value: 4, label: "Abril" },
+    { value: 5, label: "Maio" },
+    { value: 6, label: "Junho" },
+    { value: 7, label: "Julho" },
+    { value: 8, label: "Agosto" },
+    { value: 9, label: "Setembro" },
+    { value: 10, label: "Outubro" },
+    { value: 11, label: "Novembro" },
+    { value: 12, label: "Dezembro" },
+  ];
+
+  // Generate available years (current year and previous 5 years)
+  const availableYears = (() => {
+    const years = [];
     const now = new Date();
     for (let i = 0; i < 6; i++) {
-      const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
-      const value = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
-      const label = date.toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
-      months.push({ value, label: label.charAt(0).toUpperCase() + label.slice(1) });
+      years.push(now.getFullYear() - i);
     }
-    return months;
+    return years;
   })();
 
   // Filter polls by month (already filtered by API, but keep for consistency)
   const filteredActivePolls = activePolls;
   const filteredClosedPolls = closedPolls;
+
+  // Função para obter o badge de status
+  const getStatusBadge = (status: string) => {
+    const statusUpper = status.toUpperCase();
+    
+    switch (statusUpper) {
+      case "ATIVO":
+        return { label: "Ativo", className: "bg-green-500 text-sm px-3 py-1" };
+      case "PROGRAMADO":
+        return { label: "Programada", className: "bg-blue-500 text-sm px-3 py-1" };
+      case "CANCELADA":
+      case "CANCELADO":
+        return { label: "Cancelada", className: "bg-red-500 text-sm px-3 py-1" };
+      case "FINALIZADA":
+      case "FINALIZADO":
+        return { label: "Finalizada", className: "bg-gray-500 text-sm px-3 py-1" };
+      default:
+        return { label: status, className: "bg-gray-500 text-sm px-3 py-1" };
+    }
+  };
+
+  // Handle cancel poll
+  const handleCancelPoll = (poll: ActivePoll) => {
+    setSelectedPollToCancel(poll);
+    setCancelReason("");
+    setIsCancelDialogOpen(true);
+  };
+
+  const onCancelPoll = async () => {
+    if (!selectedPollToCancel) return;
+
+    const pollId = selectedPollToCancel.id || selectedPollToCancel._id;
+    if (!pollId) {
+      toast.error("ID da enquete não encontrado");
+      return;
+    }
+
+    if (!cancelReason.trim()) {
+      toast.error("Por favor, informe o motivo do cancelamento");
+      return;
+    }
+
+    try {
+      setIsCancelling(true);
+      const response = await pollsService.cancelPoll(pollId, {
+        cancelReason: cancelReason.trim(),
+      });
+
+      if (response.success) {
+        toast.success("Enquete cancelada com sucesso!");
+        setIsCancelDialogOpen(false);
+        setSelectedPollToCancel(null);
+        setCancelReason("");
+
+        // Reload polls data
+        const year = selectedYear;
+        const month = selectedMonth;
+
+        const activeParams: any = { buildingId };
+        if (month && !isNaN(month) && month > 0 && month <= 12) {
+          activeParams.month = month;
+        }
+        if (year && !isNaN(year) && year > 0) {
+          activeParams.year = year;
+        }
+        activeParams.status = ["ATIVO", "PROGRAMADO"];
+
+        try {
+          const activeResponse = await pollsService.getPolls(activeParams);
+          if (activeResponse.success) {
+            setActivePolls(activeResponse.data || []);
+          } else {
+            setActivePolls([]);
+          }
+
+          const finishedParams: any = { buildingId };
+          if (month && !isNaN(month) && month > 0 && month <= 12) {
+            finishedParams.month = month;
+          }
+          if (year && !isNaN(year) && year > 0) {
+            finishedParams.year = year;
+          }
+          finishedParams.status = ["FINALIZADO", "CANCELADO"];
+
+          const finishedResponse = await pollsService.getPolls(finishedParams);
+          if (finishedResponse.success) {
+            setClosedPolls(finishedResponse.data || []);
+          } else {
+            setClosedPolls([]);
+          }
+        } catch (reloadError) {
+          console.error("Erro ao recarregar enquetes:", reloadError);
+        }
+      } else {
+        toast.error(response.message || "Erro ao cancelar enquete");
+      }
+    } catch (error: any) {
+      console.error("Erro ao cancelar enquete:", error);
+      toast.error(error.message || "Erro ao cancelar enquete");
+    } finally {
+      setIsCancelling(false);
+    }
+  };
 
   if (isLoading) {
     return <PollsSkeleton />;
@@ -297,18 +514,38 @@ export default function Polls() {
             Gerencie e acompanhe as enquetes do condomínio
           </p>
         </div>
-        <Select value={selectedMonth} onValueChange={setSelectedMonth}>
-          <SelectTrigger className="w-[200px]">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {availableMonths.map((month) => (
-              <SelectItem key={month.value} value={month.value}>
-                {month.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <div className="flex gap-2">
+          <Select 
+            value={selectedMonth.toString()} 
+            onValueChange={(value) => setSelectedMonth(Number(value))}
+          >
+            <SelectTrigger className="w-[150px]">
+              <SelectValue placeholder="Mês" />
+            </SelectTrigger>
+            <SelectContent>
+              {allMonths.map((month) => (
+                <SelectItem key={month.value} value={month.value.toString()}>
+                  {month.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select 
+            value={selectedYear.toString()} 
+            onValueChange={(value) => setSelectedYear(Number(value))}
+          >
+            <SelectTrigger className="w-[120px]">
+              <SelectValue placeholder="Ano" />
+            </SelectTrigger>
+            <SelectContent>
+              {availableYears.map((year) => (
+                <SelectItem key={year} value={year.toString()}>
+                  {year}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
       <Tabs defaultValue="active" className="space-y-6">
@@ -325,7 +562,7 @@ export default function Polls() {
               <CardContent className="pt-6">
                 <div className="text-center">
                   <p className="text-sm text-muted-foreground mb-2">
-                    Enquetes Ativas
+                    Enquetes do mês
                   </p>
                   <p className="text-4xl font-bold text-primary">
                     {filteredActivePolls.length}
@@ -392,7 +629,9 @@ export default function Polls() {
                           {poll.description}
                         </CardTitle>
                       </div>
-                      <Badge className="bg-green-500">Ativa</Badge>
+                      <Badge className={getStatusBadge(poll.status).className}>
+                        {getStatusBadge(poll.status).label}
+                      </Badge>
                     </div>
                   </CardHeader>
                   <CardContent className="space-y-4">
@@ -428,6 +667,18 @@ export default function Polls() {
                         </div>
                       ))}
                     </div>
+
+                    {(poll.status.toUpperCase() === "ATIVO" || poll.status.toUpperCase() === "PROGRAMADO") && (
+                      <div className="pt-2 border-t flex justify-center">
+                        <Button
+                          type="button"
+                          variant="destructive"
+                          size="sm"
+                          onClick={() => handleCancelPoll(poll)}
+                        >
+                        <XCircle className="w-4 h-4 mr-0" />Cancelar</Button>
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
               ))
@@ -465,9 +716,8 @@ export default function Polls() {
                         </p>
                       )}
                     </div>
-                    <Badge variant="secondary">
-                      <Lock className="w-3 h-3 mr-1" />
-                      {poll.status === "CANCELADA" ? "Cancelada" : "Encerrada"}
+                    <Badge className={getStatusBadge(poll.status).className}>
+                      {getStatusBadge(poll.status).label}
                     </Badge>
                   </div>
                 </CardHeader>
@@ -508,7 +758,13 @@ export default function Polls() {
             </CardHeader>
             <CardContent>
               <form
-                onSubmit={form.handleSubmit(onSubmit)}
+                onSubmit={form.handleSubmit(
+                  onSubmit,
+                  (errors) => {
+                    console.error("Form validation errors:", errors);
+                    toast.error("Por favor, corrija os erros no formulário");
+                  }
+                )}
                 className="space-y-4"
               >
                 <div className="space-y-2">
@@ -564,10 +820,10 @@ export default function Polls() {
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="startDate">Data e Hora de Início</Label>
+                    <Label htmlFor="startDate">Data de Início</Label>
                     <Input
                       id="startDate"
-                      type="datetime-local"
+                      type="date"
                       {...form.register("startDate")}
                     />
                     {form.formState.errors.startDate && (
@@ -578,10 +834,10 @@ export default function Polls() {
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="endDate">Data e Hora Final</Label>
+                    <Label htmlFor="endDate">Data Final</Label>
                     <Input
                       id="endDate"
-                      type="datetime-local"
+                      type="date"
                       {...form.register("endDate")}
                     />
                     {form.formState.errors.endDate && (
@@ -626,6 +882,57 @@ export default function Polls() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* Dialog de Cancelamento */}
+      <Dialog open={isCancelDialogOpen} onOpenChange={setIsCancelDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Cancelar</DialogTitle>
+            <DialogDescription>
+              Tem certeza que deseja cancelar esta enquete? Esta ação não pode ser desfeita.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            {selectedPollToCancel && (
+              <div className="p-3 bg-muted rounded-md">
+                <p className="text-sm font-medium">{selectedPollToCancel.description}</p>
+              </div>
+            )}
+            <div className="space-y-2">
+              <Label htmlFor="cancelReason">Motivo do Cancelamento *</Label>
+              <Textarea
+                id="cancelReason"
+                placeholder="Informe o motivo do cancelamento..."
+                value={cancelReason}
+                onChange={(e) => setCancelReason(e.target.value)}
+                rows={4}
+              />
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  setIsCancelDialogOpen(false);
+                  setSelectedPollToCancel(null);
+                  setCancelReason("");
+                }}
+                disabled={isCancelling}
+              >
+                Cancelar
+              </Button>
+              <Button
+                type="button"
+                variant="destructive"
+                onClick={onCancelPoll}
+                disabled={isCancelling || !cancelReason.trim()}
+              >
+                {isCancelling ? "Cancelando..." : "Confirmar Cancelamento"}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
