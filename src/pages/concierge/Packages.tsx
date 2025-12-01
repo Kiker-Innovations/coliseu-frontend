@@ -61,16 +61,10 @@ import {
 import PackagesSkeleton from "@/skeleton/concierge/PackagesSkeleton";
 import {
   packageService,
-  type PendingPackage,
-  type DeliveredPackage,
-  type CancelledPackage,
   type PackageStats,
   type CreatePackageRequest,
 } from "@/services/api";
-import {
-	apartmentsService,
-	type Apartment,
-} from "@/services/api";
+import { apartmentsService, type Apartment } from "@/services/api";
 
 interface PackageData {
   id: string;
@@ -118,11 +112,12 @@ export default function ConciergePackages() {
     // Sempre buscar dados atuais do porteiro da API usando o token
     const loadConciergeData = async () => {
       // Verificar se há token disponível
-      const token = localStorage.getItem("concierge_token") || 
-                    sessionStorage.getItem("concierge_token") ||
-                    localStorage.getItem("coliseu_access_token") ||
-                    sessionStorage.getItem("coliseu_access_token");
-      
+      const token =
+        localStorage.getItem("concierge_token") ||
+        sessionStorage.getItem("concierge_token") ||
+        localStorage.getItem("coliseu_access_token") ||
+        sessionStorage.getItem("coliseu_access_token");
+
       if (!token) {
         console.warn("Token não encontrado no localStorage");
         return;
@@ -130,7 +125,7 @@ export default function ConciergePackages() {
 
       // Tentar decodificar o token JWT primeiro (mais rápido e não depende da API)
       try {
-        const tokenParts = token.split('.');
+        const tokenParts = token.split(".");
         if (tokenParts.length === 3) {
           const payload = JSON.parse(atob(tokenParts[1]));
           if (payload.id || payload.sub || payload.userId) {
@@ -157,41 +152,53 @@ export default function ConciergePackages() {
     const loadData = async () => {
       try {
         setIsLoading(true);
-        
+
         // Get buildingId from token
         let buildingId = "";
-        const token = localStorage.getItem("concierge_token") || 
-                      sessionStorage.getItem("concierge_token") ||
-                      localStorage.getItem("coliseu_access_token") ||
-                      sessionStorage.getItem("coliseu_access_token");
-        
+        const token =
+          localStorage.getItem("concierge_token") ||
+          sessionStorage.getItem("concierge_token") ||
+          localStorage.getItem("coliseu_access_token") ||
+          sessionStorage.getItem("coliseu_access_token");
+
         if (token) {
           try {
             // Try to decode token to get buildingId
-            const tokenParts = token.split('.');
+            const tokenParts = token.split(".");
             if (tokenParts.length === 3) {
               const payload = JSON.parse(atob(tokenParts[1]));
               buildingId = payload.buildingId || payload.building_id || "";
             }
           } catch (e) {
-            console.warn("Não foi possível decodificar token para obter buildingId:", e);
+            console.warn(
+              "Não foi possível decodificar token para obter buildingId:",
+              e
+            );
           }
         }
-        
+
         if (!buildingId) {
-          toast.error("BuildingId não encontrado no token. Faça login novamente.");
+          toast.error(
+            "BuildingId não encontrado no token. Faça login novamente."
+          );
           setIsLoading(false);
           return;
         }
-        
-        const [pendingResponse, deliveredResponse, cancelledResponse, allApartments, packageStatsResponse] = await Promise.all([
+
+        const [
+          pendingResponse,
+          deliveredResponse,
+          cancelledResponse,
+          allApartments,
+          packageStatsResponse,
+        ] = await Promise.all([
           packageService.getPendingPackages(),
           packageService.getDeliveredPackages(),
           packageService.getCancelledPackages(),
           apartmentsService.getApartmentsByBuildingId(buildingId),
           packageService.getPackageStats(),
         ]);
-        
+
         const pending = pendingResponse.data || [];
         const delivered = deliveredResponse.data || [];
         const cancelled = cancelledResponse.data || [];
@@ -314,13 +321,28 @@ export default function ConciergePackages() {
     return pkgs.slice(startIndex, endIndex);
   };
 
-  const totalPagesPending = Math.ceil(filteredPendingPackages.length / itemsPerPage);
-  const totalPagesDelivered = Math.ceil(filteredDeliveredPackages.length / itemsPerPage);
-  const totalPagesCancelled = Math.ceil(filteredCancelledPackages.length / itemsPerPage);
+  const totalPagesPending = Math.ceil(
+    filteredPendingPackages.length / itemsPerPage
+  );
+  const totalPagesDelivered = Math.ceil(
+    filteredDeliveredPackages.length / itemsPerPage
+  );
+  const totalPagesCancelled = Math.ceil(
+    filteredCancelledPackages.length / itemsPerPage
+  );
 
-  const paginatedPendingPackages = getPaginatedPackages(filteredPendingPackages, currentPagePending);
-  const paginatedDeliveredPackages = getPaginatedPackages(filteredDeliveredPackages, currentPageDelivered);
-  const paginatedCancelledPackages = getPaginatedPackages(filteredCancelledPackages, currentPageCancelled);
+  const paginatedPendingPackages = getPaginatedPackages(
+    filteredPendingPackages,
+    currentPagePending
+  );
+  const paginatedDeliveredPackages = getPaginatedPackages(
+    filteredDeliveredPackages,
+    currentPageDelivered
+  );
+  const paginatedCancelledPackages = getPaginatedPackages(
+    filteredCancelledPackages,
+    currentPageCancelled
+  );
 
   // Reset page when search term changes
   useEffect(() => {
@@ -346,11 +368,12 @@ export default function ConciergePackages() {
   const handleAddPackage = async (data: PackageSchema) => {
     try {
       // Get token and extract conciergeId and buildingId
-      const token = localStorage.getItem("concierge_token") || 
-                    sessionStorage.getItem("concierge_token") ||
-                    localStorage.getItem("coliseu_access_token") ||
-                    sessionStorage.getItem("coliseu_access_token");
-      
+      const token =
+        localStorage.getItem("concierge_token") ||
+        sessionStorage.getItem("concierge_token") ||
+        localStorage.getItem("coliseu_access_token") ||
+        sessionStorage.getItem("coliseu_access_token");
+
       if (!token) {
         toast.error("Token não encontrado. Faça login novamente.");
         return;
@@ -360,12 +383,14 @@ export default function ConciergePackages() {
       let currentConciergeId = "";
       let buildingId = "";
       try {
-        const tokenParts = token.split('.');
+        const tokenParts = token.split(".");
         if (tokenParts.length === 3) {
           const payload = JSON.parse(atob(tokenParts[1]));
-          currentConciergeId = String(payload.id || payload.sub || payload.userId || "");
+          currentConciergeId = String(
+            payload.id || payload.sub || payload.userId || ""
+          );
           buildingId = payload.buildingId || payload.building_id || "";
-          
+
           if (currentConciergeId) {
             setConciergeId(currentConciergeId);
             localStorage.setItem("concierge_id", currentConciergeId);
@@ -378,34 +403,43 @@ export default function ConciergePackages() {
       } catch (decodeError) {
         console.error("Erro ao decodificar token:", decodeError);
       }
-      
+
       if (!currentConciergeId) {
         toast.error("ID do porteiro não encontrado. Faça login novamente.");
         return;
       }
 
       if (!buildingId) {
-        toast.error("BuildingId não encontrado no token. Faça login novamente.");
+        toast.error(
+          "BuildingId não encontrado no token. Faça login novamente."
+        );
         return;
       }
 
       // Buscar o ID do apartamento pelo número e buildingId
       let apartmentId: string;
       try {
-        const apartment = await apartmentsService.getApartmentByNumberAndBuilding(buildingId, data.apartment);
+        const apartment =
+          await apartmentsService.getApartmentByNumberAndBuilding(
+            buildingId,
+            data.apartment
+          );
         if (!apartment) {
           toast.error(`Apartamento ${data.apartment} não encontrado.`);
           return;
         }
         apartmentId = apartment._id;
-        
+
         // Validar se o ID é um UUID válido
         if (!apartmentId || apartmentId.trim() === "") {
           toast.error("ID do apartamento inválido.");
           return;
         }
       } catch (error: any) {
-        toast.error(error.message || "Erro ao buscar apartamento. Verifique se o número está correto.");
+        toast.error(
+          error.message ||
+            "Erro ao buscar apartamento. Verifique se o número está correto."
+        );
         return;
       }
 
@@ -417,13 +451,13 @@ export default function ConciergePackages() {
 
       // Convert datetime-local to ISO string (sem milissegundos, formato Z)
       const dateObj = new Date(data.arrivalDate);
-      if (isNaN(dateObj.getTime())) {
+      if (Number.isNaN(dateObj.getTime())) {
         toast.error("Data de chegada inválida.");
         return;
       }
-      
+
       // Formatar data no formato ISO sem milissegundos (ex: 2025-01-15T10:30:00Z)
-      const receiverDate = dateObj.toISOString().replace(/\.\d{3}Z$/, 'Z');
+      const receiverDate = dateObj.toISOString().replace(/\.\d{3}Z$/, "Z");
 
       // Preparar payload com validação
       // receiverConciergeId removed - backend extracts from token
@@ -434,7 +468,7 @@ export default function ConciergePackages() {
         courierName: data.courierName?.trim() || undefined,
         receiverDate: receiverDate,
       };
-      
+
       // Log para debug
       console.log("Payload antes de enviar:", JSON.stringify(payload, null, 2));
       console.log("Tipos dos campos:", {
@@ -452,7 +486,7 @@ export default function ConciergePackages() {
       }
 
       console.log("Enviando payload:", payload);
-      
+
       await packageService.createPackage(payload);
 
       toast.success("Encomenda cadastrada com sucesso!");
@@ -460,13 +494,18 @@ export default function ConciergePackages() {
       packageForm.reset();
 
       // Reload packages
-      const [pendingResponse, deliveredResponse, cancelledResponse, packageStatsResponse] = await Promise.all([
-          packageService.getPendingPackages(),
-          packageService.getDeliveredPackages(),
-          packageService.getCancelledPackages(),
-          packageService.getPackageStats(),
+      const [
+        pendingResponse,
+        deliveredResponse,
+        cancelledResponse,
+        packageStatsResponse,
+      ] = await Promise.all([
+        packageService.getPendingPackages(),
+        packageService.getDeliveredPackages(),
+        packageService.getCancelledPackages(),
+        packageService.getPackageStats(),
       ]);
-      
+
       const pending = pendingResponse.data || [];
       const delivered = deliveredResponse.data || [];
       const cancelled = cancelledResponse.data || [];
@@ -531,11 +570,12 @@ export default function ConciergePackages() {
 
     try {
       // Get token and extract conciergeId from token
-      const token = localStorage.getItem("concierge_token") || 
-                    sessionStorage.getItem("concierge_token") ||
-                    localStorage.getItem("coliseu_access_token") ||
-                    sessionStorage.getItem("coliseu_access_token");
-      
+      const token =
+        localStorage.getItem("concierge_token") ||
+        sessionStorage.getItem("concierge_token") ||
+        localStorage.getItem("coliseu_access_token") ||
+        sessionStorage.getItem("coliseu_access_token");
+
       if (!token) {
         toast.error("Token não encontrado. Faça login novamente.");
         return;
@@ -544,10 +584,12 @@ export default function ConciergePackages() {
       // Extract conciergeId from token
       let currentConciergeId = "";
       try {
-        const tokenParts = token.split('.');
+        const tokenParts = token.split(".");
         if (tokenParts.length === 3) {
           const payload = JSON.parse(atob(tokenParts[1]));
-          currentConciergeId = String(payload.id || payload.sub || payload.userId || "");
+          currentConciergeId = String(
+            payload.id || payload.sub || payload.userId || ""
+          );
           if (currentConciergeId) {
             setConciergeId(currentConciergeId);
             localStorage.setItem("concierge_id", currentConciergeId);
@@ -560,7 +602,7 @@ export default function ConciergePackages() {
       } catch (decodeError) {
         console.error("Erro ao decodificar token:", decodeError);
       }
-      
+
       if (!currentConciergeId) {
         toast.error("ID do porteiro não encontrado. Faça login novamente.");
         return;
@@ -581,13 +623,18 @@ export default function ConciergePackages() {
       deliveryForm.reset();
 
       // Reload packages
-      const [pendingResponse, deliveredResponse, cancelledResponse, packageStatsResponse] = await Promise.all([
-          packageService.getPendingPackages(),
-          packageService.getDeliveredPackages(),
-          packageService.getCancelledPackages(),
-          packageService.getPackageStats(),
+      const [
+        pendingResponse,
+        deliveredResponse,
+        cancelledResponse,
+        packageStatsResponse,
+      ] = await Promise.all([
+        packageService.getPendingPackages(),
+        packageService.getDeliveredPackages(),
+        packageService.getCancelledPackages(),
+        packageService.getPackageStats(),
       ]);
-      
+
       const pending = pendingResponse.data || [];
       const delivered = deliveredResponse.data || [];
       const cancelled = cancelledResponse.data || [];
@@ -653,11 +700,12 @@ export default function ConciergePackages() {
     try {
       // Get token and extract conciergeId from token
       let currentConciergeId = "";
-      const token = localStorage.getItem("concierge_token") || 
-                    sessionStorage.getItem("concierge_token") ||
-                    localStorage.getItem("coliseu_access_token") ||
-                    sessionStorage.getItem("coliseu_access_token");
-      
+      const token =
+        localStorage.getItem("concierge_token") ||
+        sessionStorage.getItem("concierge_token") ||
+        localStorage.getItem("coliseu_access_token") ||
+        sessionStorage.getItem("coliseu_access_token");
+
       if (!token) {
         toast.error("Token não encontrado. Faça login novamente.");
         return;
@@ -665,10 +713,12 @@ export default function ConciergePackages() {
 
       // Extract conciergeId from token
       try {
-        const tokenParts = token.split('.');
+        const tokenParts = token.split(".");
         if (tokenParts.length === 3) {
           const payload = JSON.parse(atob(tokenParts[1]));
-          currentConciergeId = String(payload.id || payload.sub || payload.userId || "");
+          currentConciergeId = String(
+            payload.id || payload.sub || payload.userId || ""
+          );
           if (currentConciergeId) {
             setConciergeId(currentConciergeId);
             localStorage.setItem("concierge_id", currentConciergeId);
@@ -681,16 +731,19 @@ export default function ConciergePackages() {
       } catch (decodeError) {
         console.error("Erro ao decodificar token:", decodeError);
       }
-      
+
       if (!currentConciergeId) {
         toast.error("ID do porteiro não encontrado. Faça login novamente.");
         return;
       }
 
       // cancelledConciergeId removed - backend extracts from token
-      const cancelResponse = await packageService.cancelPackage(selectedPackage.id, {
-        cancelReason: data.cancelReason.trim(),
-      });
+      const cancelResponse = await packageService.cancelPackage(
+        selectedPackage.id,
+        {
+          cancelReason: data.cancelReason.trim(),
+        }
+      );
       if (!cancelResponse.success) {
         toast.error(cancelResponse.message || "Erro ao cancelar encomenda");
         return;
@@ -703,13 +756,18 @@ export default function ConciergePackages() {
       setSelectedPackage(null);
 
       // Reload packages
-      const [pendingResponse, deliveredResponse, cancelledResponse, packageStatsResponse] = await Promise.all([
-          packageService.getPendingPackages(),
-          packageService.getDeliveredPackages(),
-          packageService.getCancelledPackages(),
-          packageService.getPackageStats(),
+      const [
+        pendingResponse,
+        deliveredResponse,
+        cancelledResponse,
+        packageStatsResponse,
+      ] = await Promise.all([
+        packageService.getPendingPackages(),
+        packageService.getDeliveredPackages(),
+        packageService.getCancelledPackages(),
+        packageService.getPackageStats(),
       ]);
-      
+
       const pending = pendingResponse.data || [];
       const delivered = deliveredResponse.data || [];
       const cancelled = cancelledResponse.data || [];
@@ -837,7 +895,9 @@ export default function ConciergePackages() {
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-muted-foreground">Entregues nesta semana</p>
+                <p className="text-sm text-muted-foreground">
+                  Entregues nesta semana
+                </p>
                 <p className="text-3xl font-bold text-green-600">
                   {stats.totalPendingsWeek}
                 </p>
@@ -888,12 +948,22 @@ export default function ConciergePackages() {
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <p className="text-sm text-muted-foreground">
-                    Mostrando {paginatedPendingPackages.length > 0 ? (currentPagePending - 1) * itemsPerPage + 1 : 0} a{" "}
-                    {Math.min(currentPagePending * itemsPerPage, filteredPendingPackages.length)} de{" "}
-                    {filteredPendingPackages.length} encomenda(s)
+                    Mostrando{" "}
+                    {paginatedPendingPackages.length > 0
+                      ? (currentPagePending - 1) * itemsPerPage + 1
+                      : 0}{" "}
+                    a{" "}
+                    {Math.min(
+                      currentPagePending * itemsPerPage,
+                      filteredPendingPackages.length
+                    )}{" "}
+                    de {filteredPendingPackages.length} encomenda(s)
                   </p>
                   <div className="flex items-center gap-2">
-                    <Label htmlFor="itemsPerPage" className="text-sm text-muted-foreground">
+                    <Label
+                      htmlFor="itemsPerPage"
+                      className="text-sm text-muted-foreground"
+                    >
                       Itens por página:
                     </Label>
                     <Select
@@ -957,12 +1027,15 @@ export default function ConciergePackages() {
                               </div>
                             </TableCell>
                             <TableCell className="text-sm">
-                              {new Date(pkg.arrivalDate).toLocaleString("pt-BR", {
-                                day: "2-digit",
-                                month: "2-digit",
-                                hour: "2-digit",
-                                minute: "2-digit",
-                              })}
+                              {new Date(pkg.arrivalDate).toLocaleString(
+                                "pt-BR",
+                                {
+                                  day: "2-digit",
+                                  month: "2-digit",
+                                  hour: "2-digit",
+                                  minute: "2-digit",
+                                }
+                              )}
                             </TableCell>
                             <TableCell className="text-sm text-muted-foreground">
                               {pkg.courierName || "-"}
@@ -1005,7 +1078,11 @@ export default function ConciergePackages() {
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => setCurrentPagePending((prev) => Math.max(1, prev - 1))}
+                          onClick={() =>
+                            setCurrentPagePending((prev) =>
+                              Math.max(1, prev - 1)
+                            )
+                          }
                           disabled={currentPagePending === 1}
                           className="gap-1"
                         >
@@ -1013,15 +1090,21 @@ export default function ConciergePackages() {
                           Anterior
                         </Button>
                       </PaginationItem>
-                      {Array.from({ length: totalPagesPending }, (_, i) => i + 1)
+                      {Array.from(
+                        { length: totalPagesPending },
+                        (_, i) => i + 1
+                      )
                         .filter((page) => {
                           if (totalPagesPending <= 7) return true;
-                          if (page === 1 || page === totalPagesPending) return true;
-                          if (Math.abs(page - currentPagePending) <= 1) return true;
+                          if (page === 1 || page === totalPagesPending)
+                            return true;
+                          if (Math.abs(page - currentPagePending) <= 1)
+                            return true;
                           return false;
                         })
                         .map((page, index, array) => {
-                          const showEllipsisBefore = index > 0 && page - array[index - 1] > 1;
+                          const showEllipsisBefore =
+                            index > 0 && page - array[index - 1] > 1;
                           return (
                             <React.Fragment key={page}>
                               {showEllipsisBefore && (
@@ -1031,7 +1114,11 @@ export default function ConciergePackages() {
                               )}
                               <PaginationItem>
                                 <Button
-                                  variant={currentPagePending === page ? "default" : "outline"}
+                                  variant={
+                                    currentPagePending === page
+                                      ? "default"
+                                      : "outline"
+                                  }
                                   size="sm"
                                   onClick={() => setCurrentPagePending(page)}
                                   className="min-w-[2.5rem]"
@@ -1046,7 +1133,11 @@ export default function ConciergePackages() {
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => setCurrentPagePending((prev) => Math.min(totalPagesPending, prev + 1))}
+                          onClick={() =>
+                            setCurrentPagePending((prev) =>
+                              Math.min(totalPagesPending, prev + 1)
+                            )
+                          }
                           disabled={currentPagePending === totalPagesPending}
                           className="gap-1"
                         >
@@ -1065,12 +1156,22 @@ export default function ConciergePackages() {
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <p className="text-sm text-muted-foreground">
-                    Mostrando {paginatedDeliveredPackages.length > 0 ? (currentPageDelivered - 1) * itemsPerPage + 1 : 0} a{" "}
-                    {Math.min(currentPageDelivered * itemsPerPage, filteredDeliveredPackages.length)} de{" "}
-                    {filteredDeliveredPackages.length} encomenda(s)
+                    Mostrando{" "}
+                    {paginatedDeliveredPackages.length > 0
+                      ? (currentPageDelivered - 1) * itemsPerPage + 1
+                      : 0}{" "}
+                    a{" "}
+                    {Math.min(
+                      currentPageDelivered * itemsPerPage,
+                      filteredDeliveredPackages.length
+                    )}{" "}
+                    de {filteredDeliveredPackages.length} encomenda(s)
                   </p>
                   <div className="flex items-center gap-2">
-                    <Label htmlFor="itemsPerPage" className="text-sm text-muted-foreground">
+                    <Label
+                      htmlFor="itemsPerPage"
+                      className="text-sm text-muted-foreground"
+                    >
                       Itens por página:
                     </Label>
                     <Select
@@ -1135,12 +1236,15 @@ export default function ConciergePackages() {
                               </div>
                             </TableCell>
                             <TableCell className="text-sm">
-                              {new Date(pkg.arrivalDate).toLocaleString("pt-BR", {
-                                day: "2-digit",
-                                month: "2-digit",
-                                hour: "2-digit",
-                                minute: "2-digit",
-                              })}
+                              {new Date(pkg.arrivalDate).toLocaleString(
+                                "pt-BR",
+                                {
+                                  day: "2-digit",
+                                  month: "2-digit",
+                                  hour: "2-digit",
+                                  minute: "2-digit",
+                                }
+                              )}
                             </TableCell>
                             <TableCell className="text-sm text-muted-foreground">
                               {pkg.courierName || "-"}
@@ -1179,7 +1283,11 @@ export default function ConciergePackages() {
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => setCurrentPageDelivered((prev) => Math.max(1, prev - 1))}
+                          onClick={() =>
+                            setCurrentPageDelivered((prev) =>
+                              Math.max(1, prev - 1)
+                            )
+                          }
                           disabled={currentPageDelivered === 1}
                           className="gap-1"
                         >
@@ -1187,15 +1295,21 @@ export default function ConciergePackages() {
                           Anterior
                         </Button>
                       </PaginationItem>
-                      {Array.from({ length: totalPagesDelivered }, (_, i) => i + 1)
+                      {Array.from(
+                        { length: totalPagesDelivered },
+                        (_, i) => i + 1
+                      )
                         .filter((page) => {
                           if (totalPagesDelivered <= 7) return true;
-                          if (page === 1 || page === totalPagesDelivered) return true;
-                          if (Math.abs(page - currentPageDelivered) <= 1) return true;
+                          if (page === 1 || page === totalPagesDelivered)
+                            return true;
+                          if (Math.abs(page - currentPageDelivered) <= 1)
+                            return true;
                           return false;
                         })
                         .map((page, index, array) => {
-                          const showEllipsisBefore = index > 0 && page - array[index - 1] > 1;
+                          const showEllipsisBefore =
+                            index > 0 && page - array[index - 1] > 1;
                           return (
                             <React.Fragment key={page}>
                               {showEllipsisBefore && (
@@ -1205,7 +1319,11 @@ export default function ConciergePackages() {
                               )}
                               <PaginationItem>
                                 <Button
-                                  variant={currentPageDelivered === page ? "default" : "outline"}
+                                  variant={
+                                    currentPageDelivered === page
+                                      ? "default"
+                                      : "outline"
+                                  }
                                   size="sm"
                                   onClick={() => setCurrentPageDelivered(page)}
                                   className="min-w-[2.5rem]"
@@ -1220,8 +1338,14 @@ export default function ConciergePackages() {
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => setCurrentPageDelivered((prev) => Math.min(totalPagesDelivered, prev + 1))}
-                          disabled={currentPageDelivered === totalPagesDelivered}
+                          onClick={() =>
+                            setCurrentPageDelivered((prev) =>
+                              Math.min(totalPagesDelivered, prev + 1)
+                            )
+                          }
+                          disabled={
+                            currentPageDelivered === totalPagesDelivered
+                          }
                           className="gap-1"
                         >
                           Próxima
@@ -1239,9 +1363,16 @@ export default function ConciergePackages() {
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <p className="text-sm text-muted-foreground">
-                    Mostrando {paginatedCancelledPackages.length > 0 ? (currentPageCancelled - 1) * itemsPerPage + 1 : 0} a{" "}
-                    {Math.min(currentPageCancelled * itemsPerPage, filteredCancelledPackages.length)} de{" "}
-                    {filteredCancelledPackages.length} encomenda(s)
+                    Mostrando{" "}
+                    {paginatedCancelledPackages.length > 0
+                      ? (currentPageCancelled - 1) * itemsPerPage + 1
+                      : 0}{" "}
+                    a{" "}
+                    {Math.min(
+                      currentPageCancelled * itemsPerPage,
+                      filteredCancelledPackages.length
+                    )}{" "}
+                    de {filteredCancelledPackages.length} encomenda(s)
                   </p>
                 </div>
                 <div className="rounded-md border">
@@ -1268,21 +1399,28 @@ export default function ConciergePackages() {
                       ) : (
                         paginatedCancelledPackages.map((pkg) => (
                           <TableRow key={pkg.id}>
-                            <TableCell className="font-medium">{pkg.apartment}</TableCell>
+                            <TableCell className="font-medium">
+                              {pkg.apartment}
+                            </TableCell>
                             <TableCell className="text-sm">
                               <div className="flex items-center gap-1">
                                 <User className="w-3 h-3" />
                                 {pkg.recipientName}
                               </div>
                             </TableCell>
-                            <TableCell className="text-sm">{pkg.description || "-"}</TableCell>
                             <TableCell className="text-sm">
-                              {new Date(pkg.arrivalDate).toLocaleString("pt-BR", {
-                                day: "2-digit",
-                                month: "2-digit",
-                                hour: "2-digit",
-                                minute: "2-digit",
-                              })}
+                              {pkg.description || "-"}
+                            </TableCell>
+                            <TableCell className="text-sm">
+                              {new Date(pkg.arrivalDate).toLocaleString(
+                                "pt-BR",
+                                {
+                                  day: "2-digit",
+                                  month: "2-digit",
+                                  hour: "2-digit",
+                                  minute: "2-digit",
+                                }
+                              )}
                             </TableCell>
                             <TableCell className="text-sm text-muted-foreground">
                               {pkg.courierName || "-"}
@@ -1322,7 +1460,11 @@ export default function ConciergePackages() {
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => setCurrentPageCancelled((prev) => Math.max(1, prev - 1))}
+                          onClick={() =>
+                            setCurrentPageCancelled((prev) =>
+                              Math.max(1, prev - 1)
+                            )
+                          }
                           disabled={currentPageCancelled === 1}
                           className="gap-1"
                         >
@@ -1330,15 +1472,21 @@ export default function ConciergePackages() {
                           Anterior
                         </Button>
                       </PaginationItem>
-                      {Array.from({ length: totalPagesCancelled }, (_, i) => i + 1)
+                      {Array.from(
+                        { length: totalPagesCancelled },
+                        (_, i) => i + 1
+                      )
                         .filter((page) => {
                           if (totalPagesCancelled <= 7) return true;
-                          if (page === 1 || page === totalPagesCancelled) return true;
-                          if (Math.abs(page - currentPageCancelled) <= 1) return true;
+                          if (page === 1 || page === totalPagesCancelled)
+                            return true;
+                          if (Math.abs(page - currentPageCancelled) <= 1)
+                            return true;
                           return false;
                         })
                         .map((page, index, array) => {
-                          const showEllipsisBefore = index > 0 && page - array[index - 1] > 1;
+                          const showEllipsisBefore =
+                            index > 0 && page - array[index - 1] > 1;
                           return (
                             <React.Fragment key={page}>
                               {showEllipsisBefore && (
@@ -1348,7 +1496,11 @@ export default function ConciergePackages() {
                               )}
                               <PaginationItem>
                                 <Button
-                                  variant={currentPageCancelled === page ? "default" : "outline"}
+                                  variant={
+                                    currentPageCancelled === page
+                                      ? "default"
+                                      : "outline"
+                                  }
                                   size="sm"
                                   onClick={() => setCurrentPageCancelled(page)}
                                   className="min-w-[2.5rem]"
@@ -1363,8 +1515,14 @@ export default function ConciergePackages() {
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => setCurrentPageCancelled((prev) => Math.min(totalPagesCancelled, prev + 1))}
-                          disabled={currentPageCancelled === totalPagesCancelled}
+                          onClick={() =>
+                            setCurrentPageCancelled((prev) =>
+                              Math.min(totalPagesCancelled, prev + 1)
+                            )
+                          }
+                          disabled={
+                            currentPageCancelled === totalPagesCancelled
+                          }
                           className="gap-1"
                         >
                           Próxima
@@ -1399,107 +1557,113 @@ export default function ConciergePackages() {
               className="space-y-4"
               id="package-form"
             >
-            <div className="space-y-2">
-              <Label htmlFor="recipientName">Nome do Destinatário</Label>
-              <Input
-                id="recipientName"
-                placeholder="Ex: João Silva Santos"
-                {...packageForm.register("recipientName")}
-              />
-              {packageForm.formState.errors.recipientName && (
-                <p className="text-sm text-destructive">
-                  {packageForm.formState.errors.recipientName.message}
-                </p>
-              )}
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="apartment">Apartamento *</Label>
-              <Select
-                value={packageForm.watch("apartment")}
-                onValueChange={(value) =>
-                  packageForm.setValue("apartment", value)
-                }
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione o apartamento" />
-                </SelectTrigger>
-                <SelectContent>
-                  {apartments.length > 0 ? (
-                    apartments
-                      .sort((a, b) => {
-                        // Sort by block first, then by number
-                        if (a.block && b.block && a.block !== b.block) {
-                          return a.block.localeCompare(b.block);
-                        }
-                        return a.number.localeCompare(b.number, undefined, { numeric: true, sensitivity: 'base' });
-                      })
-                      .map((apt) => (
-                        <SelectItem key={apt._id} value={apt.number}>
-                          {apt.block ? `Bloco ${apt.block} - ` : ""}Apartamento {apt.number}
-                          {apt.floor ? ` (${apt.floor}º andar)` : ""}
-                        </SelectItem>
-                      ))
-                  ) : (
-                    <SelectItem value="no-apartments" disabled>
-                      Nenhum apartamento disponível
-                    </SelectItem>
-                  )}
-                </SelectContent>
-              </Select>
-              {packageForm.formState.errors.apartment && (
-                <p className="text-sm text-destructive">
-                  {packageForm.formState.errors.apartment.message}
-                </p>
-              )}
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="description">Descrição da Encomenda</Label>
-              <Textarea
-                id="description"
-                placeholder="Ex: Caixa grande - Amazon (eletrônicos)"
-                rows={3}
-                {...packageForm.register("description")}
-              />
-              {packageForm.formState.errors.description && (
-                <p className="text-sm text-destructive">
-                  {packageForm.formState.errors.description.message}
-                </p>
-              )}
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="courierName">Entregue por (Transportadora/Entregador)</Label>
-              <Input
-                id="courierName"
-                placeholder="Ex: Correios, Amazon, DHL, etc."
-                {...packageForm.register("courierName")}
-              />
-              {packageForm.formState.errors.courierName && (
-                <p className="text-sm text-destructive">
-                  {packageForm.formState.errors.courierName.message}
-                </p>
-              )}
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="arrivalDate">Data e Hora de Chegada *</Label>
-              <div className="relative">
-                <Calendar className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+              <div className="space-y-2">
+                <Label htmlFor="recipientName">Nome do Destinatário</Label>
                 <Input
-                  id="arrivalDate"
-                  type="datetime-local"
-                  className="pl-9"
-                  {...packageForm.register("arrivalDate")}
+                  id="recipientName"
+                  placeholder="Ex: João Silva Santos"
+                  {...packageForm.register("recipientName")}
                 />
+                {packageForm.formState.errors.recipientName && (
+                  <p className="text-sm text-destructive">
+                    {packageForm.formState.errors.recipientName.message}
+                  </p>
+                )}
               </div>
-              {packageForm.formState.errors.arrivalDate && (
-                <p className="text-sm text-destructive">
-                  {packageForm.formState.errors.arrivalDate.message}
-                </p>
-              )}
-            </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="apartment">Apartamento *</Label>
+                <Select
+                  value={packageForm.watch("apartment")}
+                  onValueChange={(value) =>
+                    packageForm.setValue("apartment", value)
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione o apartamento" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {apartments.length > 0 ? (
+                      apartments
+                        .sort((a, b) => {
+                          // Sort by block first, then by number
+                          if (a.block && b.block && a.block !== b.block) {
+                            return a.block.localeCompare(b.block);
+                          }
+                          return a.number.localeCompare(b.number, undefined, {
+                            numeric: true,
+                            sensitivity: "base",
+                          });
+                        })
+                        .map((apt) => (
+                          <SelectItem key={apt._id} value={apt.number}>
+                            {apt.block ? `Bloco ${apt.block} - ` : ""}
+                            Apartamento {apt.number}
+                            {apt.floor ? ` (${apt.floor}º andar)` : ""}
+                          </SelectItem>
+                        ))
+                    ) : (
+                      <SelectItem value="no-apartments" disabled>
+                        Nenhum apartamento disponível
+                      </SelectItem>
+                    )}
+                  </SelectContent>
+                </Select>
+                {packageForm.formState.errors.apartment && (
+                  <p className="text-sm text-destructive">
+                    {packageForm.formState.errors.apartment.message}
+                  </p>
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="description">Descrição da Encomenda</Label>
+                <Textarea
+                  id="description"
+                  placeholder="Ex: Caixa grande - Amazon (eletrônicos)"
+                  rows={3}
+                  {...packageForm.register("description")}
+                />
+                {packageForm.formState.errors.description && (
+                  <p className="text-sm text-destructive">
+                    {packageForm.formState.errors.description.message}
+                  </p>
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="courierName">
+                  Entregue por (Transportadora/Entregador)
+                </Label>
+                <Input
+                  id="courierName"
+                  placeholder="Ex: Correios, Amazon, DHL, etc."
+                  {...packageForm.register("courierName")}
+                />
+                {packageForm.formState.errors.courierName && (
+                  <p className="text-sm text-destructive">
+                    {packageForm.formState.errors.courierName.message}
+                  </p>
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="arrivalDate">Data e Hora de Chegada *</Label>
+                <div className="relative">
+                  <Calendar className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    id="arrivalDate"
+                    type="datetime-local"
+                    className="pl-9"
+                    {...packageForm.register("arrivalDate")}
+                  />
+                </div>
+                {packageForm.formState.errors.arrivalDate && (
+                  <p className="text-sm text-destructive">
+                    {packageForm.formState.errors.arrivalDate.message}
+                  </p>
+                )}
+              </div>
 
               <div className="p-3 rounded-lg bg-muted/50 border text-sm">
                 <p className="font-medium mb-1">Registrado por:</p>
@@ -1621,14 +1785,11 @@ export default function ConciergePackages() {
               </form>
             </div>
           )}
-          </DialogContent>
-        </Dialog>
+        </DialogContent>
+      </Dialog>
 
       {/* Cancel Package Dialog */}
-      <Dialog
-        open={isCancelDialogOpen}
-        onOpenChange={setIsCancelDialogOpen}
-      >
+      <Dialog open={isCancelDialogOpen} onOpenChange={setIsCancelDialogOpen}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-red-600">
@@ -1711,6 +1872,6 @@ export default function ConciergePackages() {
           )}
         </DialogContent>
       </Dialog>
-      </div>
-    );
-  }
+    </div>
+  );
+}

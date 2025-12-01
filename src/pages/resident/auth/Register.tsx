@@ -28,10 +28,7 @@ import {
   buildingsService,
   type Building,
 } from "@/services/api/buildings.service";
-import {
-  apartmentsService,
-  type Apartment,
-} from "@/services/api";
+import { apartmentsService, type Apartment } from "@/services/api";
 
 export default function Register() {
   const navigate = useNavigate();
@@ -45,7 +42,6 @@ export default function Register() {
 
   useEffect(() => {
     const initialize = async () => {
-      // Load buildings
       try {
         const buildingsList = await buildingsService.getBuildings();
         setBuildings(buildingsList);
@@ -83,7 +79,6 @@ export default function Register() {
   const selectedBuildingId = watch("buildingId");
   const selectedApartmentId = watch("apartmentId");
 
-  // Fetch apartments when building is selected
   useEffect(() => {
     const fetchApartments = async () => {
       if (!selectedBuildingId) {
@@ -94,9 +89,9 @@ export default function Register() {
 
       try {
         setIsLoadingApartments(true);
-        const apartmentsList = await apartmentsService.getApartmentsByBuildingId(selectedBuildingId);
+        const apartmentsList =
+          await apartmentsService.getApartmentsByBuildingId(selectedBuildingId);
         setApartments(apartmentsList);
-        // Reset apartment selection when building changes
         setValue("apartmentId", "");
       } catch (error) {
         toast.error("Erro ao carregar apartamentos");
@@ -113,7 +108,7 @@ export default function Register() {
 
   const handlePhotoCapture = (file: File) => {
     setCapturedPhoto(file);
-    // Criar um FileList-like object para o react-hook-form
+
     const dataTransfer = new DataTransfer();
     dataTransfer.items.add(file);
     setValue("photo", dataTransfer.files, { shouldValidate: true });
@@ -134,7 +129,6 @@ export default function Register() {
       const phoneDigits = data.phone.replace(/\D/g, "");
       const formattedPhone = `+55${phoneDigits}`;
 
-      // Register resident
       const response = await residentsService.register({
         buildingId: data.buildingId,
         apartmentId: data.apartmentId,
@@ -144,7 +138,6 @@ export default function Register() {
         phone: formattedPhone,
       });
 
-      // Upload photo to presigned URL if provided
       if (data.photo?.[0] && response.data?.presignedUrl) {
         await residentsService.uploadPhoto(
           response.data.presignedUrl,
@@ -173,7 +166,6 @@ export default function Register() {
 
   return (
     <div className="min-h-screen flex">
-      {/* Left side - Branding */}
       <div className="hidden lg:flex lg:w-1/2 bg-primary items-center justify-center p-12">
         <div className="text-center">
           <img src={coliseuIcon} alt="Coliseu" className="w-80 h-80 mx-auto" />
@@ -186,7 +178,6 @@ export default function Register() {
         </div>
       </div>
 
-      {/* Right side - Register Form */}
       <div className="w-full lg:w-1/2 flex items-center justify-center p-8 bg-background">
         <div className="w-full max-w-md space-y-8">
           <div className="text-center">
@@ -241,7 +232,9 @@ export default function Register() {
               <Select
                 value={selectedApartmentId}
                 onValueChange={(value) => setValue("apartmentId", value)}
-                disabled={!selectedBuildingId || isLoadingApartments || isSubmitting}
+                disabled={
+                  !selectedBuildingId || isLoadingApartments || isSubmitting
+                }
               >
                 <SelectTrigger className="h-12">
                   <SelectValue
@@ -427,7 +420,6 @@ export default function Register() {
                     </Button>
                   )}
 
-                  {/* Hidden input for form validation */}
                   <input
                     type="file"
                     {...register("photo")}

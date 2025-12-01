@@ -44,6 +44,7 @@ import AdminNotices from "./pages/admin/Notices";
 import AdminConcierge from "./pages/admin/Concierge";
 import AdminConciergeEdit from "./pages/admin/ConciergeEdit";
 import AdminConciergeView from "./pages/admin/ConciergeView";
+import AdminProjects from "./pages/admin/Projects";
 
 // Concierge pages
 import ConciergeLogin from "./pages/concierge/auth/Login";
@@ -108,6 +109,7 @@ const App = () => (
               <Route element={<AppLayoutAdmin />}>
                 <Route path="/admin/dashboard" element={<AdminDashboard />} />
                 <Route path="/admin/financial" element={<AdminFinancial />} />
+                <Route path="/admin/projects" element={<AdminProjects />} />
                 <Route path="/admin/voting" element={<AdminVoting />} />
                 <Route path="/admin/polls" element={<AdminPolls />} />
                 <Route
@@ -117,8 +119,14 @@ const App = () => (
                 <Route path="/admin/fines" element={<AdminFines />} />
                 <Route path="/admin/notices" element={<AdminNotices />} />
                 <Route path="/admin/concierge" element={<AdminConcierge />} />
-                <Route path="/admin/concierge/edit/:id" element={<AdminConciergeEdit />} />
-                <Route path="/admin/concierge/view/:id" element={<AdminConciergeView />} />
+                <Route
+                  path="/admin/concierge/edit/:id"
+                  element={<AdminConciergeEdit />}
+                />
+                <Route
+                  path="/admin/concierge/view/:id"
+                  element={<AdminConciergeView />}
+                />
               </Route>
             </Route>
 

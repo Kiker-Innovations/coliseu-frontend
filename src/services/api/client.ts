@@ -52,7 +52,7 @@ class ApiClient {
 
 	/**
 	 * Get authentication token from storage
-	 * Will be used for JWT authentication in the future
+	 * Checks both localStorage and sessionStorage based on user's "remember me" preference
 	 */
 	private getAuthToken(): string | null {
 		// Try multiple sources to ensure we get the token

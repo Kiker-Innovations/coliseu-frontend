@@ -106,7 +106,7 @@ export default function ConciergeLogin() {
       // Redirect to dashboard after successful login
       setTimeout(() => {
         window.location.reload();
-      }, 500);
+      }, 1000);
     } catch (error: any) {
       toast.error(error.message || "Erro ao fazer login");
     }
@@ -119,7 +119,7 @@ export default function ConciergeLogin() {
         <Card className="w-full max-w-md border-2 border-primary/20 shadow-xl">
           <CardContent className="p-8">
             <div className="flex flex-col items-center justify-center space-y-4">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
               <p className="text-sm text-muted-foreground">Carregando...</p>
             </div>
           </CardContent>

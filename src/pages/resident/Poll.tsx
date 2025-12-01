@@ -98,10 +98,10 @@ export default function Poll() {
         
         // Load active polls (only ATIVO)
         const activeParams: any = { buildingId: buildingId.trim() };
-        if (month && !isNaN(month) && month > 0 && month <= 12) {
+        if (month && !Number.isNaN(month) && month > 0 && month <= 12) {
           activeParams.month = month;
         }
-        if (year && !isNaN(year) && year > 0) {
+        if (year && !Number.isNaN(year) && year > 0) {
           activeParams.year = year;
         }
         activeParams.status = ["ATIVO"];

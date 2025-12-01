@@ -9,6 +9,7 @@ import {
   Megaphone,
   BarChart3,
   DoorOpen,
+  FolderKanban,
 } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
 import {
@@ -29,6 +30,7 @@ import coliseuIcon from "@/assets/coliseu-icon.png";
 const menuItems = [
   { title: "Dashboard", url: "/admin/dashboard", icon: LayoutDashboard },
   { title: "Financeiro", url: "/admin/financial", icon: DollarSign },
+  { title: "Projetos", url: "/admin/projects", icon: FolderKanban },
   { title: "Votações", url: "/admin/voting", icon: Vote },
   { title: "Enquetes", url: "/admin/polls", icon: BarChart3 },
   {

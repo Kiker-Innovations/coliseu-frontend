@@ -89,7 +89,7 @@ export default function AdminLogin() {
       toast.success("Login de administrador realizado com sucesso!");
       setTimeout(() => {
         window.location.reload();
-      }, 2000);
+      }, 1000);
     } catch (error: any) {
       toast.error(error.message || "Erro ao fazer login");
     }

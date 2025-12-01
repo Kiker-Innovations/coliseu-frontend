@@ -47,7 +47,6 @@ export type {
 	ConciergeForgetPasswordResponse,
 	ConciergeResetPasswordRequest,
 	ConciergeResetPasswordResponse,
-	Package,
 	PackageRegisterRequest,
 	Fine,
 } from "./concierge.service";
@@ -91,3 +90,14 @@ export type {
 	CancelPackageRequest,
 	PackageStats,
 } from "./package.service";
+
+// Season service
+export { seasonService } from "./season.service";
+export type {
+	Suggestion,
+	TopSuggestion,
+	Season,
+	CreateSeasonRequest,
+	CreateSeasonResponse,
+	FinishSeasonResponse,
+} from "./season.service";

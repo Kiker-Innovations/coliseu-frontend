@@ -7,7 +7,6 @@ import DashboardSkeleton from "@/skeleton/concierge/DashboardSkeleton";
 import { toast } from "sonner";
 import {
   packageService,
-  type PendingPackage,
   type PackageStats,
 } from "@/services/api";
 
@@ -60,9 +59,9 @@ export default function ConciergeDashboard() {
 
         // Calculate apartment with most packages
         const apartmentCounts: { [key: string]: number } = {};
-        pendingMapped.forEach((pkg) => {
+        for (const pkg of pendingMapped) {
           apartmentCounts[pkg.apartment] = (apartmentCounts[pkg.apartment] || 0) + 1;
-        });
+        }
 
         const sortedApartments = Object.entries(apartmentCounts).sort(
           (a, b) => b[1] - a[1]
