@@ -12,10 +12,24 @@ import { Button } from "@/components/ui/button";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
-import { CheckCircle2, Lock, Calendar, Clock, AlertCircle, PlayCircle, PauseCircle, Users } from "lucide-react";
+import {
+  CheckCircle2,
+  Lock,
+  Calendar,
+  Clock,
+  AlertCircle,
+  PlayCircle,
+  PauseCircle,
+  Users,
+} from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { pollsService, ApiClientError, type ActivePoll, type FinishedCancelledPoll } from "@/services/api";
+import {
+  pollsService,
+  ApiClientError,
+  type ActivePoll,
+  type FinishedCancelledPoll,
+} from "@/services/api";
 
 export default function Poll() {
   const [isLoading, setIsLoading] = useState(true);
@@ -36,7 +50,9 @@ export default function Poll() {
     [key: string]: number;
   }>({});
   const [isVoting, setIsVoting] = useState<{ [key: string]: boolean }>({});
-  const [isChangingVote, setIsChangingVote] = useState<{ [key: string]: boolean }>({});
+  const [isChangingVote, setIsChangingVote] = useState<{
+    [key: string]: boolean;
+  }>({});
   const [confirmedVotes, setConfirmedVotes] = useState<{
     [key: string]: number;
   }>({}); // Armazena o optionId que foi confirmado para cada poll
@@ -45,8 +61,10 @@ export default function Poll() {
   useEffect(() => {
     const loadResidentData = async () => {
       try {
-        const token = localStorage.getItem("coliseu_access_token") || sessionStorage.getItem("coliseu_access_token");
-        
+        const token =
+          localStorage.getItem("coliseu_access_token") ||
+          sessionStorage.getItem("coliseu_access_token");
+
         if (!token) {
           toast.error("Token não encontrado. Faça login novamente.");
           return;
@@ -55,7 +73,7 @@ export default function Poll() {
         // Extrair dados do token JWT (rota /residents/me não existe mais)
         // Tentar decodificar o token JWT para obter buildingId e residentId
         try {
-          const tokenParts = token.split('.');
+          const tokenParts = token.split(".");
           if (tokenParts.length === 3) {
             const payload = JSON.parse(atob(tokenParts[1]));
             if (payload.buildingId) {
@@ -93,9 +111,15 @@ export default function Poll() {
         setIsLoading(true);
         const year = selectedYear;
         const month = selectedMonth;
-        
-        console.log("Loading polls for:", { selectedMonth, selectedYear, year, month, buildingId });
-        
+
+        console.log("Loading polls for:", {
+          selectedMonth,
+          selectedYear,
+          year,
+          month,
+          buildingId,
+        });
+
         // Load active polls (only ATIVO)
         const activeParams: any = { buildingId: buildingId.trim() };
         if (month && !Number.isNaN(month) && month > 0 && month <= 12) {
@@ -105,25 +129,27 @@ export default function Poll() {
           activeParams.year = year;
         }
         activeParams.status = ["ATIVO"];
-        
+
         console.log("Active polls params:", activeParams);
-        
+
         try {
           const activeResponse = await pollsService.getPolls(activeParams);
           console.log("Active polls response:", activeResponse);
           if (activeResponse.success && activeResponse.data) {
-            const polls = Array.isArray(activeResponse.data) ? activeResponse.data : [];
+            const polls = Array.isArray(activeResponse.data)
+              ? activeResponse.data
+              : [];
             setActivePolls(polls);
-            
+
             // Buscar os votos do usuário para cada poll usando a API
             const newVotedPolls = new Set<string>();
             const newConfirmedVotes: { [key: string]: number } = {};
-            
+
             // Buscar votos de todas as polls em paralelo
             const votePromises = polls.map(async (poll) => {
               const pollId = poll.id || poll._id || "";
               if (!pollId) return null;
-              
+
               try {
                 const voteResponse = await pollsService.getMyVote(pollId);
                 if (voteResponse.success && voteResponse.data) {
@@ -134,7 +160,10 @@ export default function Poll() {
                 }
               } catch (error: any) {
                 // Se o erro for 404, significa que o usuário não votou nessa poll ainda
-                if (error instanceof ApiClientError && error.statusCode === 404) {
+                if (
+                  error instanceof ApiClientError &&
+                  error.statusCode === 404
+                ) {
                   console.log(`Usuário ainda não votou na poll ${pollId}`);
                 } else {
                   console.warn(`Erro ao buscar voto da poll ${pollId}:`, error);
@@ -142,21 +171,22 @@ export default function Poll() {
               }
               return null;
             });
-            
+
             // Aguardar todas as requisições
             const voteResults = await Promise.all(votePromises);
-            
             // Processar os resultados
-            voteResults.forEach((result) => {
+            for (const result of voteResults) {
               if (result) {
                 newVotedPolls.add(result.pollId);
                 newConfirmedVotes[result.pollId] = result.optionId;
               }
-            });
-            
+            }
+
             // Atualizar localStorage com os votos obtidos da API
-            localStorage.setItem("poll_votes", JSON.stringify(newConfirmedVotes));
-            
+            localStorage.setItem(
+              "poll_votes",
+              JSON.stringify(newConfirmedVotes)
+            );
             setVotedPolls(newVotedPolls);
             setConfirmedVotes(newConfirmedVotes);
             // Inicializar tempSelections com os votos confirmados para mostrar como selecionados ao recarregar
@@ -167,12 +197,21 @@ export default function Poll() {
         } catch (activeError: any) {
           console.error("Erro ao carregar enquetes ativas:", activeError);
           if (activeError instanceof ApiClientError) {
-            if (activeError.statusCode === 400 || activeError.statusCode === 404) {
-              console.log("Nenhuma enquete ativa encontrada para o período selecionado");
+            if (
+              activeError.statusCode === 400 ||
+              activeError.statusCode === 404
+            ) {
+              console.log(
+                "Nenhuma enquete ativa encontrada para o período selecionado"
+              );
               setActivePolls([]);
             } else if (activeError.statusCode === 500) {
-              console.error("Erro interno do servidor ao carregar enquetes ativas");
-              toast.error("Erro ao carregar enquetes. Tente novamente mais tarde.");
+              console.error(
+                "Erro interno do servidor ao carregar enquetes ativas"
+              );
+              toast.error(
+                "Erro ao carregar enquetes. Tente novamente mais tarde."
+              );
               setActivePolls([]);
             } else {
               toast.error("Erro ao carregar enquetes ativas");
@@ -233,12 +272,15 @@ export default function Poll() {
       const now = new Date();
       const startDate = new Date(poll.startDate);
       const endDate = new Date(poll.endDate);
-      
+
       // Validate dates
-      if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+      if (
+        Number.isNaN(startDate.getTime()) ||
+        Number.isNaN(endDate.getTime())
+      ) {
         return false;
       }
-      
+
       return now >= startDate && now <= endDate;
     } catch (error) {
       console.error("Erro ao verificar período de votação:", error);
@@ -252,9 +294,12 @@ export default function Poll() {
       const now = new Date();
       const startDate = new Date(poll.startDate);
       const endDate = new Date(poll.endDate);
-      
+
       // Validate dates
-      if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+      if (
+        Number.isNaN(startDate.getTime()) ||
+        Number.isNaN(endDate.getTime())
+      ) {
         return {
           status: "encerrada",
           label: "Encerrada",
@@ -263,7 +308,7 @@ export default function Poll() {
           message: "Data inválida",
         };
       }
-      
+
       const isActive = isPollActive(poll);
       const isInPeriod = isPollInVotingPeriod(poll);
 
@@ -278,13 +323,17 @@ export default function Poll() {
       }
 
       if (now < startDate) {
-        const daysUntilStart = Math.ceil((startDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+        const daysUntilStart = Math.ceil(
+          (startDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)
+        );
         return {
           status: "aguardando",
           label: "Aguardando Início",
           color: "bg-blue-500",
           icon: PauseCircle,
-          message: `A votação começará em ${daysUntilStart} dia${daysUntilStart > 1 ? 's' : ''}`,
+          message: `A votação começará em ${daysUntilStart} dia${
+            daysUntilStart > 1 ? "s" : ""
+          }`,
           daysUntil: daysUntilStart,
         };
       }
@@ -300,19 +349,22 @@ export default function Poll() {
       }
 
       // Poll is active and in voting period
-      const hoursUntilEnd = Math.ceil((endDate.getTime() - now.getTime()) / (1000 * 60 * 60));
+      const hoursUntilEnd = Math.ceil(
+        (endDate.getTime() - now.getTime()) / (1000 * 60 * 60)
+      );
       const daysUntilEnd = Math.ceil(hoursUntilEnd / 24);
-      
+
       return {
         status: "ativa",
         label: "Votação Aberta",
         color: "bg-green-500",
         icon: PlayCircle,
-        message: daysUntilEnd > 1 
-          ? `Encerra em ${daysUntilEnd} dia${daysUntilEnd > 1 ? 's' : ''}`
-          : hoursUntilEnd > 1
-          ? `Encerra em ${hoursUntilEnd} hora${hoursUntilEnd > 1 ? 's' : ''}`
-          : "Encerra em breve",
+        message:
+          daysUntilEnd > 1
+            ? `Encerra em ${daysUntilEnd} dia${daysUntilEnd > 1 ? "s" : ""}`
+            : hoursUntilEnd > 1
+            ? `Encerra em ${hoursUntilEnd} hora${hoursUntilEnd > 1 ? "s" : ""}`
+            : "Encerra em breve",
         hoursUntil: hoursUntilEnd,
       };
     } catch (error) {
@@ -334,13 +386,15 @@ export default function Poll() {
     try {
       const aStatus = getPollStatus(a);
       const bStatus = getPollStatus(b);
-      const aIsVotingOpen = aStatus.status === "ativa" && isPollInVotingPeriod(a);
-      const bIsVotingOpen = bStatus.status === "ativa" && isPollInVotingPeriod(b);
-      
+      const aIsVotingOpen =
+        aStatus.status === "ativa" && isPollInVotingPeriod(a);
+      const bIsVotingOpen =
+        bStatus.status === "ativa" && isPollInVotingPeriod(b);
+
       // If one is voting open and the other isn't, voting open comes first
       if (aIsVotingOpen && !bIsVotingOpen) return -1;
       if (!aIsVotingOpen && bIsVotingOpen) return 1;
-      
+
       // If both are voting open or both aren't, sort by end date (closest first)
       const aEndDate = a.endDate ? new Date(a.endDate).getTime() : 0;
       const bEndDate = b.endDate ? new Date(b.endDate).getTime() : 0;
@@ -353,8 +407,8 @@ export default function Poll() {
 
   const handleSelection = (pollId: string, optionValue: string) => {
     // Extrair o id numérico do valor (formato: "option-0", "option-1", etc)
-    const optionId = parseInt(optionValue.replace("option-", ""), 10);
-    if (!isNaN(optionId)) {
+    const optionId = Number.parseInt(optionValue.replace("option-", ""), 10);
+    if (!Number.isNaN(optionId)) {
       // Se a opção já está selecionada, desmarcar (permitir desmarcar)
       if (tempSelections[pollId] === optionId) {
         const newSelections = { ...tempSelections };
@@ -396,10 +450,12 @@ export default function Poll() {
     // Verificar se o residentId está disponível - extrair do token se necessário
     if (!residentId || residentId.trim() === "") {
       // Tentar extrair do token JWT
-      const token = localStorage.getItem("coliseu_access_token") || sessionStorage.getItem("coliseu_access_token");
+      const token =
+        localStorage.getItem("coliseu_access_token") ||
+        sessionStorage.getItem("coliseu_access_token");
       if (token) {
         try {
-          const tokenParts = token.split('.');
+          const tokenParts = token.split(".");
           if (tokenParts.length === 3) {
             const payload = JSON.parse(atob(tokenParts[1]));
             if (payload.id || payload.sub || payload.userId) {
@@ -407,7 +463,9 @@ export default function Poll() {
               setResidentId(String(idFromToken));
               localStorage.setItem("resident_id", String(idFromToken));
             } else {
-              toast.error("Não foi possível identificar o resident. Faça login novamente.");
+              toast.error(
+                "Não foi possível identificar o resident. Faça login novamente."
+              );
               return;
             }
           } else {
@@ -416,7 +474,9 @@ export default function Poll() {
           }
         } catch (error: any) {
           console.error("Erro ao decodificar token:", error);
-          toast.error("Não foi possível identificar o resident. Faça login novamente.");
+          toast.error(
+            "Não foi possível identificar o resident. Faça login novamente."
+          );
           return;
         }
       } else {
@@ -426,23 +486,31 @@ export default function Poll() {
     }
 
     const selectedOptionId = tempSelections[pollId];
-    
+
     // Se não há seleção, não precisamos validar a opção
     // Permitir salvar sem seleção para excluir o voto
     let optionId: number | null = null;
     if (selectedOptionId !== undefined && selectedOptionId !== null) {
       // Verificar se a opção selecionada existe e tem id
       // Usar comparação estrita para lidar com id = 0
-      const selectedOption = poll.options.find(opt => opt.id !== undefined && opt.id === selectedOptionId);
-      if (!selectedOption || (selectedOption.id === undefined && selectedOption.id !== 0)) {
+      const selectedOption = poll.options.find(
+        (opt) => opt.id !== undefined && opt.id === selectedOptionId
+      );
+      if (
+        !selectedOption ||
+        (selectedOption.id === undefined && selectedOption.id !== 0)
+      ) {
         toast.error("Opção selecionada inválida");
         setIsVoting({ ...isVoting, [pollId]: false });
         return;
       }
 
       // Garantir que optionId seja um número
-      optionId = typeof selectedOption.id === 'number' ? selectedOption.id : Number(selectedOption.id);
-      if (isNaN(optionId)) {
+      optionId =
+        typeof selectedOption.id === "number"
+          ? selectedOption.id
+          : Number(selectedOption.id);
+      if (Number.isNaN(optionId)) {
         toast.error("ID da opção inválido");
         setIsVoting({ ...isVoting, [pollId]: false });
         return;
@@ -451,19 +519,21 @@ export default function Poll() {
 
     try {
       setIsVoting({ ...isVoting, [pollId]: true });
-      
+
       // Verificar token antes de votar
-      const token = localStorage.getItem("coliseu_access_token") || sessionStorage.getItem("coliseu_access_token");
+      const token =
+        localStorage.getItem("coliseu_access_token") ||
+        sessionStorage.getItem("coliseu_access_token");
       if (!token) {
         toast.error("Token não encontrado. Faça login novamente.");
         setIsVoting({ ...isVoting, [pollId]: false });
         return;
       }
-      
+
       console.log("Enviando voto:", { pollId, optionId });
       console.log("Token disponível:", !!token);
       console.log("Backend extrairá userId do token JWT");
-      
+
       // O backend extrai o userId do token JWT, então não precisamos enviar residentId no body
       // Se optionId for null, não devemos enviar voto (isso não deve acontecer aqui, mas mantemos a validação)
       if (optionId === null) {
@@ -471,14 +541,14 @@ export default function Poll() {
         setIsVoting({ ...isVoting, [pollId]: false });
         return;
       }
-      
+
       const votePayload = {
         pollId: pollId,
         optionId: optionId,
       };
-      
+
       console.log("Payload do voto:", votePayload);
-      
+
       const response = await pollsService.votePoll(votePayload);
 
       if (response.success) {
@@ -523,35 +593,35 @@ export default function Poll() {
           // Desativar modo de trocar voto após remover
           setIsChangingVote({ ...isChangingVote, [pollId]: false });
         }
-        
+
         // Recarregar as polls para atualizar os votos
         const year = selectedYear;
         const month = selectedMonth;
-        
+
         const activeParams: any = { buildingId };
-        if (month && !isNaN(month) && month > 0 && month <= 12) {
+        if (month && !Number.isNaN(month) && month > 0 && month <= 12) {
           activeParams.month = month;
         }
-        if (year && !isNaN(year) && year > 0) {
+        if (year && !Number.isNaN(year) && year > 0) {
           activeParams.year = year;
         }
         activeParams.status = ["ATIVO"];
-        
+
         try {
           const activeResponse = await pollsService.getPolls(activeParams);
           if (activeResponse.success) {
             const polls = activeResponse.data || [];
             setActivePolls(polls);
-            
+
             // Buscar votos atualizados da API para todas as polls
             const newVotedPolls = new Set<string>();
             const newConfirmedVotes: { [key: string]: number } = {};
-            
+
             // Buscar votos de todas as polls em paralelo
             const votePromises = polls.map(async (poll: ActivePoll) => {
               const pollId = poll.id || poll._id || "";
               if (!pollId) return null;
-              
+
               try {
                 const voteResponse = await pollsService.getMyVote(pollId);
                 if (voteResponse.success && voteResponse.data) {
@@ -562,7 +632,10 @@ export default function Poll() {
                 }
               } catch (error: any) {
                 // Se o erro for 404, significa que o usuário não votou nessa poll ainda
-                if (error instanceof ApiClientError && error.statusCode === 404) {
+                if (
+                  error instanceof ApiClientError &&
+                  error.statusCode === 404
+                ) {
                   console.log(`Usuário ainda não votou na poll ${pollId}`);
                 } else {
                   console.warn(`Erro ao buscar voto da poll ${pollId}:`, error);
@@ -570,21 +643,22 @@ export default function Poll() {
               }
               return null;
             });
-            
+
             // Aguardar todas as requisições
             const voteResults = await Promise.all(votePromises);
-            
             // Processar os resultados
-            voteResults.forEach((result) => {
+            for (const result of voteResults) {
               if (result) {
                 newVotedPolls.add(result.pollId);
                 newConfirmedVotes[result.pollId] = result.optionId;
               }
-            });
-            
+            }
+
             // Atualizar localStorage com os votos obtidos da API
-            localStorage.setItem("poll_votes", JSON.stringify(newConfirmedVotes));
-            
+            localStorage.setItem(
+              "poll_votes",
+              JSON.stringify(newConfirmedVotes)
+            );
             setVotedPolls(newVotedPolls);
             setConfirmedVotes(newConfirmedVotes);
             // Atualizar tempSelections também para manter a seleção visível
@@ -618,34 +692,45 @@ export default function Poll() {
       const now = new Date();
       const startDate = new Date(poll.startDate);
       const endDate = new Date(poll.endDate);
-      
+
       // Validate dates
-      if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+      if (
+        Number.isNaN(startDate.getTime()) ||
+        Number.isNaN(endDate.getTime())
+      ) {
         return "Data inválida";
       }
-      
+
       if (now < startDate) {
         const diff = startDate.getTime() - now.getTime();
         const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-        const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-        
+        const hours = Math.floor(
+          (diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60)
+        );
+
         if (days > 0) {
-          return `Inicia em ${days} dia${days > 1 ? 's' : ''}${hours > 0 ? ` e ${hours}h` : ''}`;
+          return `Inicia em ${days} dia${days > 1 ? "s" : ""}${
+            hours > 0 ? ` e ${hours}h` : ""
+          }`;
         }
         return `Inicia em ${hours}h`;
       }
-      
+
       if (now > endDate) {
         return "Período encerrado";
       }
-      
+
       const diff = endDate.getTime() - now.getTime();
       const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-      const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+      const hours = Math.floor(
+        (diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60)
+      );
       const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-      
+
       if (days > 0) {
-        return `${days} dia${days > 1 ? 's' : ''} restante${days > 1 ? 's' : ''}`;
+        return `${days} dia${days > 1 ? "s" : ""} restante${
+          days > 1 ? "s" : ""
+        }`;
       }
       if (hours > 0) {
         return `${hours}h ${minutes}m restantes`;
@@ -671,8 +756,8 @@ export default function Poll() {
           </p>
         </div>
         <div className="flex gap-2">
-          <Select 
-            value={selectedMonth.toString()} 
+          <Select
+            value={selectedMonth.toString()}
             onValueChange={(value) => setSelectedMonth(Number(value))}
           >
             <SelectTrigger className="w-[150px]">
@@ -686,8 +771,8 @@ export default function Poll() {
               ))}
             </SelectContent>
           </Select>
-          <Select 
-            value={selectedYear.toString()} 
+          <Select
+            value={selectedYear.toString()}
             onValueChange={(value) => setSelectedYear(Number(value))}
           >
             <SelectTrigger className="w-[120px]">
@@ -725,10 +810,12 @@ export default function Poll() {
                 Enquetes Respondidas
               </p>
               <p className="text-4xl font-bold text-accent">
-                {allPolls.filter((p) => {
-                  const pollId = p.id || p._id;
-                  return pollId ? hasVoted(pollId) : false;
-                }).length}
+                {
+                  allPolls.filter((p) => {
+                    const pollId = p.id || p._id;
+                    return pollId ? hasVoted(pollId) : false;
+                  }).length
+                }
               </p>
             </div>
           </CardContent>
@@ -761,9 +848,10 @@ export default function Poll() {
             const isActive = isPollActive(poll);
             const hasVotedInPoll = hasVoted(pollId);
             const pollStatus = getPollStatus(poll);
-            const canVote = isActive && isPollInVotingPeriod(poll) && !hasVotedInPoll;
+            const canVote =
+              isActive && isPollInVotingPeriod(poll) && !hasVotedInPoll;
             const StatusIcon = pollStatus.icon;
-            
+
             return (
               <Card
                 key={pollId}
@@ -788,12 +876,15 @@ export default function Poll() {
                         </CardTitle>
                         <div className="flex items-center gap-2">
                           {hasVotedInPoll && (
-                            <Badge variant="outline" className="bg-accent/10 text-accent border-accent">
+                            <Badge
+                              variant="outline"
+                              className="bg-accent/10 text-accent border-accent"
+                            >
                               <CheckCircle2 className="w-3 h-3 mr-1" />
                               Você votou
                             </Badge>
                           )}
-                          <Badge 
+                          <Badge
                             className={`${pollStatus.color} text-white flex items-center gap-1.5 px-3 py-1`}
                           >
                             <StatusIcon className="w-3.5 h-3.5" />
@@ -801,42 +892,52 @@ export default function Poll() {
                           </Badge>
                         </div>
                       </div>
-                      
+
                       <div className="flex items-center gap-1 text-sm text-muted-foreground mb-3">
                         <Users className="w-4 h-4" />
                         <span className="font-semibold">{poll.votes}</span>
-                        <span>voto{poll.votes !== 1 ? 's' : ''}</span>
+                        <span>voto{poll.votes !== 1 ? "s" : ""}</span>
                       </div>
-                      
+
                       {/* Date Info - lado a lado */}
                       <div className="grid grid-cols-2 gap-3">
                         <div className="flex items-center gap-2 p-3 rounded-lg border">
                           <Calendar className="w-4 h-4 text-muted-foreground flex-shrink-0" />
                           <div className="flex-1 min-w-0">
-                            <p className="text-xs text-muted-foreground">Início</p>
+                            <p className="text-xs text-muted-foreground">
+                              Início
+                            </p>
                             <p className="font-medium text-sm truncate">
-                              {new Date(poll.startDate).toLocaleDateString("pt-BR", {
-                                day: "2-digit",
-                                month: "short",
-                                year: "numeric",
-                                hour: "2-digit",
-                                minute: "2-digit",
-                              })}
+                              {new Date(poll.startDate).toLocaleDateString(
+                                "pt-BR",
+                                {
+                                  day: "2-digit",
+                                  month: "short",
+                                  year: "numeric",
+                                  hour: "2-digit",
+                                  minute: "2-digit",
+                                }
+                              )}
                             </p>
                           </div>
                         </div>
                         <div className="flex items-center gap-2 p-3 rounded-lg border">
                           <Clock className="w-4 h-4 text-muted-foreground flex-shrink-0" />
                           <div className="flex-1 min-w-0">
-                            <p className="text-xs text-muted-foreground">Término</p>
+                            <p className="text-xs text-muted-foreground">
+                              Término
+                            </p>
                             <p className="font-medium text-sm truncate">
-                              {new Date(poll.endDate).toLocaleDateString("pt-BR", {
-                                day: "2-digit",
-                                month: "short",
-                                year: "numeric",
-                                hour: "2-digit",
-                                minute: "2-digit",
-                              })}
+                              {new Date(poll.endDate).toLocaleDateString(
+                                "pt-BR",
+                                {
+                                  day: "2-digit",
+                                  month: "short",
+                                  year: "numeric",
+                                  hour: "2-digit",
+                                  minute: "2-digit",
+                                }
+                              )}
                             </p>
                           </div>
                         </div>
@@ -846,269 +947,369 @@ export default function Poll() {
                 </CardHeader>
                 <CardContent>
                   {/* Se já votou e não está trocando voto, mostrar apenas barras de progresso */}
-                  {hasVotedInPoll && !isChangingVote[pollId] && pollStatus.status === "ativa" && (
-                    <>
-                      <div className="space-y-3 mb-4">
-                        {poll.options.map((option, idx) => {
-                          const optionId = option.id !== undefined && option.id !== null ? option.id : idx;
-                          // Verificar se esta opção foi a última votada (usando confirmedVotes)
-                          const wasVoted = confirmedVotes[pollId] === optionId;
-                          return (
-                            <div key={`option-${optionId}`} className="space-y-1">
-                              <div className="flex justify-between text-sm">
-                                <span className={`font-medium ${wasVoted ? 'text-accent' : ''}`}>
-                                  {option.description}
-                                  {wasVoted && (
-                                    <span className="ml-2 text-accent">(Seu voto)</span>
-                                  )}
-                                </span>
-                                <span className="text-muted-foreground">
-                                  {option.votes} votos ({option.percent}%)
-                                </span>
-                              </div>
-                              <Progress value={option.percent} className="h-2" />
-                            </div>
-                          );
-                        })}
-                      </div>
-                      <div className="flex gap-2">
-                        <Button
-                          onClick={() => handleChangeVote(pollId)}
-                          variant="outline"
-                          className="flex-1"
-                        >
-                          Trocar Voto
-                        </Button>
-                        <Button
-                          onClick={async () => {
-                            // Anular voto usando DELETE
-                            try {
-                              setIsVoting({ ...isVoting, [pollId]: true });
-                              const response = await pollsService.cancelVote(pollId);
-                              if (response.success) {
-                                toast.success("Voto anulado com sucesso!");
-                                const newVotedPolls = new Set(votedPolls);
-                                newVotedPolls.delete(pollId);
-                                setVotedPolls(newVotedPolls);
-                                // Remover voto confirmado
-                                const newConfirmedVotes = { ...confirmedVotes };
-                                delete newConfirmedVotes[pollId];
-                                setConfirmedVotes(newConfirmedVotes);
-                                // Remover também de tempSelections
-                                const newSelections = { ...tempSelections };
-                                delete newSelections[pollId];
-                                setTempSelections(newSelections);
-                                // Remover do localStorage
-                                const savedVotes = localStorage.getItem("poll_votes");
-                                if (savedVotes) {
-                                  const votes = JSON.parse(savedVotes);
-                                  delete votes[pollId];
-                                  localStorage.setItem("poll_votes", JSON.stringify(votes));
-                                }
-                                // Recarregar polls
-                                const activeParams: any = { buildingId, status: ["ATIVO"] };
-                                if (selectedMonth && !isNaN(selectedMonth) && selectedMonth > 0 && selectedMonth <= 12) {
-                                  activeParams.month = selectedMonth;
-                                }
-                                if (selectedYear && !isNaN(selectedYear) && selectedYear > 0) {
-                                  activeParams.year = selectedYear;
-                                }
-                                const activeResponse = await pollsService.getPolls(activeParams);
-                                if (activeResponse.success) {
-                                  const polls = activeResponse.data || [];
-                                  setActivePolls(polls);
-                                  
-                                  // Buscar votos atualizados da API para todas as polls
-                                  const updatedVotedPolls = new Set<string>();
-                                  const updatedConfirmedVotes: { [key: string]: number } = {};
-                                  
-                                  // Buscar votos de todas as polls em paralelo
-                                  const votePromises = polls.map(async (poll: ActivePoll) => {
-                                    const pId = poll.id || poll._id || "";
-                                    if (!pId) return null;
-                                    
-                                    try {
-                                      const voteResponse = await pollsService.getMyVote(pId);
-                                      if (voteResponse.success && voteResponse.data) {
-                                        return {
-                                          pollId: pId,
-                                          optionId: voteResponse.data.optionId,
-                                        };
-                                      }
-                                    } catch (error: any) {
-                                      // Se o erro for 404, significa que o usuário não votou nessa poll ainda
-                                      if (error instanceof ApiClientError && error.statusCode === 404) {
-                                        console.log(`Usuário não votou na poll ${pId}`);
-                                      } else {
-                                        console.warn(`Erro ao buscar voto da poll ${pId}:`, error);
-                                      }
-                                    }
-                                    return null;
-                                  });
-                                  
-                                  // Aguardar todas as requisições
-                                  const voteResults = await Promise.all(votePromises);
-                                  
-                                  // Processar os resultados
-                                  voteResults.forEach((result) => {
-                                    if (result) {
-                                      updatedVotedPolls.add(result.pollId);
-                                      updatedConfirmedVotes[result.pollId] = result.optionId;
-                                    }
-                                  });
-                                  
-                                  // Atualizar localStorage com os votos obtidos da API
-                                  localStorage.setItem("poll_votes", JSON.stringify(updatedConfirmedVotes));
-                                  
-                                  setVotedPolls(updatedVotedPolls);
-                                  setConfirmedVotes(updatedConfirmedVotes);
-                                  // Atualizar tempSelections também
-                                  setTempSelections(updatedConfirmedVotes);
-                                }
-                              } else {
-                                toast.error(response.message || "Erro ao anular voto");
-                              }
-                            } catch (error: any) {
-                              console.error("Erro ao anular voto:", error);
-                              if (error instanceof ApiClientError) {
-                                toast.error(error.response.message || "Erro ao anular voto");
-                              } else {
-                                toast.error("Erro ao anular voto");
-                              }
-                            } finally {
-                              setIsVoting({ ...isVoting, [pollId]: false });
-                            }
-                          }}
-                          variant="outline"
-                          disabled={isVoting[pollId]}
-                          className="flex-1"
-                        >
-                          {isVoting[pollId] ? "Anulando..." : "Anular Voto"}
-                        </Button>
-                      </div>
-                    </>
-                  )}
-
-                  {/* Se não votou ainda ou está trocando voto, mostrar RadioGroup - apenas se estiver no período de votação */}
-                  {pollStatus.status === "ativa" && isPollInVotingPeriod(poll) && (!hasVotedInPoll || isChangingVote[pollId]) && (
-                    <>
-                      <div className="mb-4">
-                        <p className="text-sm font-medium mb-3">
-                          {isChangingVote[pollId] ? "Selecione uma nova opção:" : "Selecione uma opção:"}
-                        </p>
-                        <RadioGroup
-                          value={
-                            // Se está trocando voto, usar apenas tempSelections
-                            // Se não está trocando voto e já votou, mostrar o voto confirmado
-                            isChangingVote[pollId]
-                              ? (tempSelections[pollId] !== undefined ? `option-${tempSelections[pollId]}` : "")
-                              : (tempSelections[pollId] !== undefined 
-                                  ? `option-${tempSelections[pollId]}` 
-                                  : confirmedVotes[pollId] !== undefined
-                                  ? `option-${confirmedVotes[pollId]}`
-                                  : "")
-                          }
-                          onValueChange={(value) => handleSelection(pollId, value)}
-                        >
-                          <div className="space-y-3">
-                            {poll.options.map((option, idx) => {
-                              const optionId = option.id !== undefined && option.id !== null ? option.id : idx;
-                              const optionValue = `option-${optionId}`;
-                              // Verificar se está selecionado em tempSelections ou confirmedVotes (para mostrar quando já votou)
-                              const isCurrentlySelected = tempSelections[pollId] === optionId || 
-                                                         (!isChangingVote[pollId] && confirmedVotes[pollId] === optionId);
-                              return (
-                                <div
-                                  key={optionValue}
-                                  className={`flex items-center space-x-3 p-3 rounded-lg border transition-colors ${
-                                    isCurrentlySelected 
-                                      ? 'border-accent bg-accent/5' 
-                                      : 'hover:bg-accent/5'
-                                  }`}
-                                >
-                                  <RadioGroupItem
-                                    value={optionValue}
-                                    id={`${pollId}-${optionValue}`}
-                                  />
-                                  <Label
-                                    htmlFor={`${pollId}-${optionValue}`}
-                                    className="flex-1 cursor-pointer"
+                  {hasVotedInPoll &&
+                    !isChangingVote[pollId] &&
+                    pollStatus.status === "ativa" && (
+                      <>
+                        <div className="space-y-3 mb-4">
+                          {poll.options.map((option, idx) => {
+                            const optionId =
+                              option.id !== undefined && option.id !== null
+                                ? option.id
+                                : idx;
+                            // Verificar se esta opção foi a última votada (usando confirmedVotes)
+                            const wasVoted =
+                              confirmedVotes[pollId] === optionId;
+                            return (
+                              <div
+                                key={`option-${optionId}`}
+                                className="space-y-1"
+                              >
+                                <div className="flex justify-between text-sm">
+                                  <span
+                                    className={`font-medium ${
+                                      wasVoted ? "text-accent" : ""
+                                    }`}
                                   >
                                     {option.description}
-                                  </Label>
+                                    {wasVoted && (
+                                      <span className="ml-2 text-accent">
+                                        (Seu voto)
+                                      </span>
+                                    )}
+                                  </span>
+                                  <span className="text-muted-foreground">
+                                    {option.votes} votos ({option.percent}%)
+                                  </span>
                                 </div>
-                              );
-                            })}
-                          </div>
-                        </RadioGroup>
-                      </div>
-                      <div className="flex gap-2">
-                        {isChangingVote[pollId] && (
+                                <Progress
+                                  value={option.percent}
+                                  className="h-2"
+                                />
+                              </div>
+                            );
+                          })}
+                        </div>
+                        <div className="flex gap-2">
                           <Button
-                            onClick={() => handleCancelChangeVote(pollId)}
+                            onClick={() => handleChangeVote(pollId)}
                             variant="outline"
                             className="flex-1"
                           >
-                            Cancelar
+                            Trocar Voto
                           </Button>
-                        )}
-                        <Button
-                          onClick={() => handleConfirmVote(poll as ActivePoll)}
-                          disabled={isVoting[pollId] || (tempSelections[pollId] === undefined && !isChangingVote[pollId])}
-                          className={isChangingVote[pollId] ? "flex-1" : "w-full"}
-                        >
-                          {isVoting[pollId] 
-                            ? "Processando..." 
-                            : isChangingVote[pollId]
-                            ? "Confirmar Voto"
-                            : tempSelections[pollId] !== undefined && tempSelections[pollId] !== null
-                            ? "Confirmar Voto"
-                            : "Selecione uma opção"}
-                        </Button>
-                      </div>
-                    </>
-                  )}
+                          <Button
+                            onClick={async () => {
+                              // Anular voto usando DELETE
+                              try {
+                                setIsVoting({ ...isVoting, [pollId]: true });
+                                const response = await pollsService.cancelVote(
+                                  pollId
+                                );
+                                if (response.success) {
+                                  toast.success("Voto anulado com sucesso!");
+                                  const newVotedPolls = new Set(votedPolls);
+                                  newVotedPolls.delete(pollId);
+                                  setVotedPolls(newVotedPolls);
+                                  // Remover voto confirmado
+                                  const newConfirmedVotes = {
+                                    ...confirmedVotes,
+                                  };
+                                  delete newConfirmedVotes[pollId];
+                                  setConfirmedVotes(newConfirmedVotes);
+                                  // Remover também de tempSelections
+                                  const newSelections = { ...tempSelections };
+                                  delete newSelections[pollId];
+                                  setTempSelections(newSelections);
+                                  // Remover do localStorage
+                                  const savedVotes =
+                                    localStorage.getItem("poll_votes");
+                                  if (savedVotes) {
+                                    const votes = JSON.parse(savedVotes);
+                                    delete votes[pollId];
+                                    localStorage.setItem(
+                                      "poll_votes",
+                                      JSON.stringify(votes)
+                                    );
+                                  }
+                                  // Recarregar polls
+                                  const activeParams: any = {
+                                    buildingId,
+                                    status: ["ATIVO"],
+                                  };
+                                  if (
+                                    selectedMonth &&
+                                    !Number.isNaN(selectedMonth) &&
+                                    selectedMonth > 0 &&
+                                    selectedMonth <= 12
+                                  ) {
+                                    activeParams.month = selectedMonth;
+                                  }
+                                  if (
+                                    selectedYear &&
+                                    !Number.isNaN(selectedYear) &&
+                                    selectedYear > 0
+                                  ) {
+                                    activeParams.year = selectedYear;
+                                  }
+                                  const activeResponse =
+                                    await pollsService.getPolls(activeParams);
+                                  if (activeResponse.success) {
+                                    const polls = activeResponse.data || [];
+                                    setActivePolls(polls);
+
+                                    // Buscar votos atualizados da API para todas as polls
+                                    const updatedVotedPolls = new Set<string>();
+                                    const updatedConfirmedVotes: {
+                                      [key: string]: number;
+                                    } = {};
+
+                                    // Buscar votos de todas as polls em paralelo
+                                    const votePromises = polls.map(
+                                      async (poll: ActivePoll) => {
+                                        const pId = poll.id || poll._id || "";
+                                        if (!pId) return null;
+
+                                        try {
+                                          const voteResponse =
+                                            await pollsService.getMyVote(pId);
+                                          if (
+                                            voteResponse.success &&
+                                            voteResponse.data
+                                          ) {
+                                            return {
+                                              pollId: pId,
+                                              optionId:
+                                                voteResponse.data.optionId,
+                                            };
+                                          }
+                                        } catch (error: any) {
+                                          // Se o erro for 404, significa que o usuário não votou nessa poll ainda
+                                          if (
+                                            error instanceof ApiClientError &&
+                                            error.statusCode === 404
+                                          ) {
+                                            console.log(
+                                              `Usuário não votou na poll ${pId}`
+                                            );
+                                          } else {
+                                            console.warn(
+                                              `Erro ao buscar voto da poll ${pId}:`,
+                                              error
+                                            );
+                                          }
+                                        }
+                                        return null;
+                                      }
+                                    );
+
+                                    // Aguardar todas as requisições
+                                    const voteResults = await Promise.all(
+                                      votePromises
+                                    );
+                                    // Processar os resultados
+                                    for (const result of voteResults) {
+                                      if (result) {
+                                        updatedVotedPolls.add(result.pollId);
+                                        updatedConfirmedVotes[result.pollId] =
+                                          result.optionId;
+                                      }
+                                    }
+
+                                    // Atualizar localStorage com os votos obtidos da API
+                                    localStorage.setItem(
+                                      "poll_votes",
+                                      JSON.stringify(updatedConfirmedVotes)
+                                    );
+
+                                    setVotedPolls(updatedVotedPolls);
+                                    setConfirmedVotes(updatedConfirmedVotes);
+                                    // Atualizar tempSelections também
+                                    setTempSelections(updatedConfirmedVotes);
+                                  }
+                                } else {
+                                  toast.error(
+                                    response.message || "Erro ao anular voto"
+                                  );
+                                }
+                              } catch (error: any) {
+                                console.error("Erro ao anular voto:", error);
+                                if (error instanceof ApiClientError) {
+                                  toast.error(
+                                    error.response.message ||
+                                      "Erro ao anular voto"
+                                  );
+                                } else {
+                                  toast.error("Erro ao anular voto");
+                                }
+                              } finally {
+                                setIsVoting({ ...isVoting, [pollId]: false });
+                              }
+                            }}
+                            variant="outline"
+                            disabled={isVoting[pollId]}
+                            className="flex-1"
+                          >
+                            {isVoting[pollId] ? "Anulando..." : "Anular Voto"}
+                          </Button>
+                        </div>
+                      </>
+                    )}
+
+                  {/* Se não votou ainda ou está trocando voto, mostrar RadioGroup - apenas se estiver no período de votação */}
+                  {pollStatus.status === "ativa" &&
+                    isPollInVotingPeriod(poll) &&
+                    (!hasVotedInPoll || isChangingVote[pollId]) && (
+                      <>
+                        <div className="mb-4">
+                          <p className="text-sm font-medium mb-3">
+                            {isChangingVote[pollId]
+                              ? "Selecione uma nova opção:"
+                              : "Selecione uma opção:"}
+                          </p>
+                          <RadioGroup
+                            value={
+                              // Se está trocando voto, usar apenas tempSelections
+                              // Se não está trocando voto e já votou, mostrar o voto confirmado
+                              isChangingVote[pollId]
+                                ? tempSelections[pollId] !== undefined
+                                  ? `option-${tempSelections[pollId]}`
+                                  : ""
+                                : tempSelections[pollId] !== undefined
+                                ? `option-${tempSelections[pollId]}`
+                                : confirmedVotes[pollId] !== undefined
+                                ? `option-${confirmedVotes[pollId]}`
+                                : ""
+                            }
+                            onValueChange={(value) =>
+                              handleSelection(pollId, value)
+                            }
+                          >
+                            <div className="space-y-3">
+                              {poll.options.map((option, idx) => {
+                                const optionId =
+                                  option.id !== undefined && option.id !== null
+                                    ? option.id
+                                    : idx;
+                                const optionValue = `option-${optionId}`;
+                                // Verificar se está selecionado em tempSelections ou confirmedVotes (para mostrar quando já votou)
+                                const isCurrentlySelected =
+                                  tempSelections[pollId] === optionId ||
+                                  (!isChangingVote[pollId] &&
+                                    confirmedVotes[pollId] === optionId);
+                                return (
+                                  <div
+                                    key={optionValue}
+                                    className={`flex items-center space-x-3 p-3 rounded-lg border transition-colors ${
+                                      isCurrentlySelected
+                                        ? "border-accent bg-accent/5"
+                                        : "hover:bg-accent/5"
+                                    }`}
+                                  >
+                                    <RadioGroupItem
+                                      value={optionValue}
+                                      id={`${pollId}-${optionValue}`}
+                                    />
+                                    <Label
+                                      htmlFor={`${pollId}-${optionValue}`}
+                                      className="flex-1 cursor-pointer"
+                                    >
+                                      {option.description}
+                                    </Label>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </RadioGroup>
+                        </div>
+                        <div className="flex gap-2">
+                          {isChangingVote[pollId] && (
+                            <Button
+                              onClick={() => handleCancelChangeVote(pollId)}
+                              variant="outline"
+                              className="flex-1"
+                            >
+                              Cancelar
+                            </Button>
+                          )}
+                          <Button
+                            onClick={() =>
+                              handleConfirmVote(poll as ActivePoll)
+                            }
+                            disabled={
+                              isVoting[pollId] ||
+                              (tempSelections[pollId] === undefined &&
+                                !isChangingVote[pollId])
+                            }
+                            className={
+                              isChangingVote[pollId] ? "flex-1" : "w-full"
+                            }
+                          >
+                            {isVoting[pollId]
+                              ? "Processando..."
+                              : isChangingVote[pollId]
+                              ? "Confirmar Voto"
+                              : tempSelections[pollId] !== undefined &&
+                                tempSelections[pollId] !== null
+                              ? "Confirmar Voto"
+                              : "Selecione uma opção"}
+                          </Button>
+                        </div>
+                      </>
+                    )}
 
                   {/* Mostrar mensagem quando fora do período ou encerrada */}
-                  {(pollStatus.status === "aguardando" || pollStatus.status === "fora_periodo" || pollStatus.status === "encerrada") && (
-                    <div className={`p-4 rounded-lg border-2 ${
-                      pollStatus.status === "aguardando"
-                        ? "bg-blue-50 border-blue-200"
-                        : pollStatus.status === "fora_periodo"
-                        ? "bg-orange-50 border-orange-200"
-                        : "bg-gray-50 border-gray-200"
-                    }`}>
+                  {(pollStatus.status === "aguardando" ||
+                    pollStatus.status === "fora_periodo" ||
+                    pollStatus.status === "encerrada") && (
+                    <div
+                      className={`p-4 rounded-lg border-2 ${
+                        pollStatus.status === "aguardando"
+                          ? "bg-blue-50 border-blue-200"
+                          : pollStatus.status === "fora_periodo"
+                          ? "bg-orange-50 border-orange-200"
+                          : "bg-gray-50 border-gray-200"
+                      }`}
+                    >
                       <div className="flex items-start gap-3">
-                        <StatusIcon className={`w-5 h-5 mt-0.5 ${
-                          pollStatus.status === "aguardando"
-                            ? "text-blue-600"
-                            : pollStatus.status === "fora_periodo"
-                            ? "text-orange-600"
-                            : "text-gray-600"
-                        }`} />
-                        <div className="flex-1">
-                          <p className={`font-semibold mb-1 ${
+                        <StatusIcon
+                          className={`w-5 h-5 mt-0.5 ${
                             pollStatus.status === "aguardando"
-                              ? "text-blue-900"
+                              ? "text-blue-600"
                               : pollStatus.status === "fora_periodo"
-                              ? "text-orange-900"
-                              : "text-gray-900"
-                          }`}>
-                            {pollStatus.status === "aguardando" 
+                              ? "text-orange-600"
+                              : "text-gray-600"
+                          }`}
+                        />
+                        <div className="flex-1">
+                          <p
+                            className={`font-semibold mb-1 ${
+                              pollStatus.status === "aguardando"
+                                ? "text-blue-900"
+                                : pollStatus.status === "fora_periodo"
+                                ? "text-orange-900"
+                                : "text-gray-900"
+                            }`}
+                          >
+                            {pollStatus.status === "aguardando"
                               ? "Votação ainda não iniciou"
                               : pollStatus.status === "fora_periodo"
                               ? "Período de votação encerrado"
                               : "Enquete encerrada"}
                           </p>
-                          <p className={`text-sm ${
-                            pollStatus.status === "aguardando"
-                              ? "text-blue-700"
-                              : pollStatus.status === "fora_periodo"
-                              ? "text-orange-700"
-                              : "text-gray-700"
-                          }`}>
+                          <p
+                            className={`text-sm ${
+                              pollStatus.status === "aguardando"
+                                ? "text-blue-700"
+                                : pollStatus.status === "fora_periodo"
+                                ? "text-orange-700"
+                                : "text-gray-700"
+                            }`}
+                          >
                             {pollStatus.status === "aguardando"
-                              ? `A votação começará em ${new Date(poll.startDate).toLocaleDateString("pt-BR", {
+                              ? `A votação começará em ${new Date(
+                                  poll.startDate
+                                ).toLocaleDateString("pt-BR", {
                                   day: "2-digit",
                                   month: "long",
                                   year: "numeric",
@@ -1125,32 +1326,52 @@ export default function Poll() {
                   )}
 
                   {/* Mostrar apenas barras de progresso para polls encerradas ou fora do período */}
-                  {(pollStatus.status === "encerrada" || pollStatus.status === "fora_periodo" || pollStatus.status === "aguardando") && poll.votes > 0 && (
-                    <div className="space-y-3">
-                      {poll.options.map((option, idx) => {
-                        const optionId = option.id !== undefined && option.id !== null ? option.id : idx;
-                        const isSelected = tempSelections[pollId] !== undefined && tempSelections[pollId] === optionId;
-                        return (
-                          <div key={`option-${optionId}`} className="space-y-1">
-                            <div className="flex justify-between text-sm">
-                              <span className={`font-medium ${isSelected && hasVotedInPoll ? 'text-accent' : ''}`}>
-                                {option.description}
-                                {isSelected && hasVotedInPoll && (
-                                  <span className="ml-2 text-accent">(Seu voto)</span>
-                                )}
-                              </span>
-                              <span className="text-muted-foreground">
-                                {option.votes} votos ({option.percent}%)
-                              </span>
+                  {(pollStatus.status === "encerrada" ||
+                    pollStatus.status === "fora_periodo" ||
+                    pollStatus.status === "aguardando") &&
+                    poll.votes > 0 && (
+                      <div className="space-y-3">
+                        {poll.options.map((option, idx) => {
+                          const optionId =
+                            option.id !== undefined && option.id !== null
+                              ? option.id
+                              : idx;
+                          const isSelected =
+                            tempSelections[pollId] !== undefined &&
+                            tempSelections[pollId] === optionId;
+                          return (
+                            <div
+                              key={`option-${optionId}`}
+                              className="space-y-1"
+                            >
+                              <div className="flex justify-between text-sm">
+                                <span
+                                  className={`font-medium ${
+                                    isSelected && hasVotedInPoll
+                                      ? "text-accent"
+                                      : ""
+                                  }`}
+                                >
+                                  {option.description}
+                                  {isSelected && hasVotedInPoll && (
+                                    <span className="ml-2 text-accent">
+                                      (Seu voto)
+                                    </span>
+                                  )}
+                                </span>
+                                <span className="text-muted-foreground">
+                                  {option.votes} votos ({option.percent}%)
+                                </span>
+                              </div>
+                              <Progress
+                                value={option.percent}
+                                className="h-2"
+                              />
                             </div>
-                            <Progress value={option.percent} className="h-2" />
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
-
-
+                          );
+                        })}
+                      </div>
+                    )}
                 </CardContent>
               </Card>
             );

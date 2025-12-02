@@ -8,43 +8,55 @@ import { apiClient } from "./client";
 import type { ApiResponse } from "./types";
 
 /**
- * Suggestion from residents
+ * Season data structure from API
+ * Note: endDate === null means the season is active
  */
-export interface Suggestion {
-	id: string;
-	title: string;
-	description: string;
-	votes: number;
-	residentId: string;
-	residentName: string;
+export interface Season {
+	_id: string;
+	buildingId: string;
+	seasonNumber: number;
+	reusedSuggestions: boolean;
+	createdAt: string;
+	updatedAt: string;
+	endDate: string | null;
+}
+
+/**
+ * Chosen offer for a suggestion
+ */
+export interface ChosenOffer {
+	companyName: string;
+	paidInstallments: number;
+	totalInstallments: number;
+	value: number;
+	paymentStartDate: string | null;
 	createdAt: string;
 }
 
 /**
- * Top suggestion with ranking
+ * Suggestion with voting and offer data
  */
-export interface TopSuggestion {
-	id: string;
+export interface SuggestionWithOffer {
+	_id: string;
 	title: string;
 	description: string;
 	votes: number;
 	rank: number;
 	residentName: string;
+	chosenOffer: ChosenOffer | null;
 }
 
 /**
- * Season data
+ * Top suggestion with ranking (from active season)
+ * @deprecated Use SuggestionWithOffer instead
  */
-export interface Season {
-	id: string;
-	buildingId: string;
-	status: "ACTIVE" | "FINISHED";
-	reusedSuggestions: boolean;
-	startDate: string;
-	endDate?: string;
-	createdAt: string;
-	updatedAt: string;
-	topSuggestions?: TopSuggestion[];
+export interface TopSuggestion {
+	_id: string;
+	title: string;
+	description: string;
+	votes: number;
+	rank: number;
+	residentName: string;
 }
 
 /**
@@ -55,24 +67,39 @@ export interface CreateSeasonRequest {
 }
 
 /**
- * Create season response
+ * Offer option for poll creation
  */
-export interface CreateSeasonResponse {
-	id: string;
-	buildingId: string;
-	status: "ACTIVE";
-	reusedSuggestions: boolean;
-	startDate: string;
-	createdAt: string;
+export interface OfferOption {
+	companyName: string;
+	totalInstallments: number;
+	value: number;
 }
 
 /**
- * Finish season response
+ * Create offer poll request
  */
-export interface FinishSeasonResponse {
-	id: string;
-	status: "FINISHED";
+export interface CreateOfferPollRequest {
+	suggestionId: string;
+	description: string;
+	offers: OfferOption[];
+	startDate: string;
 	endDate: string;
+}
+
+/**
+ * Helper function to check if a season is active
+ * A season is active when endDate is null
+ */
+export function isSeasonActive(season: Season): boolean {
+	return season.endDate === null;
+}
+
+/**
+ * Helper function to check if a season is finished
+ * A season is finished when endDate is not null
+ */
+export function isSeasonFinished(season: Season): boolean {
+	return season.endDate !== null;
 }
 
 /**
@@ -85,8 +112,8 @@ class SeasonService {
 	 * Create a new season
 	 * POST /v1/seasons
 	 */
-	async createSeason(data: CreateSeasonRequest): Promise<ApiResponse<CreateSeasonResponse>> {
-		return apiClient.post<CreateSeasonResponse>(this.basePath, data);
+	async createSeason(data: CreateSeasonRequest): Promise<ApiResponse<Season>> {
+		return apiClient.post<Season>(this.basePath, data);
 	}
 
 	/**
@@ -109,8 +136,8 @@ class SeasonService {
 	 * Finish a season
 	 * PATCH /v1/seasons/:id/finish
 	 */
-	async finishSeason(seasonId: string): Promise<ApiResponse<FinishSeasonResponse>> {
-		return apiClient.patch<FinishSeasonResponse>(`${this.basePath}/${seasonId}/finish`);
+	async finishSeason(seasonId: string): Promise<ApiResponse<Season>> {
+		return apiClient.patch<Season>(`${this.basePath}/${seasonId}/finish`);
 	}
 }
 

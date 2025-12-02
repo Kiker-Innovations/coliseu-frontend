@@ -92,12 +92,13 @@ export type {
 } from "./package.service";
 
 // Season service
-export { seasonService } from "./season.service";
+export { seasonService, isSeasonActive, isSeasonFinished } from "./season.service";
 export type {
-	Suggestion,
 	TopSuggestion,
+	SuggestionWithOffer,
+	ChosenOffer,
+	OfferOption,
+	CreateOfferPollRequest,
 	Season,
 	CreateSeasonRequest,
-	CreateSeasonResponse,
-	FinishSeasonResponse,
 } from "./season.service";
