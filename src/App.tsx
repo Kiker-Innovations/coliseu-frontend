@@ -54,6 +54,7 @@ import ConciergeUpdatePassword from "./pages/concierge/auth/UpdatePassword";
 import ConciergeDashboard from "./pages/concierge/Dashboard";
 import ConciergePackages from "./pages/concierge/Packages";
 import ConciergeFines from "./pages/concierge/Fines";
+import ConciergeVisitors from "./pages/concierge/Visitors";
 
 const queryClient = new QueryClient();
 
@@ -161,6 +162,10 @@ const App = () => (
                   element={<ConciergePackages />}
                 />
                 <Route path="/concierge/fines" element={<ConciergeFines />} />
+                <Route
+                  path="/concierge/visitors"
+                  element={<ConciergeVisitors />}
+                />
               </Route>
             </Route>
 

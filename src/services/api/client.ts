@@ -76,9 +76,14 @@ class ApiClient {
 	 * Supports arrays for multiple values with the same key (e.g., status=ATIVO&status=PROGRAMADO)
 	 */
 	private buildURL(endpoint: string, params?: Record<string, string | number | boolean | string[] | number[]>): string {
+		// Se o endpoint já tem query string, não processar params e retornar direto
+		if (endpoint.includes("?")) {
+			return `${this.baseURL}${endpoint}`;
+		}
+
 		const url = new URL(`${this.baseURL}${endpoint}`);
 
-		if (params) {
+		if (params && Object.keys(params).length > 0) {
 			for (const [key, value] of Object.entries(params)) {
 				if (Array.isArray(value)) {
 					// For arrays, append each value as a separate parameter

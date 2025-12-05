@@ -102,3 +102,14 @@ export type {
 	Season,
 	CreateSeasonRequest,
 } from "./season.service";
+
+// Visitor service
+export { visitorService } from "./visitor.service";
+export type {
+	CreateVisitorRequest,
+	UpdateVisitorRequest,
+	Visitor,
+	GetVisitorsParams,
+	GetVisitorsResponse,
+	ConfirmVisitRequest,
+} from "./visitor.service";

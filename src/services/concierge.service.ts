@@ -60,7 +60,21 @@ export type Concierge = {
 
 export async function getConcierge(id: string | number): Promise<Concierge> {
   try {
-    const res = await fetch(`http://localhost:3000/api/coliseu/v1/concierges/${id}`);
+    // Get token from storage (admin token)
+    const token = localStorage.getItem("coliseu_access_token") || 
+                  sessionStorage.getItem("coliseu_access_token");
+    
+    if (!token) {
+      throw new Error("Token não encontrado. Faça login novamente.");
+    }
+
+    const res = await fetch(`http://localhost:3000/api/coliseu/v1/concierges/${id}`, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${token}`,
+      },
+    });
     
     if (!res.ok) {
       let message = "Erro ao carregar porteiro";
@@ -95,23 +109,42 @@ export async function getConcierge(id: string | number): Promise<Concierge> {
 
 export async function listConcierges(): Promise<Concierge[]> {
   try {
-    const res = await fetch(
+    // Get token from storage (admin token)
+    const token = localStorage.getItem("coliseu_access_token") || 
+                  sessionStorage.getItem("coliseu_access_token");
+    
+    if (!token) {
+      throw new Error("Token não encontrado. Faça login novamente.");
+    }
+
+    const response = await fetch(
       "http://localhost:3000/api/coliseu/v1/concierges",
+      {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`,
+        },
+      }
     );
-    if (!res.ok) {
+
+    if (!response.ok) {
       let message = "Erro ao listar porteiros";
       try {
-        const errorData = await res.json();
+        const errorData = await response.json();
         message = errorData?.message || message;
       } catch {}
       throw new Error(message);
     }
-    const data = await res.json();
+
+    const data = await response.json();
+    // Handle response structure: { success: true, data: [...] }
     const arr = Array.isArray(data)
       ? data
       : Array.isArray((data as any)?.data)
       ? (data as any).data
       : [];
+    
     // Normalize id field from _id/id/uuid
     return (arr as any[]).map((i) => ({
       id: i._id ?? i.id ?? i.uuid,
@@ -144,11 +177,22 @@ export async function updateConcierge(
   payload: UpdateConciergeRequest,
 ): Promise<Concierge> {
   try {
+    // Get token from storage (admin token)
+    const token = localStorage.getItem("coliseu_access_token") || 
+                  sessionStorage.getItem("coliseu_access_token");
+    
+    if (!token) {
+      throw new Error("Token não encontrado. Faça login novamente.");
+    }
+
     const res = await fetch(
       `http://localhost:3000/api/coliseu/v1/concierges/${id}`,
       {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`,
+        },
         body: JSON.stringify(payload),
       },
     );
@@ -183,9 +227,23 @@ export async function updateConcierge(
 
 export async function deleteConcierge(id: string | number): Promise<void> {
   try {
+    // Get token from storage (admin token)
+    const token = localStorage.getItem("coliseu_access_token") || 
+                  sessionStorage.getItem("coliseu_access_token");
+    
+    if (!token) {
+      throw new Error("Token não encontrado. Faça login novamente.");
+    }
+
     const res = await fetch(
       `http://localhost:3000/api/coliseu/v1/concierges/${id}`,
-      { method: "DELETE" },
+      {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`,
+        },
+      },
     );
     if (!res.ok) {
       let message = "Erro ao deletar porteiro";
