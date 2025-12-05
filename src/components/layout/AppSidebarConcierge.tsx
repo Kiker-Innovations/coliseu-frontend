@@ -6,6 +6,7 @@ import {
   LogOut,
   Shield,
   User,
+  UserCheck,
 } from "lucide-react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import {
@@ -27,6 +28,7 @@ const menuItems = [
   { title: "Dashboard", url: "/concierge/dashboard", icon: LayoutDashboard },
   { title: "Encomendas", url: "/concierge/packages", icon: Package },
   { title: "Multas", url: "/concierge/fines", icon: AlertTriangle },
+  { title: "Visitantes", url: "/concierge/visitors", icon: UserCheck },
 ];
 
 export function AppSidebarConcierge() {
