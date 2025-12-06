@@ -196,6 +196,15 @@ class AuthService {
 		}
 		localStorage.removeItem(STORAGE_KEYS.REMEMBER_ME);
 
+		// Clear concierge-specific tokens
+		localStorage.removeItem("concierge_token");
+		localStorage.removeItem("concierge_refresh_token");
+		localStorage.removeItem("concierge_id");
+		localStorage.removeItem("concierge_name");
+
+		// Clear resident-specific data
+		localStorage.removeItem("resident_id");
+
 		// Clear token from apiClient
 		apiClient.clearAuthToken();
 	}
@@ -207,6 +216,9 @@ class AuthService {
 		credentials: ResidentLoginCredentials,
 		rememberMe = false,
 	): Promise<LoginResponse> {
+		// Limpar tokens antigos antes de fazer login
+		this.clearAuth();
+
 		const response = await apiClient.post<LoginResponse>("/v1/auth/login/resident", credentials);
 
 		if (response.success && response.data) {
@@ -231,41 +243,52 @@ class AuthService {
 		credentials: ConciergeLoginCredentials,
 		rememberMe = false,
 	): Promise<LoginResponse> {
-		const response = await apiClient.post<{ token: string; refreshToken: string }>("/v1/auth/login/concierge", credentials);
+		// Limpar tokens antigos antes de fazer login
+		this.clearAuth();
+
+		const response = await apiClient.post<LoginResponse>("/v1/auth/login/concierge", credentials);
 
 		if (response.success && response.data) {
-			// Save tokens first
+			// Se a API retornar user diretamente, usar
+			if (response.data.user) {
+				this.saveAuthData(
+					{
+						token: response.data.token,
+						refreshToken: response.data.refreshToken,
+					},
+					response.data.user,
+					"concierge",
+					rememberMe,
+				);
+				return response.data;
+			}
+
+			// Fallback: se a API não retornar user, buscar do /concierges/me
 			this.setRememberMe(rememberMe);
 			const storage = this.getStorage();
 			storage.setItem(STORAGE_KEYS.TOKEN, response.data.token);
 			storage.setItem(STORAGE_KEYS.REFRESH_TOKEN, response.data.refreshToken);
 			storage.setItem(STORAGE_KEYS.USER_TYPE, "concierge");
-			// Also save with concierge_token key for compatibility
-			localStorage.setItem("concierge_token", response.data.token);
-			localStorage.setItem("concierge_refresh_token", response.data.refreshToken);
 			apiClient.setAuthToken(response.data.token);
 
-			// Fetch concierge profile to build user object
 			try {
-				const conciergeResponse = await apiClient.get<{ _id: string; name: string; email: string; shift: string; buildingId?: string; building?: { name: string } }>("/v1/concierges/me");
+				const conciergeResponse = await apiClient.get<{
+					_id: string;
+					name: string;
+					email: string;
+					shift: string;
+					building?: { name: string };
+				}>("/v1/concierges/me");
+
 				if (conciergeResponse.success && conciergeResponse.data) {
-					const conciergeData = conciergeResponse.data;
 					const user: ConciergeUser = {
-						email: conciergeData.email,
-						name: conciergeData.name,
-						buildingName: conciergeData.building?.name || "",
-						shift: conciergeData.shift || "",
+						email: conciergeResponse.data.email,
+						name: conciergeResponse.data.name,
+						buildingName: conciergeResponse.data.building?.name || "",
+						shift: conciergeResponse.data.shift || "",
 					};
 					storage.setItem(STORAGE_KEYS.USER, JSON.stringify(user));
-					
-					// Also save concierge ID and name to localStorage for compatibility
-					if (conciergeData._id) {
-						localStorage.setItem("concierge_id", String(conciergeData._id));
-					}
-					if (conciergeData.name) {
-						localStorage.setItem("concierge_name", conciergeData.name);
-					}
-					
+
 					return {
 						token: response.data.token,
 						refreshToken: response.data.refreshToken,
@@ -274,21 +297,22 @@ class AuthService {
 				}
 			} catch (error) {
 				console.error("Failed to fetch concierge profile:", error);
-				// If validation fails, create a minimal user object
-				const user: ConciergeUser = {
-					email: credentials.email,
-					name: "",
-					buildingName: "",
-					shift: "",
-				};
-				storage.setItem(STORAGE_KEYS.USER, JSON.stringify(user));
-				
-				return {
-					token: response.data.token,
-					refreshToken: response.data.refreshToken,
-					user,
-				};
 			}
+
+			// Último fallback: criar user mínimo
+			const user: ConciergeUser = {
+				email: credentials.email,
+				name: "",
+				buildingName: "",
+				shift: "",
+			};
+			storage.setItem(STORAGE_KEYS.USER, JSON.stringify(user));
+
+			return {
+				token: response.data.token,
+				refreshToken: response.data.refreshToken,
+				user,
+			};
 		}
 
 		throw new Error("Login failed");
@@ -298,6 +322,9 @@ class AuthService {
 	 * Login as Admin
 	 */
 	async loginAdmin(credentials: AdminLoginCredentials, rememberMe = false): Promise<LoginResponse> {
+		// Limpar tokens antigos antes de fazer login
+		this.clearAuth();
+
 		const response = await apiClient.post<LoginResponse>("/v1/auth/login/admin", credentials);
 
 		if (response.success && response.data) {

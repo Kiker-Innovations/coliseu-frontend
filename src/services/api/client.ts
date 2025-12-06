@@ -60,7 +60,6 @@ class ApiClient {
 			this.token || // First check in-memory token
 			localStorage.getItem(AUTH_STORAGE_KEYS.accessToken) ||
 			sessionStorage.getItem(AUTH_STORAGE_KEYS.accessToken) ||
-			localStorage.getItem("concierge_token") || // Fallback for concierge
 			null;
 		
 		// If token found but not in memory, update it
@@ -115,12 +114,8 @@ class ApiClient {
 		const token = this.getAuthToken();
 		if (token) {
 			headers.set("Authorization", `Bearer ${token}`);
-			console.log("Token adicionado ao header Authorization");
 		} else {
 			console.warn("No authentication token found. Request may fail if authentication is required.");
-			console.warn("localStorage token:", localStorage.getItem(AUTH_STORAGE_KEYS.accessToken));
-			console.warn("sessionStorage token:", sessionStorage.getItem(AUTH_STORAGE_KEYS.accessToken));
-			console.warn("concierge_token:", localStorage.getItem("concierge_token"));
 		}
 
 		return headers;
@@ -335,6 +330,9 @@ class ApiClient {
 	 * Clear authentication token
 	 */
 	clearAuthToken(): void {
+		// Clear in-memory token
+		this.token = null;
+		
 		// Clear from both storages for consistency
 		localStorage.removeItem(AUTH_STORAGE_KEYS.accessToken);
 		localStorage.removeItem(AUTH_STORAGE_KEYS.refreshToken);

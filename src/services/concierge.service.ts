@@ -369,7 +369,9 @@ export async function loginConcierge(
 export async function getCurrentConcierge(): Promise<Concierge> {
   try {
     // Tentar pegar o token do concierge ou do sistema de auth geral
-    const token = localStorage.getItem("concierge_token") || 
+    const token = localStorage.getItem("coliseu_access_token") || 
+                  sessionStorage.getItem("coliseu_access_token") ||
+                  localStorage.getItem("concierge_token") || 
                   localStorage.getItem("coliseu_access_token") ||
                   sessionStorage.getItem("coliseu_access_token");
     
