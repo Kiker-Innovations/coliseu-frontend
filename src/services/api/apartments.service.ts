@@ -34,7 +34,9 @@ class ApartmentsService {
 	 */
 	async getApartmentsByBuildingId(buildingId: string): Promise<Apartment[]> {
 		// Ensure concierge token is set in apiClient (if available)
-		const token = localStorage.getItem("concierge_token") || 
+		const token = localStorage.getItem("coliseu_access_token") || 
+		              sessionStorage.getItem("coliseu_access_token") ||
+		              localStorage.getItem("concierge_token") || 
 		              sessionStorage.getItem("concierge_token") ||
 		              localStorage.getItem("coliseu_access_token") ||
 		              sessionStorage.getItem("coliseu_access_token");

@@ -108,10 +108,12 @@ class VisitorService {
 
 	/**
 	 * Get authentication token for concierge
-	 * Checks concierge_token first, then falls back to coliseu_access_token
+	 * Checks coliseu_access_token first, then falls back to concierge_token
 	 */
 	private getAuthToken(): string | null {
 		return (
+			localStorage.getItem("coliseu_access_token") ||
+			sessionStorage.getItem("coliseu_access_token") ||
 			localStorage.getItem("concierge_token") ||
 			sessionStorage.getItem("concierge_token") ||
 			localStorage.getItem("coliseu_access_token") ||

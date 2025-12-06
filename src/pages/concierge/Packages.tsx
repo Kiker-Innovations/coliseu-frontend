@@ -113,10 +113,10 @@ export default function ConciergePackages() {
     const loadConciergeData = async () => {
       // Verificar se há token disponível
       const token =
-        localStorage.getItem("concierge_token") ||
-        sessionStorage.getItem("concierge_token") ||
         localStorage.getItem("coliseu_access_token") ||
-        sessionStorage.getItem("coliseu_access_token");
+        sessionStorage.getItem("coliseu_access_token") ||
+        localStorage.getItem("concierge_token") ||
+        sessionStorage.getItem("concierge_token");
 
       if (!token) {
         console.warn("Token não encontrado no localStorage");
@@ -156,10 +156,10 @@ export default function ConciergePackages() {
         // Get buildingId from token
         let buildingId = "";
         const token =
-          localStorage.getItem("concierge_token") ||
-          sessionStorage.getItem("concierge_token") ||
           localStorage.getItem("coliseu_access_token") ||
-          sessionStorage.getItem("coliseu_access_token");
+          sessionStorage.getItem("coliseu_access_token") ||
+          localStorage.getItem("concierge_token") ||
+          sessionStorage.getItem("concierge_token");
 
         if (token) {
           try {
@@ -369,10 +369,10 @@ export default function ConciergePackages() {
     try {
       // Get token and extract conciergeId and buildingId
       const token =
-        localStorage.getItem("concierge_token") ||
-        sessionStorage.getItem("concierge_token") ||
         localStorage.getItem("coliseu_access_token") ||
-        sessionStorage.getItem("coliseu_access_token");
+        sessionStorage.getItem("coliseu_access_token") ||
+        localStorage.getItem("concierge_token") ||
+        sessionStorage.getItem("concierge_token");
 
       if (!token) {
         toast.error("Token não encontrado. Faça login novamente.");
@@ -571,10 +571,10 @@ export default function ConciergePackages() {
     try {
       // Get token and extract conciergeId from token
       const token =
-        localStorage.getItem("concierge_token") ||
-        sessionStorage.getItem("concierge_token") ||
         localStorage.getItem("coliseu_access_token") ||
-        sessionStorage.getItem("coliseu_access_token");
+        sessionStorage.getItem("coliseu_access_token") ||
+        localStorage.getItem("concierge_token") ||
+        sessionStorage.getItem("concierge_token");
 
       if (!token) {
         toast.error("Token não encontrado. Faça login novamente.");
@@ -701,10 +701,10 @@ export default function ConciergePackages() {
       // Get token and extract conciergeId from token
       let currentConciergeId = "";
       const token =
-        localStorage.getItem("concierge_token") ||
-        sessionStorage.getItem("concierge_token") ||
         localStorage.getItem("coliseu_access_token") ||
-        sessionStorage.getItem("coliseu_access_token");
+        sessionStorage.getItem("coliseu_access_token") ||
+        localStorage.getItem("concierge_token") ||
+        sessionStorage.getItem("concierge_token");
 
       if (!token) {
         toast.error("Token não encontrado. Faça login novamente.");

@@ -116,10 +116,10 @@ export default function ConciergeVisitors() {
         // Get buildingId from token
         let buildingId = "";
         const token =
-          localStorage.getItem("concierge_token") ||
-          sessionStorage.getItem("concierge_token") ||
           localStorage.getItem("coliseu_access_token") ||
-          sessionStorage.getItem("coliseu_access_token");
+          sessionStorage.getItem("coliseu_access_token") ||
+          localStorage.getItem("concierge_token") ||
+          sessionStorage.getItem("concierge_token");
 
         if (token) {
           try {
@@ -278,10 +278,10 @@ export default function ConciergeVisitors() {
         // Get buildingId from token
         let buildingId = "";
         const token =
-          localStorage.getItem("concierge_token") ||
-          sessionStorage.getItem("concierge_token") ||
           localStorage.getItem("coliseu_access_token") ||
-          sessionStorage.getItem("coliseu_access_token");
+          sessionStorage.getItem("coliseu_access_token") ||
+          localStorage.getItem("concierge_token") ||
+          sessionStorage.getItem("concierge_token");
 
         if (token) {
           try {
@@ -336,10 +336,10 @@ export default function ConciergeVisitors() {
     try {
       // Get token and extract buildingId
       const token =
-        localStorage.getItem("concierge_token") ||
-        sessionStorage.getItem("concierge_token") ||
         localStorage.getItem("coliseu_access_token") ||
-        sessionStorage.getItem("coliseu_access_token");
+        sessionStorage.getItem("coliseu_access_token") ||
+        localStorage.getItem("concierge_token") ||
+        sessionStorage.getItem("concierge_token");
 
       if (!token) {
         toast.error("Token não encontrado. Faça login novamente.");
@@ -667,10 +667,10 @@ export default function ConciergeVisitors() {
     try {
       // Get token and extract buildingId
       const token =
-        localStorage.getItem("concierge_token") ||
-        sessionStorage.getItem("concierge_token") ||
         localStorage.getItem("coliseu_access_token") ||
-        sessionStorage.getItem("coliseu_access_token");
+        sessionStorage.getItem("coliseu_access_token") ||
+        localStorage.getItem("concierge_token") ||
+        sessionStorage.getItem("concierge_token");
 
       if (!token) {
         toast.error("Token não encontrado. Faça login novamente.");

@@ -44,7 +44,9 @@ export function AppSidebarConcierge() {
   useEffect(() => {
     const loadConciergeName = () => {
       // Extract name from token (rota /concierges/me não existe mais)
-      const token = localStorage.getItem("concierge_token") || 
+      const token = localStorage.getItem("coliseu_access_token") || 
+                    sessionStorage.getItem("coliseu_access_token") ||
+                    localStorage.getItem("concierge_token") || 
                     sessionStorage.getItem("concierge_token") ||
                     localStorage.getItem("coliseu_access_token") ||
                     sessionStorage.getItem("coliseu_access_token");

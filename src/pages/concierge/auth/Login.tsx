@@ -104,9 +104,7 @@ export default function ConciergeLogin() {
       toast.success("Login realizado com sucesso!");
 
       // Redirect to dashboard after successful login
-      setTimeout(() => {
-        window.location.reload();
-      }, 1000);
+      navigate("/concierge/dashboard");
     } catch (error: any) {
       toast.error(error.message || "Erro ao fazer login");
     }

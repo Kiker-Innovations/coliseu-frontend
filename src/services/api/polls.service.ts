@@ -194,15 +194,13 @@ class PollsService {
 	private readonly basePath = `/${API_CONFIG.version}/polls`;
 
 	/**
-	 * Get authentication token for resident/concierge
-	 * Checks coliseu_access_token first, then falls back to concierge_token
+	 * Get authentication token
+	 * Uses only the standard coliseu_access_token
 	 */
 	private getAuthToken(): string | null {
 		return (
 			localStorage.getItem("coliseu_access_token") ||
-			sessionStorage.getItem("coliseu_access_token") ||
-			localStorage.getItem("concierge_token") ||
-			sessionStorage.getItem("concierge_token")
+			sessionStorage.getItem("coliseu_access_token")
 		);
 	}
 
