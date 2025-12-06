@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
@@ -6,6 +6,16 @@ import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { MaskedInput } from "@/components/ui/masked-input";
+import {
+  isValidCnpj,
+  formatCurrencyInput,
+  unformatCurrency,
+  getMinDateTimeForInput,
+  isDateTimeAtLeast5MinutesInFuture,
+  dateTimeLocalToISO,
+} from "@/lib/utils";
 import {
   Dialog,
   DialogContent,
@@ -42,6 +52,7 @@ import {
   DollarSign,
   AlertTriangle,
   Lock,
+  Trash2,
 } from "lucide-react";
 import { toast } from "sonner";
 import ProjectsSkeleton from "@/skeleton/admin/ProjectsSkeleton";
@@ -49,68 +60,35 @@ import {
   seasonService,
   isSeasonActive,
   isSeasonFinished,
+  projectService,
+  hasChosenOffer,
   type Season,
-  type SuggestionWithOffer,
+  type Project,
+  type CreateOfferOption,
 } from "@/services/api";
-
-// Mock data para sugestões com ofertas
-// Ordem correta: 1º já tem oferta escolhida, 2º precisa criar enquete, 3º aguardando o 2º
-const mockSuggestions: SuggestionWithOffer[] = [
-  {
-    _id: "sug-001",
-    title: "Reforma da Piscina",
-    description: "Melhorar a área de lazer com nova piscina aquecida",
-    votes: 45,
-    rank: 1,
-    residentName: "João Silva",
-    chosenOffer: {
-      companyName: "AquaPiscinas LTDA",
-      paidInstallments: 0,
-      totalInstallments: 18,
-      value: 85000,
-      paymentStartDate: null, // Aguardando aprovação para iniciar
-      createdAt: "2025-11-20T14:30:00.000Z",
-    },
-  },
-  {
-    _id: "sug-002",
-    title: "Instalação de Energia Solar",
-    description: "Instalar painéis solares para reduzir custos de energia",
-    votes: 38,
-    rank: 2,
-    residentName: "Maria Santos",
-    chosenOffer: null, // Próximo a criar enquete de ofertas
-  },
-  {
-    _id: "sug-003",
-    title: "Reforma do Salão de Festas",
-    description:
-      "Modernizar o salão de festas com nova decoração e ar condicionado",
-    votes: 32,
-    rank: 3,
-    residentName: "Carlos Oliveira",
-    chosenOffer: null, // Aguardando o 2º lugar criar enquete primeiro
-  },
-];
 
 // Interface para opção de oferta no formulário
 interface OfferFormOption {
   companyName: string;
-  totalInstallments: string;
-  value: string;
+  description: string;
+  companyCnpj: string;
+  totalValue: string;
+  installmentsCount: string;
 }
 
 const defaultOfferOption: OfferFormOption = {
   companyName: "",
-  totalInstallments: "",
-  value: "",
+  description: "",
+  companyCnpj: "",
+  totalValue: "",
+  installmentsCount: "",
 };
 
 export default function Projects() {
   const [isLoading, setIsLoading] = useState(true);
   const [seasons, setSeasons] = useState<Season[]>([]);
   const [activeSeason, setActiveSeason] = useState<Season | null>(null);
-  const [suggestions, setSuggestions] = useState<SuggestionWithOffer[]>([]);
+  const [projects, setProjects] = useState<Project[]>([]);
 
   // Dialog states
   const [isNewSeasonDialogOpen, setIsNewSeasonDialogOpen] = useState(false);
@@ -119,8 +97,9 @@ export default function Projects() {
   const [isOfferPollDialogOpen, setIsOfferPollDialogOpen] = useState(false);
   const [isStartProjectDialogOpen, setIsStartProjectDialogOpen] =
     useState(false);
-  const [selectedSuggestion, setSelectedSuggestion] =
-    useState<SuggestionWithOffer | null>(null);
+  const [isDeleteOffersDialogOpen, setIsDeleteOffersDialogOpen] =
+    useState(false);
+  const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [reuseSuggestions, setReuseSuggestions] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [finishConfirmText, setFinishConfirmText] = useState("");
@@ -133,35 +112,52 @@ export default function Projects() {
   const [offerPollStartDate, setOfferPollStartDate] = useState("");
   const [offerPollEndDate, setOfferPollEndDate] = useState("");
 
-  // Load seasons data
+  // Minimum datetime for inputs (5 minutes from now)
+  const minDateTime = useMemo(() => getMinDateTimeForInput(), []);
+
+  // Load seasons and projects data
   useEffect(() => {
-    loadSeasons();
+    loadData();
   }, []);
 
-  const loadSeasons = async () => {
+  const loadData = async () => {
     try {
       setIsLoading(true);
-      const response = await seasonService.getSeasons();
 
-      if (response.success && response.data) {
-        setSeasons(response.data);
+      // Load seasons and projects in parallel
+      const [seasonsResponse, projectsResponse] = await Promise.all([
+        seasonService.getSeasons(),
+        projectService.getProjects(),
+      ]);
+
+      if (seasonsResponse.success && seasonsResponse.data) {
+        setSeasons(seasonsResponse.data);
 
         // Find active season (endDate === null means active)
-        const active = response.data.find((s) => isSeasonActive(s));
+        const active = seasonsResponse.data.find((s) => isSeasonActive(s));
         setActiveSeason(active || null);
+      }
 
-        // Load mock suggestions when there's an active season
-        if (active) {
-          setSuggestions(mockSuggestions);
-        } else {
-          setSuggestions([]);
-        }
+      if (projectsResponse.success && projectsResponse.data) {
+        setProjects(projectsResponse.data);
       }
     } catch (error: any) {
-      toast.error(error.message || "Erro ao carregar temporadas");
-      console.error("Erro ao carregar temporadas:", error);
+      toast.error(error.message || "Erro ao carregar dados");
+      console.error("Erro ao carregar dados:", error);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const loadProjects = async () => {
+    try {
+      const response = await projectService.getProjects();
+      if (response.success && response.data) {
+        setProjects(response.data);
+      }
+    } catch (error: any) {
+      toast.error(error.message || "Erro ao carregar projetos");
+      console.error("Erro ao carregar projetos:", error);
     }
   };
 
@@ -177,7 +173,7 @@ export default function Projects() {
         toast.success("Nova temporada iniciada com sucesso!");
         setIsNewSeasonDialogOpen(false);
         setReuseSuggestions(false);
-        await loadSeasons();
+        await loadData();
       } else {
         toast.error(response.message || "Erro ao criar temporada");
       }
@@ -206,7 +202,7 @@ export default function Projects() {
         toast.success("Temporada encerrada com sucesso!");
         setIsFinishSeasonDialogOpen(false);
         setFinishConfirmText("");
-        await loadSeasons();
+        await loadData();
       } else {
         toast.error(response.message || "Erro ao encerrar temporada");
       }
@@ -218,43 +214,57 @@ export default function Projects() {
     }
   };
 
-  // Get the next suggestion that needs offer poll (first one without chosenOffer)
-  const getNextSuggestionForOfferPoll = (): SuggestionWithOffer | null => {
-    // Ordenar por rank e pegar a primeira sem chosenOffer
-    const sortedSuggestions = [...suggestions].sort((a, b) => a.rank - b.rank);
-    return sortedSuggestions.find((s) => s.chosenOffer === null) || null;
+  // Get the next project that needs offer poll (first one without chosenOffer)
+  const getNextProjectForOfferPoll = (): Project | null => {
+    // Ordenar por rank e pegar o primeiro sem chosenOffer
+    const projectsWithoutOffer = projects.filter((p) => !hasChosenOffer(p));
+    const sortedProjects = [...projectsWithoutOffer].sort(
+      (a, b) => (a.rank || 999) - (b.rank || 999)
+    );
+    return sortedProjects[0] || null;
   };
 
-  const canCreateOfferPoll = (suggestion: SuggestionWithOffer): boolean => {
-    const nextSuggestion = getNextSuggestionForOfferPoll();
-    return nextSuggestion?._id === suggestion._id;
+  const canCreateOfferPoll = (project: Project): boolean => {
+    // Se já tem oferta escolhida, não pode criar enquete
+    if (hasChosenOffer(project)) return false;
+
+    // Se já tem datas de enquete definidas, não pode criar outra
+    if (project.offerStartDate && project.offerEndDate) return false;
+
+    const nextProject = getNextProjectForOfferPoll();
+    return nextProject?._id === project._id;
   };
 
-  const openOfferPollDialog = (suggestion: SuggestionWithOffer) => {
-    if (!canCreateOfferPoll(suggestion)) {
-      const nextSuggestion = getNextSuggestionForOfferPoll();
-      if (nextSuggestion) {
+  const openOfferPollDialog = (project: Project) => {
+    if (!canCreateOfferPoll(project)) {
+      const nextProject = getNextProjectForOfferPoll();
+      if (nextProject && nextProject._id !== project._id) {
         toast.error(
-          `Você deve criar a enquete de ofertas para "${nextSuggestion.title}" primeiro (${nextSuggestion.rank}º lugar)`
+          `Você deve criar a enquete de ofertas para "${nextProject.title}" primeiro (${nextProject.rank}º lugar)`
         );
       }
       return;
     }
 
-    setSelectedSuggestion(suggestion);
+    setSelectedProject(project);
     setOfferOptions([{ ...defaultOfferOption }, { ...defaultOfferOption }]);
     setOfferPollStartDate("");
     setOfferPollEndDate("");
     setIsOfferPollDialogOpen(true);
   };
 
-  const openStartProjectDialog = (suggestion: SuggestionWithOffer) => {
-    setSelectedSuggestion(suggestion);
+  const openStartProjectDialog = (project: Project) => {
+    setSelectedProject(project);
     setIsStartProjectDialogOpen(true);
   };
 
+  const openDeleteOffersDialog = (project: Project) => {
+    setSelectedProject(project);
+    setIsDeleteOffersDialogOpen(true);
+  };
+
   const handleStartProject = async () => {
-    if (!selectedSuggestion) return;
+    if (!selectedProject) return;
 
     try {
       setIsSubmitting(true);
@@ -263,12 +273,40 @@ export default function Projects() {
       await new Promise((resolve) => setTimeout(resolve, 1000));
 
       toast.success(
-        `Projeto "${selectedSuggestion.title}" iniciado com sucesso! O projeto foi adicionado ao financeiro.`
+        `Projeto "${selectedProject.title}" iniciado com sucesso! O projeto foi adicionado ao financeiro.`
       );
       setIsStartProjectDialogOpen(false);
-      setSelectedSuggestion(null);
+      setSelectedProject(null);
     } catch (error: any) {
       toast.error(error.message || "Erro ao iniciar projeto");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleDeleteOffers = async () => {
+    if (!selectedProject) return;
+
+    try {
+      setIsSubmitting(true);
+
+      const response = await projectService.deleteProjectOffers(
+        selectedProject._id
+      );
+
+      if (response.success) {
+        toast.success(
+          `Ofertas do projeto "${selectedProject.title}" foram removidas. Você pode criar uma nova enquete.`
+        );
+        setIsDeleteOffersDialogOpen(false);
+        setSelectedProject(null);
+        await loadProjects();
+      } else {
+        toast.error(response.message || "Erro ao remover ofertas");
+      }
+    } catch (error: any) {
+      toast.error(error.message || "Erro ao remover ofertas");
+      console.error("Erro ao remover ofertas:", error);
     } finally {
       setIsSubmitting(false);
     }
@@ -292,22 +330,31 @@ export default function Projects() {
     value: string
   ) => {
     const newOptions = [...offerOptions];
+    let formattedValue = value;
+
+    // Aplicar máscara de moeda para o valor
+    if (field === "totalValue") {
+      formattedValue = formatCurrencyInput(value);
+    }
+
     newOptions[index] = {
       ...newOptions[index],
-      [field]: value,
+      [field]: formattedValue,
     };
     setOfferOptions(newOptions);
   };
 
   const handleCreateOfferPoll = async () => {
-    if (!selectedSuggestion) return;
+    if (!selectedProject) return;
 
     // Validações
     const validOptions = offerOptions.filter(
       (opt) =>
         opt.companyName.trim() !== "" &&
-        opt.totalInstallments.trim() !== "" &&
-        opt.value.trim() !== ""
+        opt.description.trim() !== "" &&
+        opt.companyCnpj.trim() !== "" &&
+        opt.totalValue.trim() !== "" &&
+        opt.installmentsCount.trim() !== ""
     );
 
     if (validOptions.length < 2) {
@@ -316,27 +363,69 @@ export default function Projects() {
     }
 
     if (!offerPollStartDate || !offerPollEndDate) {
-      toast.error("Informe as datas de início e fim da enquete!");
+      toast.error("Informe as datas e horários de início e fim da enquete!");
       return;
+    }
+
+    // Validar data de início (deve ser pelo menos 5 minutos no futuro)
+    if (!isDateTimeAtLeast5MinutesInFuture(offerPollStartDate)) {
+      toast.error(
+        "A data e hora de início deve ser pelo menos 5 minutos no futuro!"
+      );
+      return;
+    }
+
+    // Validar data de fim (deve ser após a data de início)
+    if (new Date(offerPollEndDate) <= new Date(offerPollStartDate)) {
+      toast.error(
+        "A data/hora final deve ser posterior à data/hora de início!"
+      );
+      return;
+    }
+
+    // Validar CNPJ (dígitos verificadores)
+    for (const opt of validOptions) {
+      if (!isValidCnpj(opt.companyCnpj)) {
+        toast.error(`CNPJ inválido para a empresa "${opt.companyName}"`);
+        return;
+      }
     }
 
     try {
       setIsSubmitting(true);
 
-      // TODO: Implementar chamada de API para criar enquete de ofertas
-      // Por enquanto simula a ação
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      // Preparar dados para a API
+      const offers: CreateOfferOption[] = validOptions.map((opt) => ({
+        companyName: opt.companyName.trim(),
+        description: opt.description.trim(),
+        companyCnpj: opt.companyCnpj,
+        totalValue: unformatCurrency(opt.totalValue),
+        installmentsCount: Number(opt.installmentsCount),
+      }));
 
-      toast.success(
-        `Enquete de ofertas criada para "${selectedSuggestion.title}"!`
-      );
-      setIsOfferPollDialogOpen(false);
-      setSelectedSuggestion(null);
-      setOfferOptions([{ ...defaultOfferOption }, { ...defaultOfferOption }]);
-      setOfferPollStartDate("");
-      setOfferPollEndDate("");
+      const response = await projectService.createOfferPoll({
+        projectId: selectedProject._id,
+        offerStartDate: dateTimeLocalToISO(offerPollStartDate),
+        offerEndDate: dateTimeLocalToISO(offerPollEndDate),
+        offers,
+      });
+
+      if (response.success) {
+        toast.success(
+          `Enquete de ofertas criada para "${selectedProject.title}"!`
+        );
+        setIsOfferPollDialogOpen(false);
+        setSelectedProject(null);
+        setOfferOptions([{ ...defaultOfferOption }, { ...defaultOfferOption }]);
+        setOfferPollStartDate("");
+        setOfferPollEndDate("");
+        await loadProjects();
+      } else {
+        toast.error(response.message || "Erro ao criar enquete de ofertas");
+      }
     } catch (error: any) {
       toast.error(error.message || "Erro ao criar enquete de ofertas");
+      console.error("Erro ao criar enquete de ofertas:", error);
     } finally {
       setIsSubmitting(false);
     }
@@ -402,14 +491,18 @@ export default function Projects() {
   // Get previous finished season for reuse option
   const previousFinishedSeason = finishedSeasons[0];
 
-  // Separate suggestions by status
-  const suggestionsNeedingOfferPoll = suggestions
-    .filter((s) => s.chosenOffer === null)
-    .sort((a, b) => a.rank - b.rank);
+  // Separate projects by status
+  const projectsNeedingOfferPoll = projects
+    .filter((p) => !hasChosenOffer(p) && !p.offerStartDate)
+    .sort((a, b) => (a.rank || 999) - (b.rank || 999));
 
-  const suggestionsWithOffer = suggestions
-    .filter((s) => s.chosenOffer !== null)
-    .sort((a, b) => a.rank - b.rank);
+  const projectsWithPendingOfferPoll = projects
+    .filter((p) => !hasChosenOffer(p) && p.offerStartDate && p.offerEndDate)
+    .sort((a, b) => (a.rank || 999) - (b.rank || 999));
+
+  const projectsWithOffer = projects
+    .filter((p) => hasChosenOffer(p))
+    .sort((a, b) => (a.rank || 999) - (b.rank || 999));
 
   if (isLoading) {
     return <ProjectsSkeleton />;
@@ -426,16 +519,16 @@ export default function Projects() {
         </div>
       </div>
 
-      <Tabs defaultValue="suggestions" className="space-y-6">
+      <Tabs defaultValue="projects" className="space-y-6">
         <TabsList>
-          <TabsTrigger value="suggestions">Sugestões Aprovadas</TabsTrigger>
+          <TabsTrigger value="projects">Projetos</TabsTrigger>
           <TabsTrigger value="seasons">Gerenciar Temporadas</TabsTrigger>
         </TabsList>
 
-        {/* Aba de Sugestões */}
-        <TabsContent value="suggestions" className="space-y-6">
+        {/* Aba de Projetos */}
+        <TabsContent value="projects" className="space-y-6">
           {/* Stats Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <Card>
               <CardContent className="pt-6">
                 <div className="text-center">
@@ -454,8 +547,20 @@ export default function Projects() {
                   <p className="text-sm text-muted-foreground mb-2">
                     Aguardando Enquete
                   </p>
-                  <p className="text-4xl font-bold text-accent">
-                    {suggestionsNeedingOfferPoll.length}
+                  <p className="text-4xl font-bold text-orange-500">
+                    {projectsNeedingOfferPoll.length}
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="pt-6">
+                <div className="text-center">
+                  <p className="text-sm text-muted-foreground mb-2">
+                    Enquete em Andamento
+                  </p>
+                  <p className="text-4xl font-bold text-blue-500">
+                    {projectsWithPendingOfferPoll.length}
                   </p>
                 </div>
               </CardContent>
@@ -467,15 +572,15 @@ export default function Projects() {
                     Prontos para Iniciar
                   </p>
                   <p className="text-4xl font-bold text-green-600">
-                    {suggestionsWithOffer.length}
+                    {projectsWithOffer.length}
                   </p>
                 </div>
               </CardContent>
             </Card>
           </div>
 
-          {/* Sugestões com ofertas definidas - Aguardando aprovação para iniciar */}
-          {suggestionsWithOffer.length > 0 && (
+          {/* Projetos com ofertas definidas - Aguardando aprovação para iniciar */}
+          {projectsWithOffer.length > 0 && (
             <div>
               <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
                 <CheckCircle2 className="w-5 h-5 text-green-500" />
@@ -487,9 +592,9 @@ export default function Projects() {
               </p>
 
               <div className="space-y-4">
-                {suggestionsWithOffer.map((suggestion) => (
+                {projectsWithOffer.map((project) => (
                   <Card
-                    key={suggestion._id}
+                    key={project._id}
                     className="border-2 border-green-500/50 bg-green-500/5"
                   >
                     <CardHeader>
@@ -497,73 +602,72 @@ export default function Projects() {
                         <div className="flex-1">
                           <CardTitle className="flex items-center gap-2">
                             <Lightbulb className="w-5 h-5 text-green-600" />
-                            {suggestion.title}
+                            {project.title}
                           </CardTitle>
                           <p className="text-sm text-muted-foreground mt-2">
-                            {suggestion.description}
+                            {project.description}
                           </p>
                         </div>
-                        {getRankBadge(suggestion.rank)}
+                        {project.rank && getRankBadge(project.rank)}
                       </div>
                     </CardHeader>
                     <CardContent className="space-y-4">
                       <div className="flex items-center gap-4 text-sm text-muted-foreground">
                         <div className="flex items-center gap-1">
                           <Users className="w-4 h-4" />
-                          <span>{suggestion.votes} votos</span>
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <Users className="w-4 h-4" />
-                          <span>Por: {suggestion.residentName}</span>
+                          <span>{project.votes} votos</span>
                         </div>
                       </div>
 
-                      {suggestion.chosenOffer && (
-                        <div className="p-4 bg-muted rounded-lg space-y-2">
-                          <h4 className="font-semibold flex items-center gap-2">
-                            <Building2 className="w-4 h-4" />
-                            Oferta Escolhida
-                          </h4>
-                          <div className="grid grid-cols-2 gap-4 text-sm">
-                            <div>
-                              <span className="text-muted-foreground">
-                                Empresa:
-                              </span>
-                              <p className="font-medium">
-                                {suggestion.chosenOffer.companyName}
-                              </p>
-                            </div>
-                            <div>
-                              <span className="text-muted-foreground">
-                                Valor:
-                              </span>
-                              <p className="font-medium text-green-600">
-                                {formatCurrency(suggestion.chosenOffer.value)}
-                              </p>
-                            </div>
-                            <div>
-                              <span className="text-muted-foreground">
-                                Parcelas:
-                              </span>
-                              <p className="font-medium">
-                                {suggestion.chosenOffer.paidInstallments} /{" "}
-                                {suggestion.chosenOffer.totalInstallments}
-                              </p>
-                            </div>
-                            <div>
-                              <span className="text-muted-foreground">
-                                Status:
-                              </span>
-                              <p className="font-medium text-orange-600">
-                                Aguardando aprovação
-                              </p>
+                      {hasChosenOffer(project) &&
+                        "companyName" in project.offer && (
+                          <div className="p-4 bg-muted rounded-lg space-y-2">
+                            <h4 className="font-semibold flex items-center gap-2">
+                              <Building2 className="w-4 h-4" />
+                              Oferta Escolhida
+                            </h4>
+                            <div className="grid grid-cols-2 gap-4 text-sm">
+                              <div>
+                                <span className="text-muted-foreground">
+                                  Empresa:
+                                </span>
+                                <p className="font-medium">
+                                  {project.offer.companyName}
+                                </p>
+                              </div>
+                              <div>
+                                <span className="text-muted-foreground">
+                                  Valor:
+                                </span>
+                                <p className="font-medium text-green-600">
+                                  {formatCurrency(project.offer.totalValue)}
+                                </p>
+                              </div>
+                              <div>
+                                <span className="text-muted-foreground">
+                                  Parcelas:
+                                </span>
+                                <p className="font-medium">
+                                  {project.offer.paidInstallments || 0} /{" "}
+                                  {project.offer.installmentsCount}
+                                </p>
+                              </div>
+                              <div>
+                                <span className="text-muted-foreground">
+                                  Status:
+                                </span>
+                                <p className="font-medium text-orange-600">
+                                  {project.offer.paymentStartDate
+                                    ? "Em andamento"
+                                    : "Aguardando aprovação"}
+                                </p>
+                              </div>
                             </div>
                           </div>
-                        </div>
-                      )}
+                        )}
 
                       <Button
-                        onClick={() => openStartProjectDialog(suggestion)}
+                        onClick={() => openStartProjectDialog(project)}
                         className="w-full md:w-auto"
                       >
                         <Play className="w-4 h-4 mr-2" />
@@ -576,24 +680,95 @@ export default function Projects() {
             </div>
           )}
 
-          {/* Sugestões aguardando enquete de ofertas */}
-          {suggestionsNeedingOfferPoll.length > 0 && (
+          {/* Projetos com enquete de ofertas em andamento */}
+          {projectsWithPendingOfferPoll.length > 0 && (
+            <div>
+              <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
+                <Clock className="w-5 h-5 text-blue-500" />
+                Enquetes de Ofertas em Andamento
+              </h2>
+              <p className="text-sm text-muted-foreground mb-4">
+                Estes projetos estão com enquete de ofertas ativa. Os moradores
+                podem votar na melhor oferta.
+              </p>
+
+              <div className="space-y-4">
+                {projectsWithPendingOfferPoll.map((project) => (
+                  <Card
+                    key={project._id}
+                    className="border-2 border-blue-500/50 bg-blue-500/5"
+                  >
+                    <CardHeader>
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <CardTitle className="flex items-center gap-2">
+                            <Lightbulb className="w-5 h-5 text-blue-600" />
+                            {project.title}
+                            <Badge
+                              variant="outline"
+                              className="ml-2 text-blue-600 border-blue-600"
+                            >
+                              <Clock className="w-3 h-3 mr-1" />
+                              Votação em andamento
+                            </Badge>
+                          </CardTitle>
+                          <p className="text-sm text-muted-foreground mt-2">
+                            {project.description}
+                          </p>
+                        </div>
+                        {project.rank && getRankBadge(project.rank)}
+                      </div>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                        <div className="flex items-center gap-1">
+                          <Users className="w-4 h-4" />
+                          <span>{project.votes} votos no projeto</span>
+                        </div>
+                        {project.offerStartDate && project.offerEndDate && (
+                          <div className="flex items-center gap-1">
+                            <Calendar className="w-4 h-4" />
+                            <span>
+                              {formatDate(project.offerStartDate)} até{" "}
+                              {formatDate(project.offerEndDate)}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+
+                      <Button
+                        variant="destructive"
+                        onClick={() => openDeleteOffersDialog(project)}
+                        className="w-full md:w-auto"
+                      >
+                        <Trash2 className="w-4 h-4 mr-2" />
+                        Refazer Enquete de Ofertas
+                      </Button>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Projetos aguardando enquete de ofertas */}
+          {projectsNeedingOfferPoll.length > 0 && (
             <div>
               <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
                 <AlertTriangle className="w-5 h-5 text-orange-500" />
                 Aguardando Enquete de Ofertas
               </h2>
               <p className="text-sm text-muted-foreground mb-4">
-                Cadastre as ofertas em ordem sequencial, começando pela sugestão
+                Cadastre as ofertas em ordem sequencial, começando pelo projeto
                 com mais votos.
               </p>
 
               <div className="space-y-4">
-                {suggestionsNeedingOfferPoll.map((suggestion) => {
-                  const isNext = canCreateOfferPoll(suggestion);
+                {projectsNeedingOfferPoll.map((project) => {
+                  const isNext = canCreateOfferPoll(project);
                   return (
                     <Card
-                      key={suggestion._id}
+                      key={project._id}
                       className={
                         isNext
                           ? "border-2 border-orange-500/50 bg-orange-500/5"
@@ -605,7 +780,7 @@ export default function Projects() {
                           <div className="flex-1">
                             <CardTitle className="flex items-center gap-2">
                               <Lightbulb className="w-5 h-5 text-primary" />
-                              {suggestion.title}
+                              {project.title}
                               {isNext ? (
                                 <Badge
                                   variant="outline"
@@ -624,27 +799,23 @@ export default function Projects() {
                               )}
                             </CardTitle>
                             <p className="text-sm text-muted-foreground mt-2">
-                              {suggestion.description}
+                              {project.description}
                             </p>
                           </div>
-                          {getRankBadge(suggestion.rank)}
+                          {project.rank && getRankBadge(project.rank)}
                         </div>
                       </CardHeader>
                       <CardContent className="space-y-4">
                         <div className="flex items-center gap-4 text-sm text-muted-foreground">
                           <div className="flex items-center gap-1">
                             <Users className="w-4 h-4" />
-                            <span>{suggestion.votes} votos</span>
-                          </div>
-                          <div className="flex items-center gap-1">
-                            <Users className="w-4 h-4" />
-                            <span>Por: {suggestion.residentName}</span>
+                            <span>{project.votes} votos</span>
                           </div>
                         </div>
 
                         {isNext ? (
                           <Button
-                            onClick={() => openOfferPollDialog(suggestion)}
+                            onClick={() => openOfferPollDialog(project)}
                             className="w-full md:w-auto"
                           >
                             <Play className="w-4 h-4 mr-2" />
@@ -655,7 +826,7 @@ export default function Projects() {
                             <Lock className="w-4 h-4" />
                             <span>
                               Aguardando a criação da enquete para o{" "}
-                              {getNextSuggestionForOfferPoll()?.rank}º lugar
+                              {getNextProjectForOfferPoll()?.rank}º lugar
                             </span>
                           </div>
                         )}
@@ -677,18 +848,18 @@ export default function Projects() {
                 </p>
                 <p className="text-sm text-muted-foreground">
                   Inicie uma nova temporada na aba "Gerenciar Temporadas" para
-                  ver as sugestões dos moradores.
+                  ver os projetos dos moradores.
                 </p>
               </CardContent>
             </Card>
           )}
 
-          {activeSeason && suggestions.length === 0 && (
+          {activeSeason && projects.length === 0 && (
             <Card>
               <CardContent className="flex flex-col items-center justify-center h-48 text-center">
                 <Lightbulb className="w-12 h-12 text-muted-foreground/50 mb-4" />
                 <p className="text-muted-foreground mb-2">
-                  Nenhuma sugestão disponível nesta temporada
+                  Nenhum projeto disponível nesta temporada
                 </p>
                 <p className="text-sm text-muted-foreground">
                   Aguarde os moradores cadastrarem suas sugestões.
@@ -944,7 +1115,7 @@ export default function Projects() {
         onOpenChange={(open) => {
           setIsOfferPollDialogOpen(open);
           if (!open) {
-            setSelectedSuggestion(null);
+            setSelectedProject(null);
             setOfferOptions([
               { ...defaultOfferOption },
               { ...defaultOfferOption },
@@ -959,23 +1130,23 @@ export default function Projects() {
             <DialogTitle>Criar Enquete de Ofertas</DialogTitle>
             <DialogDescription>
               Cadastre as ofertas das empresas para o projeto "
-              {selectedSuggestion?.title}"
+              {selectedProject?.title}"
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-6 py-4">
             {/* Info do projeto */}
-            {selectedSuggestion && (
+            {selectedProject && (
               <div className="p-4 bg-muted rounded-lg">
                 <div className="flex items-center justify-between mb-2">
-                  <h4 className="font-semibold">{selectedSuggestion.title}</h4>
-                  {getRankBadge(selectedSuggestion.rank)}
+                  <h4 className="font-semibold">{selectedProject.title}</h4>
+                  {selectedProject.rank && getRankBadge(selectedProject.rank)}
                 </div>
                 <p className="text-sm text-muted-foreground">
-                  {selectedSuggestion.description}
+                  {selectedProject.description}
                 </p>
                 <p className="text-sm text-muted-foreground mt-2">
-                  {selectedSuggestion.votes} votos
+                  {selectedProject.votes} votos
                 </p>
               </div>
             )}
@@ -1005,14 +1176,14 @@ export default function Projects() {
                     )}
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                     <div className="space-y-1">
                       <Label htmlFor={`company-${index}`} className="text-xs">
                         Nome da Empresa
                       </Label>
                       <Input
                         id={`company-${index}`}
-                        placeholder="Ex: Reformas LTDA"
+                        placeholder="Ex: Construtora ABC LTDA"
                         value={option.companyName}
                         onChange={(e) =>
                           handleOfferOptionChange(
@@ -1024,22 +1195,66 @@ export default function Projects() {
                       />
                     </div>
                     <div className="space-y-1">
+                      <Label htmlFor={`cnpj-${index}`} className="text-xs">
+                        CNPJ
+                      </Label>
+                      <MaskedInput
+                        id={`cnpj-${index}`}
+                        mask="99.999.999/9999-99"
+                        maskChar={null}
+                        placeholder="00.000.000/0000-00"
+                        value={option.companyCnpj}
+                        onValueChange={(value) =>
+                          handleOfferOptionChange(index, "companyCnpj", value)
+                        }
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-1">
+                    <Label htmlFor={`description-${index}`} className="text-xs">
+                      Descrição da Oferta
+                    </Label>
+                    <Textarea
+                      id={`description-${index}`}
+                      placeholder="Ex: Serviço completo de reforma com garantia de 2 anos"
+                      value={option.description}
+                      onChange={(e) =>
+                        handleOfferOptionChange(
+                          index,
+                          "description",
+                          e.target.value
+                        )
+                      }
+                      rows={2}
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div className="space-y-1">
                       <Label htmlFor={`value-${index}`} className="text-xs">
                         Valor Total (R$)
                       </Label>
-                      <Input
-                        id={`value-${index}`}
-                        type="number"
-                        placeholder="Ex: 50000"
-                        value={option.value}
-                        onChange={(e) =>
-                          handleOfferOptionChange(
-                            index,
-                            "value",
-                            e.target.value
-                          )
-                        }
-                      />
+                      <div className="relative">
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">
+                          R$
+                        </span>
+                        <Input
+                          id={`value-${index}`}
+                          type="text"
+                          inputMode="numeric"
+                          placeholder="0,00"
+                          className="pl-10"
+                          value={option.totalValue}
+                          onChange={(e) =>
+                            handleOfferOptionChange(
+                              index,
+                              "totalValue",
+                              e.target.value
+                            )
+                          }
+                        />
+                      </div>
                     </div>
                     <div className="space-y-1">
                       <Label
@@ -1051,12 +1266,13 @@ export default function Projects() {
                       <Input
                         id={`installments-${index}`}
                         type="number"
+                        min="1"
                         placeholder="Ex: 12"
-                        value={option.totalInstallments}
+                        value={option.installmentsCount}
                         onChange={(e) =>
                           handleOfferOptionChange(
                             index,
-                            "totalInstallments",
+                            "installmentsCount",
                             e.target.value
                           )
                         }
@@ -1079,25 +1295,33 @@ export default function Projects() {
               )}
             </div>
 
-            {/* Datas */}
+            {/* Datas e Horários */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="offer-start-date">Data de Início</Label>
+                <Label htmlFor="offer-start-date">Data e Hora de Início</Label>
                 <Input
                   id="offer-start-date"
-                  type="date"
+                  type="datetime-local"
+                  min={minDateTime}
                   value={offerPollStartDate}
                   onChange={(e) => setOfferPollStartDate(e.target.value)}
                 />
+                <p className="text-xs text-muted-foreground">
+                  Mínimo de 5 minutos a partir de agora
+                </p>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="offer-end-date">Data Final</Label>
+                <Label htmlFor="offer-end-date">Data e Hora Final</Label>
                 <Input
                   id="offer-end-date"
-                  type="date"
+                  type="datetime-local"
+                  min={offerPollStartDate || minDateTime}
                   value={offerPollEndDate}
                   onChange={(e) => setOfferPollEndDate(e.target.value)}
                 />
+                <p className="text-xs text-muted-foreground">
+                  Deve ser posterior à data/hora de início
+                </p>
               </div>
             </div>
           </div>
@@ -1136,42 +1360,44 @@ export default function Projects() {
           <AlertDialogHeader>
             <AlertDialogTitle>Iniciar Projeto?</AlertDialogTitle>
             <AlertDialogDescription>
-              Ao iniciar o projeto "{selectedSuggestion?.title}", ele será
+              Ao iniciar o projeto "{selectedProject?.title}", ele será
               adicionado ao módulo financeiro para acompanhamento de custos e
               andamento. Os pagamentos serão iniciados conforme a oferta
               escolhida.
             </AlertDialogDescription>
           </AlertDialogHeader>
 
-          {selectedSuggestion?.chosenOffer && (
-            <div className="p-4 bg-muted rounded-lg space-y-2 my-2">
-              <h4 className="font-semibold text-sm">Resumo da Oferta:</h4>
-              <div className="grid grid-cols-2 gap-2 text-sm">
-                <div>
-                  <span className="text-muted-foreground">Empresa:</span>
-                  <p className="font-medium">
-                    {selectedSuggestion.chosenOffer.companyName}
-                  </p>
-                </div>
-                <div>
-                  <span className="text-muted-foreground">Valor:</span>
-                  <p className="font-medium text-green-600">
-                    {formatCurrency(selectedSuggestion.chosenOffer.value)}
-                  </p>
-                </div>
-                <div>
-                  <span className="text-muted-foreground">Parcelas:</span>
-                  <p className="font-medium">
-                    {selectedSuggestion.chosenOffer.totalInstallments}x de{" "}
-                    {formatCurrency(
-                      selectedSuggestion.chosenOffer.value /
-                        selectedSuggestion.chosenOffer.totalInstallments
-                    )}
-                  </p>
+          {selectedProject &&
+            hasChosenOffer(selectedProject) &&
+            "companyName" in selectedProject.offer && (
+              <div className="p-4 bg-muted rounded-lg space-y-2 my-2">
+                <h4 className="font-semibold text-sm">Resumo da Oferta:</h4>
+                <div className="grid grid-cols-2 gap-2 text-sm">
+                  <div>
+                    <span className="text-muted-foreground">Empresa:</span>
+                    <p className="font-medium">
+                      {selectedProject.offer.companyName}
+                    </p>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">Valor:</span>
+                    <p className="font-medium text-green-600">
+                      {formatCurrency(selectedProject.offer.totalValue)}
+                    </p>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">Parcelas:</span>
+                    <p className="font-medium">
+                      {selectedProject.offer.installmentsCount}x de{" "}
+                      {formatCurrency(
+                        selectedProject.offer.totalValue /
+                          selectedProject.offer.installmentsCount
+                      )}
+                    </p>
+                  </div>
                 </div>
               </div>
-            </div>
-          )}
+            )}
 
           <AlertDialogFooter>
             <AlertDialogCancel disabled={isSubmitting}>
@@ -1182,6 +1408,48 @@ export default function Projects() {
               disabled={isSubmitting}
             >
               {isSubmitting ? "Iniciando..." : "Iniciar Projeto"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* AlertDialog para Deletar Ofertas */}
+      <AlertDialog
+        open={isDeleteOffersDialogOpen}
+        onOpenChange={setIsDeleteOffersDialogOpen}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2 text-destructive">
+              <AlertTriangle className="w-5 h-5" />
+              Refazer Enquete de Ofertas?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Ao refazer a enquete, todas as ofertas cadastradas para o projeto
+              "{selectedProject?.title}" serão removidas e você precisará criar
+              uma nova enquete com novas ofertas.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+
+          <div className="p-4 bg-destructive/10 border border-destructive/20 rounded-lg my-2">
+            <p className="text-sm text-destructive font-medium">
+              Esta ação é irreversível!
+            </p>
+            <p className="text-sm text-muted-foreground mt-1">
+              Todos os votos já realizados nas ofertas serão perdidos.
+            </p>
+          </div>
+
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isSubmitting}>
+              Cancelar
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteOffers}
+              disabled={isSubmitting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {isSubmitting ? "Removendo..." : "Remover Ofertas"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

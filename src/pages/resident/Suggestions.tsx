@@ -14,31 +14,28 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Lightbulb, Edit, Trash2, Plus } from "lucide-react";
+import { Lightbulb, Edit, Trash2, Plus, Lock } from "lucide-react";
 import { toast } from "sonner";
 import {
   suggestionSchema,
   type SuggestionSchema,
 } from "@/schemas/resident/suggestions.schema";
+import {
+  seasonService,
+  residentSuggestionService,
+  ApiClientError,
+  type Season,
+  type ResidentSuggestion,
+} from "@/services/api";
 
 export default function Suggestions() {
   const [isLoading, setIsLoading] = useState(true);
-  const [selectedMonth, setSelectedMonth] = useState("2025-10");
-  const [suggestions, setSuggestions] = useState([
-    {
-      id: 1,
-      title: "Reforma da Piscina",
-      description: "Melhorar a área de lazer",
-    },
-    {
-      id: 2,
-      title: "Nova Churrasqueira",
-      description: "Expandir área gourmet",
-    },
-  ]);
-
+  const [seasons, setSeasons] = useState<Season[]>([]);
+  const [selectedSeasonId, setSelectedSeasonId] = useState<string>("");
+  const [suggestions, setSuggestions] = useState<ResidentSuggestion[]>([]);
   const [isCreating, setIsCreating] = useState(false);
-  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const {
     register,
@@ -56,41 +53,153 @@ export default function Suggestions() {
   });
 
   const description = watch("description");
-  const canCreateMore = suggestions.length < 5;
 
-  useEffect(() => {
-    const loadData = async () => {
-      setIsLoading(false);
-    };
-    loadData();
-  }, []);
+  // Check if the selected season is read-only
+  // A season is read-only if:
+  // 1. It's not the current active season (endDate !== null means it's finished)
+  // 2. Or it's a previous season
+  const isReadOnly = (): boolean => {
+    if (!selectedSeasonId || seasons.length === 0) return true;
 
-  const onSubmit = (data: SuggestionSchema) => {
-    if (editingId) {
-      setSuggestions(
-        suggestions.map((s) =>
-          s.id === editingId
-            ? { ...s, title: data.title, description: data.description }
-            : s
-        )
-      );
-      toast.success("Sugestão atualizada com sucesso!");
-      setEditingId(null);
-    } else {
-      const newSuggestion = {
-        id: Date.now(),
-        title: data.title,
-        description: data.description,
-      };
-      setSuggestions([...suggestions, newSuggestion]);
-      toast.success("Sugestão criada com sucesso!");
-      setIsCreating(false);
-    }
-    reset();
+    const selectedSeason = seasons.find((s) => s._id === selectedSeasonId);
+    if (!selectedSeason) return true;
+
+    // Season is read-only if it has been finished (endDate is not null)
+    return selectedSeason.endDate !== null;
   };
 
-  const handleEdit = (id: number) => {
-    const suggestion = suggestions.find((s) => s.id === id);
+  // Get suggestions for the selected season
+  const filteredSuggestions = suggestions.filter((s) => {
+    // Show suggestions that belong to the selected season
+    // actualSeasonId is the current season the suggestion belongs to
+    return (
+      s.actualSeasonId === selectedSeasonId ||
+      s.fromSeasonId === selectedSeasonId
+    );
+  });
+
+  const canCreateMore = filteredSuggestions.length < 5 && !isReadOnly();
+
+  // Load seasons on mount
+  useEffect(() => {
+    const loadSeasons = async () => {
+      try {
+        const response = await seasonService.getSeasons();
+        if (response.success && response.data) {
+          const sortedSeasons = [...response.data].sort(
+            (a, b) => b.seasonNumber - a.seasonNumber
+          );
+          setSeasons(sortedSeasons);
+
+          // Select the active season (endDate === null) or the most recent one
+          const activeSeason = sortedSeasons.find((s) => s.endDate === null);
+          if (activeSeason) {
+            setSelectedSeasonId(activeSeason._id);
+          } else if (sortedSeasons.length > 0) {
+            setSelectedSeasonId(sortedSeasons[0]._id);
+          }
+        }
+      } catch (error) {
+        console.error("Erro ao carregar temporadas:", error);
+        if (error instanceof ApiClientError) {
+          toast.error(error.response.message || "Erro ao carregar temporadas");
+        } else {
+          toast.error("Erro ao carregar temporadas");
+        }
+      }
+    };
+
+    loadSeasons();
+  }, []);
+
+  // Load suggestions when component mounts
+  useEffect(() => {
+    const loadSuggestions = async () => {
+      try {
+        setIsLoading(true);
+        const response =
+          await residentSuggestionService.getSuggestionsByApartment();
+        if (response.success && response.data) {
+          setSuggestions(response.data);
+        }
+      } catch (error) {
+        console.error("Erro ao carregar sugestões:", error);
+        if (error instanceof ApiClientError) {
+          toast.error(error.response.message || "Erro ao carregar sugestões");
+        } else {
+          toast.error("Erro ao carregar sugestões");
+        }
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadSuggestions();
+  }, []);
+
+  const onSubmit = async (data: SuggestionSchema) => {
+    if (isReadOnly()) {
+      toast.error(
+        "Não é possível modificar sugestões de temporadas anteriores"
+      );
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      if (editingId) {
+        const response = await residentSuggestionService.updateSuggestion(
+          editingId,
+          {
+            title: data.title,
+            description: data.description,
+          }
+        );
+
+        if (response.success && response.data) {
+          setSuggestions(
+            suggestions.map((s) => (s._id === editingId ? response.data! : s))
+          );
+          toast.success("Sugestão atualizada com sucesso!");
+          setEditingId(null);
+        }
+      } else {
+        const response = await residentSuggestionService.createSuggestion({
+          title: data.title,
+          description: data.description,
+        });
+
+        if (response.success && response.data) {
+          // Add actualSeasonId to the new suggestion so it appears in the filtered list
+          const newSuggestion: ResidentSuggestion = {
+            ...response.data,
+            actualSeasonId: selectedSeasonId,
+          };
+          setSuggestions([...suggestions, newSuggestion]);
+          toast.success("Sugestão criada com sucesso!");
+          setIsCreating(false);
+        }
+      }
+      reset();
+    } catch (error) {
+      console.error("Erro ao salvar sugestão:", error);
+      if (error instanceof ApiClientError) {
+        toast.error(error.response.message || "Erro ao salvar sugestão");
+      } else {
+        toast.error("Erro ao salvar sugestão");
+      }
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleEdit = (id: string) => {
+    if (isReadOnly()) {
+      toast.error("Não é possível editar sugestões de temporadas anteriores");
+      return;
+    }
+
+    const suggestion = suggestions.find((s) => s._id === id);
     if (suggestion) {
       setValue("title", suggestion.title);
       setValue("description", suggestion.description);
@@ -98,9 +207,26 @@ export default function Suggestions() {
     }
   };
 
-  const handleDelete = (id: number) => {
-    setSuggestions(suggestions.filter((s) => s.id !== id));
-    toast.success("Sugestão excluída com sucesso!");
+  const handleDelete = async (id: string) => {
+    if (isReadOnly()) {
+      toast.error("Não é possível excluir sugestões de temporadas anteriores");
+      return;
+    }
+
+    try {
+      const response = await residentSuggestionService.deleteSuggestion(id);
+      if (response.success) {
+        setSuggestions(suggestions.filter((s) => s._id !== id));
+        toast.success("Sugestão excluída com sucesso!");
+      }
+    } catch (error) {
+      console.error("Erro ao excluir sugestão:", error);
+      if (error instanceof ApiClientError) {
+        toast.error(error.response.message || "Erro ao excluir sugestão");
+      } else {
+        toast.error("Erro ao excluir sugestão");
+      }
+    }
   };
 
   const handleCancel = () => {
@@ -109,12 +235,10 @@ export default function Suggestions() {
     setEditingId(null);
   };
 
-  const availableMonths = [
-    { value: "2025-10", label: "Outubro 2025" },
-    { value: "2025-09", label: "Setembro 2025" },
-    { value: "2025-08", label: "Agosto 2025" },
-    { value: "2025-07", label: "Julho 2025" },
-  ];
+  const getSeasonLabel = (season: Season): string => {
+    const statusLabel = season.endDate === null ? " (Ativa)" : "";
+    return `Temporada ${season.seasonNumber}${statusLabel}`;
+  };
 
   if (isLoading) {
     return <SuggestionsSkeleton />;
@@ -126,7 +250,14 @@ export default function Suggestions() {
         <div className="flex-1">
           <h1 className="text-3xl font-bold">Minhas Sugestões</h1>
           <p className="text-muted-foreground mt-1">
-            Você pode criar até 5 sugestões ({suggestions.length}/5)
+            {isReadOnly() ? (
+              <span className="flex items-center gap-1">
+                <Lock className="w-4 h-4" />
+                Temporada encerrada (para dar sugestões, deverá ser uma temporada ativa)
+              </span>
+            ) : (
+              `Você pode criar até 5 sugestões (${filteredSuggestions.length}/5)`
+            )}
           </p>
         </div>
         <div className="flex items-center gap-4">
@@ -136,14 +267,14 @@ export default function Suggestions() {
               Nova Sugestão
             </Button>
           )}
-          <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+          <Select value={selectedSeasonId} onValueChange={setSelectedSeasonId}>
             <SelectTrigger className="w-[200px]">
-              <SelectValue />
+              <SelectValue placeholder="Selecione a temporada" />
             </SelectTrigger>
             <SelectContent>
-              {availableMonths.map((month) => (
-                <SelectItem key={month.value} value={month.value}>
-                  {month.label}
+              {seasons.map((season) => (
+                <SelectItem key={season._id} value={season._id}>
+                  {getSeasonLabel(season)}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -152,7 +283,7 @@ export default function Suggestions() {
       </div>
 
       {/* Create/Edit Form */}
-      {(isCreating || editingId) && (
+      {(isCreating || editingId) && !isReadOnly() && (
         <Card className="border-2 border-primary">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -169,6 +300,7 @@ export default function Suggestions() {
                   {...register("title")}
                   placeholder="Ex: Reforma da Piscina"
                   maxLength={100}
+                  disabled={isSubmitting}
                 />
                 {errors.title && (
                   <p className="text-sm text-destructive">
@@ -184,6 +316,7 @@ export default function Suggestions() {
                   placeholder="Descreva sua sugestão em detalhes..."
                   rows={4}
                   maxLength={500}
+                  disabled={isSubmitting}
                 />
                 {errors.description && (
                   <p className="text-sm text-destructive">
@@ -195,10 +328,23 @@ export default function Suggestions() {
                 </p>
               </div>
               <div className="flex gap-2">
-                <Button type="submit" className="flex-1">
-                  {editingId ? "Atualizar" : "Criar"}
+                <Button
+                  type="submit"
+                  className="flex-1"
+                  disabled={isSubmitting}
+                >
+                  {isSubmitting
+                    ? "Salvando..."
+                    : editingId
+                    ? "Atualizar"
+                    : "Criar"}
                 </Button>
-                <Button type="button" variant="outline" onClick={handleCancel}>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handleCancel}
+                  disabled={isSubmitting}
+                >
                   Cancelar
                 </Button>
               </div>
@@ -209,40 +355,51 @@ export default function Suggestions() {
 
       {/* Suggestions List */}
       <div className="grid gap-4">
-        {suggestions.length === 0 ? (
+        {filteredSuggestions.length === 0 ? (
           <Card>
             <CardContent className="py-12 text-center text-muted-foreground">
               <Lightbulb className="w-12 h-12 mx-auto mb-4 opacity-50" />
-              <p>Você ainda não criou nenhuma sugestão.</p>
-              <p className="text-sm mt-2">
-                Clique em "Nova Sugestão" para começar!
+              <p>
+                {isReadOnly()
+                  ? "Nenhuma sugestão nesta temporada."
+                  : "Você ainda não criou nenhuma sugestão."}
               </p>
+              {!isReadOnly() && (
+                <p className="text-sm mt-2">
+                  Clique em "Nova Sugestão" para começar!
+                </p>
+              )}
             </CardContent>
           </Card>
         ) : (
-          suggestions.map((suggestion) => (
-            <Card key={suggestion.id}>
+          filteredSuggestions.map((suggestion) => (
+            <Card key={suggestion._id}>
               <CardHeader>
                 <div className="flex justify-between items-start">
                   <CardTitle className="text-xl">{suggestion.title}</CardTitle>
-                  <div className="flex gap-2">
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      onClick={() => handleEdit(suggestion.id)}
-                      disabled={editingId !== null || isCreating}
-                    >
-                      <Edit className="w-4 h-4" />
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      onClick={() => handleDelete(suggestion.id)}
-                      disabled={editingId !== null || isCreating}
-                    >
-                      <Trash2 className="w-4 h-4 text-destructive" />
-                    </Button>
-                  </div>
+                  {!isReadOnly() && (
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        onClick={() => handleEdit(suggestion._id)}
+                        disabled={editingId !== null || isCreating}
+                      >
+                        <Edit className="w-4 h-4" />
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        onClick={() => handleDelete(suggestion._id)}
+                        disabled={editingId !== null || isCreating}
+                      >
+                        <Trash2 className="w-4 h-4 text-destructive" />
+                      </Button>
+                    </div>
+                  )}
+                  {isReadOnly() && (
+                    <Lock className="w-4 h-4 text-muted-foreground" />
+                  )}
                 </div>
               </CardHeader>
               <CardContent>

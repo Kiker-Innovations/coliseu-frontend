@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -9,6 +9,11 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
+import {
+  getMinDateTimeForInput,
+  isDateTimeAtLeast5MinutesInFuture,
+  dateTimeLocalToISO,
+} from "@/lib/utils";
 import {
   Dialog,
   DialogContent,
@@ -35,9 +40,19 @@ import {
   XCircle,
 } from "lucide-react";
 import { toast } from "sonner";
-import { pollSchema, type PollSchema, type PollOptionSchema } from "@/schemas/admin/polls.schema";
+import {
+  pollSchema,
+  type PollSchema,
+  type PollOptionSchema,
+} from "@/schemas/admin/polls.schema";
 import PollsSkeleton from "@/skeleton/admin/PollsSkeleton";
-import { pollsService, adminService, ApiClientError, type ActivePoll, type FinishedCancelledPoll } from "@/services/api";
+import {
+  pollsService,
+  adminService,
+  ApiClientError,
+  type ActivePoll,
+  type FinishedCancelledPoll,
+} from "@/services/api";
 
 const defaultOption: PollOptionSchema = {
   optionDescription: "",
@@ -49,10 +64,14 @@ export default function Polls() {
   const [isLoading, setIsLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isCancelDialogOpen, setIsCancelDialogOpen] = useState(false);
-  const [selectedPollToCancel, setSelectedPollToCancel] = useState<ActivePoll | null>(null);
+  const [selectedPollToCancel, setSelectedPollToCancel] =
+    useState<ActivePoll | null>(null);
   const [cancelReason, setCancelReason] = useState("");
   const [isCancelling, setIsCancelling] = useState(false);
-  const [pollOptions, setPollOptions] = useState<PollOptionSchema[]>([{ ...defaultOption }, { ...defaultOption }]);
+  const [pollOptions, setPollOptions] = useState<PollOptionSchema[]>([
+    { ...defaultOption },
+    { ...defaultOption },
+  ]);
   const [selectedMonth, setSelectedMonth] = useState(() => {
     const now = new Date();
     return now.getMonth() + 1; // 1-12
@@ -65,12 +84,17 @@ export default function Polls() {
   const [activePolls, setActivePolls] = useState<ActivePoll[]>([]);
   const [closedPolls, setClosedPolls] = useState<FinishedCancelledPoll[]>([]);
 
+  // Minimum datetime for inputs (5 minutes from now)
+  const minDateTime = useMemo(() => getMinDateTimeForInput(), []);
+
   // Load buildingId on mount
   useEffect(() => {
     const loadBuildingId = async () => {
       try {
-        const token = localStorage.getItem("coliseu_access_token") || sessionStorage.getItem("coliseu_access_token");
-        
+        const token =
+          localStorage.getItem("coliseu_access_token") ||
+          sessionStorage.getItem("coliseu_access_token");
+
         if (!token) {
           toast.error("Token não encontrado. Faça login novamente.");
           return;
@@ -85,7 +109,7 @@ export default function Polls() {
           console.warn("Não foi possível buscar o perfil do admin:", error);
           // Tentar decodificar o token JWT como fallback
           try {
-            const tokenParts = token.split('.');
+            const tokenParts = token.split(".");
             if (tokenParts.length === 3) {
               const payload = JSON.parse(atob(tokenParts[1]));
               if (payload.buildingId) {
@@ -116,37 +140,54 @@ export default function Polls() {
         setIsLoading(true);
         const year = selectedYear;
         const month = selectedMonth;
-        
-        console.log("Loading polls for:", { selectedMonth, selectedYear, year, month, buildingId });
-        
+
+        console.log("Loading polls for:", {
+          selectedMonth,
+          selectedYear,
+          year,
+          month,
+          buildingId,
+        });
+
         // Load active polls (ATIVO and PROGRAMADO)
         const activeParams: any = { buildingId: buildingId.trim() };
-        if (month && !isNaN(month) && month > 0 && month <= 12) {
+        if (month && !Number.isNaN(month) && month > 0 && month <= 12) {
           activeParams.month = month;
         }
-        if (year && !isNaN(year) && year > 0) {
+        if (year && !Number.isNaN(year) && year > 0) {
           activeParams.year = year;
         }
         activeParams.status = ["ATIVO", "PROGRAMADO"];
-        
+
         console.log("Active polls params:", activeParams);
         try {
           const activeResponse = await pollsService.getPolls(activeParams);
           console.log("Active polls response:", activeResponse);
           if (activeResponse.success && activeResponse.data) {
-            setActivePolls(Array.isArray(activeResponse.data) ? activeResponse.data : []);
+            setActivePolls(
+              Array.isArray(activeResponse.data) ? activeResponse.data : []
+            );
           } else {
             setActivePolls([]);
           }
         } catch (activeError: any) {
           console.error("Erro ao carregar enquetes ativas:", activeError);
           if (activeError instanceof ApiClientError) {
-            if (activeError.statusCode === 400 || activeError.statusCode === 404) {
-              console.log("Nenhuma enquete ativa encontrada para o período selecionado");
+            if (
+              activeError.statusCode === 400 ||
+              activeError.statusCode === 404
+            ) {
+              console.log(
+                "Nenhuma enquete ativa encontrada para o período selecionado"
+              );
               setActivePolls([]);
             } else if (activeError.statusCode === 500) {
-              console.error("Erro interno do servidor ao carregar enquetes ativas");
-              toast.error("Erro ao carregar enquetes. Tente novamente mais tarde.");
+              console.error(
+                "Erro interno do servidor ao carregar enquetes ativas"
+              );
+              toast.error(
+                "Erro ao carregar enquetes. Tente novamente mais tarde."
+              );
               setActivePolls([]);
             } else {
               toast.error("Erro ao carregar enquetes ativas");
@@ -159,31 +200,43 @@ export default function Polls() {
 
         // Load finished/cancelled polls (FINALIZADO and CANCELADO)
         const finishedParams: any = { buildingId: buildingId.trim() };
-        if (month && !isNaN(month) && month > 0 && month <= 12) {
+        if (month && !Number.isNaN(month) && month > 0 && month <= 12) {
           finishedParams.month = month;
         }
-        if (year && !isNaN(year) && year > 0) {
+        if (year && !Number.isNaN(year) && year > 0) {
           finishedParams.year = year;
         }
         finishedParams.status = ["FINALIZADO", "CANCELADO"];
-        
+
         console.log("Finished polls params:", finishedParams);
         try {
           const finishedResponse = await pollsService.getPolls(finishedParams);
           console.log("Finished polls response:", finishedResponse);
           if (finishedResponse.success && finishedResponse.data) {
-            setClosedPolls(Array.isArray(finishedResponse.data) ? finishedResponse.data : []);
+            setClosedPolls(
+              Array.isArray(finishedResponse.data) ? finishedResponse.data : []
+            );
           } else {
             setClosedPolls([]);
           }
         } catch (finishedError: any) {
-          console.error("Erro ao carregar enquetes finalizadas:", finishedError);
+          console.error(
+            "Erro ao carregar enquetes finalizadas:",
+            finishedError
+          );
           if (finishedError instanceof ApiClientError) {
-            if (finishedError.statusCode === 400 || finishedError.statusCode === 404) {
-              console.log("Nenhuma enquete finalizada encontrada para o período selecionado");
+            if (
+              finishedError.statusCode === 400 ||
+              finishedError.statusCode === 404
+            ) {
+              console.log(
+                "Nenhuma enquete finalizada encontrada para o período selecionado"
+              );
               setClosedPolls([]);
             } else if (finishedError.statusCode === 500) {
-              console.error("Erro interno do servidor ao carregar enquetes finalizadas");
+              console.error(
+                "Erro interno do servidor ao carregar enquetes finalizadas"
+              );
               // Não mostrar toast para erro 500 em enquetes finalizadas para não poluir a UI
               setClosedPolls([]);
             } else {
@@ -217,7 +270,6 @@ export default function Polls() {
       status: "ATIVO",
     },
   });
-
 
   const handleAddOption = () => {
     if (pollOptions.length < 5) {
@@ -272,7 +324,7 @@ export default function Polls() {
     console.log("Form submitted with data:", data);
     console.log("BuildingId:", buildingId);
     console.log("Poll options:", pollOptions);
-    
+
     try {
       if (!buildingId) {
         toast.error("BuildingId não encontrado. Faça login novamente.");
@@ -280,9 +332,10 @@ export default function Polls() {
       }
 
       // Validar opções - usar pollOptions do estado ou data.options do formulário
-      const optionsToValidate = pollOptions.length > 0 ? pollOptions : data.options;
-      const validOptions = optionsToValidate.filter((opt) => 
-        opt.optionDescription && opt.optionDescription.trim() !== ""
+      const optionsToValidate =
+        pollOptions.length > 0 ? pollOptions : data.options;
+      const validOptions = optionsToValidate.filter(
+        (opt) => opt.optionDescription && opt.optionDescription.trim() !== ""
       );
 
       if (validOptions.length < 2) {
@@ -290,10 +343,25 @@ export default function Polls() {
         return;
       }
 
-      // Date input returns format: YYYY-MM-DD
-      // API expects format: YYYY-MM-DD (same format, no conversion needed)
-      const startDate = data.startDate; // Already in YYYY-MM-DD format
-      const endDate = data.endDate; // Already in YYYY-MM-DD format
+      // Validar data de início (deve ser pelo menos 5 minutos no futuro)
+      if (!isDateTimeAtLeast5MinutesInFuture(data.startDate)) {
+        toast.error(
+          "A data e hora de início deve ser pelo menos 5 minutos no futuro!"
+        );
+        return;
+      }
+
+      // Validar data de fim (deve ser após a data de início)
+      if (new Date(data.endDate) <= new Date(data.startDate)) {
+        toast.error(
+          "A data/hora final deve ser posterior à data/hora de início!"
+        );
+        return;
+      }
+
+      // Convert datetime-local to ISO format for the API
+      const startDate = dateTimeLocalToISO(data.startDate);
+      const endDate = dateTimeLocalToISO(data.endDate);
 
       // Prepare options array (just strings for the API)
       const optionsArray = validOptions.map((opt) => opt.optionDescription);
@@ -324,21 +392,21 @@ export default function Polls() {
         });
         setPollOptions([{ ...defaultOption }, { ...defaultOption }]);
         setIsDialogOpen(false);
-        
+
         // Reload polls data
         try {
           const year = selectedYear;
           const month = selectedMonth;
-          
+
           const activeParams: any = { buildingId };
-          if (month && !isNaN(month) && month > 0 && month <= 12) {
+          if (month && !Number.isNaN(month) && month > 0 && month <= 12) {
             activeParams.month = month;
           }
-          if (year && !isNaN(year) && year > 0) {
+          if (year && !Number.isNaN(year) && year > 0) {
             activeParams.year = year;
           }
           activeParams.status = ["ATIVO", "PROGRAMADO"];
-          
+
           const activeResponse = await pollsService.getPolls(activeParams);
           if (activeResponse.success) {
             setActivePolls(activeResponse.data || []);
@@ -357,7 +425,7 @@ export default function Polls() {
     } catch (error: any) {
       console.error("Erro completo ao criar enquete:", error);
       toast.error(error.message || "Erro ao agendar enquete");
-      
+
       // Log mais detalhes do erro
       if (error.response) {
         console.error("Error response:", error.response);
@@ -401,18 +469,27 @@ export default function Polls() {
   // Função para obter o badge de status
   const getStatusBadge = (status: string) => {
     const statusUpper = status.toUpperCase();
-    
+
     switch (statusUpper) {
       case "ATIVO":
         return { label: "Ativo", className: "bg-green-500 text-sm px-3 py-1" };
       case "PROGRAMADO":
-        return { label: "Programada", className: "bg-blue-500 text-sm px-3 py-1" };
+        return {
+          label: "Programada",
+          className: "bg-blue-500 text-sm px-3 py-1",
+        };
       case "CANCELADA":
       case "CANCELADO":
-        return { label: "Cancelada", className: "bg-red-500 text-sm px-3 py-1" };
+        return {
+          label: "Cancelada",
+          className: "bg-red-500 text-sm px-3 py-1",
+        };
       case "FINALIZADA":
       case "FINALIZADO":
-        return { label: "Finalizada", className: "bg-gray-500 text-sm px-3 py-1" };
+        return {
+          label: "Finalizada",
+          className: "bg-gray-500 text-sm px-3 py-1",
+        };
       default:
         return { label: status, className: "bg-gray-500 text-sm px-3 py-1" };
     }
@@ -456,10 +533,10 @@ export default function Polls() {
         const month = selectedMonth;
 
         const activeParams: any = { buildingId };
-        if (month && !isNaN(month) && month > 0 && month <= 12) {
+        if (month && !Number.isNaN(month) && month > 0 && month <= 12) {
           activeParams.month = month;
         }
-        if (year && !isNaN(year) && year > 0) {
+        if (year && !Number.isNaN(year) && year > 0) {
           activeParams.year = year;
         }
         activeParams.status = ["ATIVO", "PROGRAMADO"];
@@ -473,10 +550,10 @@ export default function Polls() {
           }
 
           const finishedParams: any = { buildingId };
-          if (month && !isNaN(month) && month > 0 && month <= 12) {
+          if (month && !Number.isNaN(month) && month > 0 && month <= 12) {
             finishedParams.month = month;
           }
-          if (year && !isNaN(year) && year > 0) {
+          if (year && !Number.isNaN(year) && year > 0) {
             finishedParams.year = year;
           }
           finishedParams.status = ["FINALIZADO", "CANCELADO"];
@@ -515,8 +592,8 @@ export default function Polls() {
           </p>
         </div>
         <div className="flex gap-2">
-          <Select 
-            value={selectedMonth.toString()} 
+          <Select
+            value={selectedMonth.toString()}
             onValueChange={(value) => setSelectedMonth(Number(value))}
           >
             <SelectTrigger className="w-[150px]">
@@ -530,8 +607,8 @@ export default function Polls() {
               ))}
             </SelectContent>
           </Select>
-          <Select 
-            value={selectedYear.toString()} 
+          <Select
+            value={selectedYear.toString()}
             onValueChange={(value) => setSelectedYear(Number(value))}
           >
             <SelectTrigger className="w-[120px]">
@@ -648,9 +725,7 @@ export default function Polls() {
                       </div>
                       <div className="flex items-center gap-1">
                         <Users className="w-4 h-4" />
-                        <span>
-                          {poll.votes} votos
-                        </span>
+                        <span>{poll.votes} votos</span>
                       </div>
                     </div>
 
@@ -658,7 +733,9 @@ export default function Polls() {
                       {poll.options.map((option, idx) => (
                         <div key={idx} className="space-y-1">
                           <div className="flex justify-between text-sm">
-                            <span className="font-medium">{option.description}</span>
+                            <span className="font-medium">
+                              {option.description}
+                            </span>
                             <span className="text-muted-foreground">
                               {option.votes} votos ({option.percent}%)
                             </span>
@@ -668,7 +745,8 @@ export default function Polls() {
                       ))}
                     </div>
 
-                    {(poll.status.toUpperCase() === "ATIVO" || poll.status.toUpperCase() === "PROGRAMADO") && (
+                    {(poll.status.toUpperCase() === "ATIVO" ||
+                      poll.status.toUpperCase() === "PROGRAMADO") && (
                       <div className="pt-2 border-t flex justify-center">
                         <Button
                           type="button"
@@ -676,7 +754,9 @@ export default function Polls() {
                           size="sm"
                           onClick={() => handleCancelPoll(poll)}
                         >
-                        <XCircle className="w-4 h-4 mr-0" />Cancelar</Button>
+                          <XCircle className="w-4 h-4 mr-0" />
+                          Cancelar
+                        </Button>
                       </div>
                     )}
                   </CardContent>
@@ -726,7 +806,9 @@ export default function Polls() {
                     {poll.options.map((option, idx) => (
                       <div key={idx} className="space-y-1">
                         <div className="flex justify-between text-sm">
-                          <span className="font-medium">{option.description}</span>
+                          <span className="font-medium">
+                            {option.description}
+                          </span>
                           <span className="text-muted-foreground">
                             {option.votes} votos ({option.percent}%)
                           </span>
@@ -758,13 +840,10 @@ export default function Polls() {
             </CardHeader>
             <CardContent>
               <form
-                onSubmit={form.handleSubmit(
-                  onSubmit,
-                  (errors) => {
-                    console.error("Form validation errors:", errors);
-                    toast.error("Por favor, corrija os erros no formulário");
-                  }
-                )}
+                onSubmit={form.handleSubmit(onSubmit, (errors) => {
+                  console.error("Form validation errors:", errors);
+                  toast.error("Por favor, corrija os erros no formulário");
+                })}
                 className="space-y-4"
               >
                 <div className="space-y-2">
@@ -820,10 +899,11 @@ export default function Polls() {
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="startDate">Data de Início</Label>
+                    <Label htmlFor="startDate">Data e Hora de Início</Label>
                     <Input
                       id="startDate"
-                      type="date"
+                      type="datetime-local"
+                      min={minDateTime}
                       {...form.register("startDate")}
                     />
                     {form.formState.errors.startDate && (
@@ -831,13 +911,17 @@ export default function Polls() {
                         {form.formState.errors.startDate.message}
                       </p>
                     )}
+                    <p className="text-xs text-muted-foreground">
+                      Mínimo de 5 minutos a partir de agora
+                    </p>
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="endDate">Data Final</Label>
+                    <Label htmlFor="endDate">Data e Hora Final</Label>
                     <Input
                       id="endDate"
-                      type="date"
+                      type="datetime-local"
+                      min={form.watch("startDate") || minDateTime}
                       {...form.register("endDate")}
                     />
                     {form.formState.errors.endDate && (
@@ -845,6 +929,9 @@ export default function Polls() {
                         {form.formState.errors.endDate.message}
                       </p>
                     )}
+                    <p className="text-xs text-muted-foreground">
+                      Deve ser posterior à data/hora de início
+                    </p>
                   </div>
                 </div>
 
@@ -870,7 +957,10 @@ export default function Polls() {
                         endDate: "",
                         status: "ATIVO",
                       });
-                      setPollOptions([{ ...defaultOption }, { ...defaultOption }]);
+                      setPollOptions([
+                        { ...defaultOption },
+                        { ...defaultOption },
+                      ]);
                     }}
                     disabled={form.formState.isSubmitting}
                   >
@@ -889,13 +979,16 @@ export default function Polls() {
           <DialogHeader>
             <DialogTitle>Cancelar</DialogTitle>
             <DialogDescription>
-              Tem certeza que deseja cancelar esta enquete? Esta ação não pode ser desfeita.
+              Tem certeza que deseja cancelar esta enquete? Esta ação não pode
+              ser desfeita.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             {selectedPollToCancel && (
               <div className="p-3 bg-muted rounded-md">
-                <p className="text-sm font-medium">{selectedPollToCancel.description}</p>
+                <p className="text-sm font-medium">
+                  {selectedPollToCancel.description}
+                </p>
               </div>
             )}
             <div className="space-y-2">

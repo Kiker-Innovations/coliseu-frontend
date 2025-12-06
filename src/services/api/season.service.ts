@@ -137,7 +137,9 @@ class SeasonService {
 	 * PATCH /v1/seasons/:id/finish
 	 */
 	async finishSeason(seasonId: string): Promise<ApiResponse<Season>> {
-		return apiClient.patch<Season>(`${this.basePath}/${seasonId}/finish`);
+		return apiClient.patch<Season>(`${this.basePath}/${seasonId}/finish`, { body: {
+			
+		} });
 	}
 }
 
