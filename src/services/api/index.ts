@@ -97,16 +97,6 @@ export {
   isSeasonActive,
   isSeasonFinished,
 } from "./season.service";
-
-// Visitor service
-export { visitorService } from "./visitor.service";
-export type {
-	CreateVisitorRequest,
-	UpdateVisitorRequest,
-	Visitor,
-	GetVisitorsParams,
-	GetVisitorsResponse,
-} from "./visitor.service";
 export type {
   TopSuggestion,
   SuggestionWithOffer,
@@ -114,6 +104,16 @@ export type {
   Season,
   CreateSeasonRequest,
 } from "./season.service";
+
+// Visitor service
+export { visitorService } from "./visitor.service";
+export type {
+  CreateVisitorRequest,
+  UpdateVisitorRequest,
+  Visitor,
+  GetVisitorsParams,
+  GetVisitorsResponse,
+} from "./visitor.service";
 
 // Resident Suggestion service
 export { residentSuggestionService } from "./residentSuggestion.service";
@@ -137,3 +137,21 @@ export type {
   CreateOfferPollRequest,
   CreatedOffer,
 } from "./project.service";
+
+// Project Suggestions service
+export {
+  projectSuggestionsService,
+  isVotingActive,
+  isVotingEnded,
+  hasVotingStarted,
+  isWaitingForVoting,
+} from "./projectSuggestions.service";
+export type {
+  ProjectSuggestion,
+  ProjectSuggestionStatus,
+  StartVotingRequest,
+  CreateProjectsRequest,
+  CreatedProjectFromSuggestion,
+  VoteResponse,
+  MyVote,
+} from "./projectSuggestions.service";

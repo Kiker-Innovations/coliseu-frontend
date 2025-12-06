@@ -53,6 +53,9 @@ import {
   AlertTriangle,
   Lock,
   Trash2,
+  Sparkles,
+  Vote,
+  ArrowUpCircle,
 } from "lucide-react";
 import { toast } from "sonner";
 import ProjectsSkeleton from "@/skeleton/admin/ProjectsSkeleton";
@@ -62,8 +65,12 @@ import {
   isSeasonFinished,
   projectService,
   hasChosenOffer,
+  isVotingActive,
+  isVotingEnded,
+  isWaitingForVoting,
   type Season,
   type Project,
+  type ProjectSuggestion,
   type CreateOfferOption,
 } from "@/services/api";
 
@@ -89,6 +96,9 @@ export default function Projects() {
   const [seasons, setSeasons] = useState<Season[]>([]);
   const [activeSeason, setActiveSeason] = useState<Season | null>(null);
   const [projects, setProjects] = useState<Project[]>([]);
+  const [projectSuggestions, setProjectSuggestions] = useState<
+    ProjectSuggestion[]
+  >([]);
 
   // Dialog states
   const [isNewSeasonDialogOpen, setIsNewSeasonDialogOpen] = useState(false);
@@ -99,10 +109,22 @@ export default function Projects() {
     useState(false);
   const [isDeleteOffersDialogOpen, setIsDeleteOffersDialogOpen] =
     useState(false);
+  const [isRankSuggestionsDialogOpen, setIsRankSuggestionsDialogOpen] =
+    useState(false);
+  const [isStartVotingDialogOpen, setIsStartVotingDialogOpen] = useState(false);
+  const [isEndVotingDialogOpen, setIsEndVotingDialogOpen] = useState(false);
+  const [isPromoteDialogOpen, setIsPromoteDialogOpen] = useState(false);
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [reuseSuggestions, setReuseSuggestions] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [finishConfirmText, setFinishConfirmText] = useState("");
+
+  // Voting form state
+  const [votingStartDate, setVotingStartDate] = useState("");
+  const [votingEndDate, setVotingEndDate] = useState("");
+
+  // Promote to projects form state
+  const [promoteTopCount, setPromoteTopCount] = useState(3);
 
   // Offer poll form state
   const [offerOptions, setOfferOptions] = useState<OfferFormOption[]>([
@@ -124,28 +146,57 @@ export default function Projects() {
     try {
       setIsLoading(true);
 
-      // Load seasons and projects in parallel
+      // Load seasons and projects first
       const [seasonsResponse, projectsResponse] = await Promise.all([
         seasonService.getSeasons(),
         projectService.getProjects(),
       ]);
 
+      let active: Season | null = null;
+
       if (seasonsResponse.success && seasonsResponse.data) {
         setSeasons(seasonsResponse.data);
 
         // Find active season (endDate === null means active)
-        const active = seasonsResponse.data.find((s) => isSeasonActive(s));
-        setActiveSeason(active || null);
+        active = seasonsResponse.data.find((s) => isSeasonActive(s)) || null;
+        setActiveSeason(active);
       }
 
       if (projectsResponse.success && projectsResponse.data) {
         setProjects(projectsResponse.data);
+      }
+
+      // Load project suggestions if there's an active season
+      if (active) {
+        const suggestionsResponse = await seasonService.getProjectSuggestions(
+          active._id
+        );
+        if (suggestionsResponse.success && suggestionsResponse.data) {
+          setProjectSuggestions(suggestionsResponse.data);
+        }
+      } else {
+        setProjectSuggestions([]);
       }
     } catch (error: any) {
       toast.error(error.message || "Erro ao carregar dados");
       console.error("Erro ao carregar dados:", error);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const loadProjectSuggestions = async () => {
+    if (!activeSeason) return;
+
+    try {
+      const response = await seasonService.getProjectSuggestions(
+        activeSeason._id
+      );
+      if (response.success && response.data) {
+        setProjectSuggestions(response.data);
+      }
+    } catch (error: any) {
+      console.error("Erro ao carregar sugestões:", error);
     }
   };
 
@@ -213,6 +264,157 @@ export default function Projects() {
       setIsSubmitting(false);
     }
   };
+
+  const handleRankSuggestions = async () => {
+    if (!activeSeason) return;
+
+    try {
+      setIsSubmitting(true);
+
+      const response = await seasonService.rankSuggestions(activeSeason._id);
+
+      if (response.success) {
+        toast.success(
+          `${
+            response.data?.length || 0
+          } sugestões de projeto criadas com sucesso!`
+        );
+        setIsRankSuggestionsDialogOpen(false);
+        await loadData();
+      } else {
+        toast.error(response.message || "Erro ao processar sugestões");
+      }
+    } catch (error: any) {
+      toast.error(error.message || "Erro ao processar sugestões");
+      console.error("Erro ao processar sugestões:", error);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleStartVoting = async () => {
+    if (!activeSeason) return;
+
+    if (!votingStartDate || !votingEndDate) {
+      toast.error("Informe as datas de início e fim da votação!");
+      return;
+    }
+
+    if (!isDateTimeAtLeast5MinutesInFuture(votingStartDate)) {
+      toast.error(
+        "A data e hora de início deve ser pelo menos 5 minutos no futuro!"
+      );
+      return;
+    }
+
+    if (new Date(votingEndDate) <= new Date(votingStartDate)) {
+      toast.error(
+        "A data/hora final deve ser posterior à data/hora de início!"
+      );
+      return;
+    }
+
+    try {
+      setIsSubmitting(true);
+
+      const response = await seasonService.startVoting(activeSeason._id, {
+        votingStartDate: dateTimeLocalToISO(votingStartDate),
+        votingEndDate: dateTimeLocalToISO(votingEndDate),
+      });
+
+      if (response.success) {
+        toast.success("Período de votação iniciado com sucesso!");
+        setIsStartVotingDialogOpen(false);
+        setVotingStartDate("");
+        setVotingEndDate("");
+        await loadProjectSuggestions();
+      } else {
+        toast.error(response.message || "Erro ao iniciar período de votação");
+      }
+    } catch (error: any) {
+      toast.error(error.message || "Erro ao iniciar período de votação");
+      console.error("Erro ao iniciar período de votação:", error);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleEndVoting = async () => {
+    if (!activeSeason) return;
+
+    try {
+      setIsSubmitting(true);
+
+      const response = await seasonService.endVoting(activeSeason._id);
+
+      if (response.success) {
+        toast.success("Votação encerrada com sucesso!");
+        setIsEndVotingDialogOpen(false);
+        await loadProjectSuggestions();
+      } else {
+        toast.error(response.message || "Erro ao encerrar votação");
+      }
+    } catch (error: any) {
+      toast.error(error.message || "Erro ao encerrar votação");
+      console.error("Erro ao encerrar votação:", error);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handlePromoteToProjects = async () => {
+    if (!activeSeason) return;
+
+    try {
+      setIsSubmitting(true);
+
+      const response = await seasonService.createProjectsFromSuggestions(
+        activeSeason._id,
+        { top: promoteTopCount }
+      );
+
+      if (response.success) {
+        toast.success(
+          `${response.data?.length || 0} projetos criados com sucesso!`
+        );
+        setIsPromoteDialogOpen(false);
+        setPromoteTopCount(3);
+        await loadData();
+      } else {
+        toast.error(response.message || "Erro ao criar projetos");
+      }
+    } catch (error: any) {
+      toast.error(error.message || "Erro ao criar projetos");
+      console.error("Erro ao criar projetos:", error);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // Helper functions for project suggestions
+  const getSuggestionStatus = (suggestion: ProjectSuggestion) => {
+    if (isWaitingForVoting(suggestion)) {
+      return "pending";
+    }
+    if (isVotingActive(suggestion)) {
+      return "voting";
+    }
+    if (isVotingEnded(suggestion)) {
+      return "ended";
+    }
+    return "scheduled";
+  };
+
+  // Filter project suggestions by status
+  const suggestionsWithoutVoting = projectSuggestions.filter((s) =>
+    isWaitingForVoting(s)
+  );
+  const suggestionsWithActiveVoting = projectSuggestions.filter((s) =>
+    isVotingActive(s)
+  );
+  const suggestionsWithEndedVoting = projectSuggestions
+    .filter((s) => isVotingEnded(s))
+    .sort((a, b) => b.votes - a.votes);
 
   // Get the next project that needs offer poll (first one without chosenOffer)
   const getNextProjectForOfferPoll = (): Project | null => {
@@ -519,11 +721,317 @@ export default function Projects() {
         </div>
       </div>
 
-      <Tabs defaultValue="projects" className="space-y-6">
+      <Tabs defaultValue="suggestions" className="space-y-6">
         <TabsList>
+          <TabsTrigger value="suggestions">Sugestões de Projeto</TabsTrigger>
           <TabsTrigger value="projects">Projetos</TabsTrigger>
           <TabsTrigger value="seasons">Gerenciar Temporadas</TabsTrigger>
         </TabsList>
+
+        {/* Aba de Sugestões de Projeto */}
+        <TabsContent value="suggestions" className="space-y-6">
+          {/* Stats Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <Card>
+              <CardContent className="pt-6">
+                <div className="text-center">
+                  <p className="text-sm text-muted-foreground mb-2">
+                    Total de Sugestões
+                  </p>
+                  <p className="text-4xl font-bold text-primary">
+                    {projectSuggestions.length}
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="pt-6">
+                <div className="text-center">
+                  <p className="text-sm text-muted-foreground mb-2">
+                    Aguardando Votação
+                  </p>
+                  <p className="text-4xl font-bold text-orange-500">
+                    {suggestionsWithoutVoting.length}
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="pt-6">
+                <div className="text-center">
+                  <p className="text-sm text-muted-foreground mb-2">
+                    Votação Ativa
+                  </p>
+                  <p className="text-4xl font-bold text-blue-500">
+                    {suggestionsWithActiveVoting.length}
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="pt-6">
+                <div className="text-center">
+                  <p className="text-sm text-muted-foreground mb-2">
+                    Votação Encerrada
+                  </p>
+                  <p className="text-4xl font-bold text-green-600">
+                    {suggestionsWithEndedVoting.length}
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Action Buttons */}
+          {activeSeason && (
+            <div className="flex flex-wrap gap-4">
+              <Button
+                onClick={() => setIsRankSuggestionsDialogOpen(true)}
+                disabled={projectSuggestions.length > 0}
+                className="gap-2"
+              >
+                <Sparkles className="w-4 h-4" />
+                Processar Sugestões (IA)
+              </Button>
+              <Button
+                onClick={() => setIsStartVotingDialogOpen(true)}
+                disabled={
+                  suggestionsWithoutVoting.length === 0 ||
+                  suggestionsWithActiveVoting.length > 0
+                }
+                variant="outline"
+                className="gap-2"
+              >
+                <Vote className="w-4 h-4" />
+                Iniciar Período de Votação
+              </Button>
+              <Button
+                onClick={() => setIsEndVotingDialogOpen(true)}
+                disabled={suggestionsWithActiveVoting.length === 0}
+                variant="outline"
+                className="gap-2 text-orange-600 border-orange-600 hover:bg-orange-50"
+              >
+                <Square className="w-4 h-4" />
+                Encerrar Votação
+              </Button>
+              <Button
+                onClick={() => setIsPromoteDialogOpen(true)}
+                disabled={suggestionsWithEndedVoting.length === 0}
+                variant="outline"
+                className="gap-2"
+              >
+                <ArrowUpCircle className="w-4 h-4" />
+                Criar Projetos
+              </Button>
+            </div>
+          )}
+
+          {/* Sugestões com votação encerrada */}
+          {suggestionsWithEndedVoting.length > 0 && (
+            <div>
+              <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
+                <CheckCircle2 className="w-5 h-5 text-green-500" />
+                Votação Encerrada - Prontas para Promoção
+              </h2>
+              <p className="text-sm text-muted-foreground mb-4">
+                Essas sugestões já passaram pelo período de votação e podem ser
+                promovidas a projetos oficiais.
+              </p>
+
+              <div className="space-y-4">
+                {suggestionsWithEndedVoting.map((suggestion) => (
+                  <Card
+                    key={suggestion._id}
+                    className="border-2 border-green-500/50 bg-green-500/5"
+                  >
+                    <CardHeader>
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <CardTitle className="flex items-center gap-2">
+                            <Lightbulb className="w-5 h-5 text-green-600" />
+                            {suggestion.title}
+                          </CardTitle>
+                          <p className="text-sm text-muted-foreground mt-2">
+                            {suggestion.description}
+                          </p>
+                        </div>
+                        {getRankBadge(suggestion.rank)}
+                      </div>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                        <div className="flex items-center gap-1">
+                          <Users className="w-4 h-4" />
+                          <span>{suggestion.votes} votos</span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <Hash className="w-4 h-4" />
+                          <span>{suggestion.duplicateCount} duplicatas</span>
+                        </div>
+                        {suggestion.votingEndDate && (
+                          <div className="flex items-center gap-1">
+                            <Calendar className="w-4 h-4" />
+                            <span>
+                              Encerrada em{" "}
+                              {formatDate(suggestion.votingEndDate)}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Sugestões com votação ativa */}
+          {suggestionsWithActiveVoting.length > 0 && (
+            <div>
+              <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
+                <Clock className="w-5 h-5 text-blue-500" />
+                Votação em Andamento
+              </h2>
+              <p className="text-sm text-muted-foreground mb-4">
+                Os moradores estão votando nessas sugestões.
+              </p>
+
+              <div className="space-y-4">
+                {suggestionsWithActiveVoting.map((suggestion) => (
+                  <Card
+                    key={suggestion._id}
+                    className="border-2 border-blue-500/50 bg-blue-500/5"
+                  >
+                    <CardHeader>
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <CardTitle className="flex items-center gap-2">
+                            <Lightbulb className="w-5 h-5 text-blue-600" />
+                            {suggestion.title}
+                            <Badge
+                              variant="outline"
+                              className="ml-2 text-blue-600 border-blue-600"
+                            >
+                              <Clock className="w-3 h-3 mr-1" />
+                              Votação ativa
+                            </Badge>
+                          </CardTitle>
+                          <p className="text-sm text-muted-foreground mt-2">
+                            {suggestion.description}
+                          </p>
+                        </div>
+                        {getRankBadge(suggestion.rank)}
+                      </div>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                        <div className="flex items-center gap-1">
+                          <Users className="w-4 h-4" />
+                          <span>{suggestion.votes} votos</span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <Hash className="w-4 h-4" />
+                          <span>{suggestion.duplicateCount} duplicatas</span>
+                        </div>
+                        {suggestion.votingStartDate &&
+                          suggestion.votingEndDate && (
+                            <div className="flex items-center gap-1">
+                              <Calendar className="w-4 h-4" />
+                              <span>
+                                {formatDate(suggestion.votingStartDate)} até{" "}
+                                {formatDate(suggestion.votingEndDate)}
+                              </span>
+                            </div>
+                          )}
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Sugestões aguardando votação */}
+          {suggestionsWithoutVoting.length > 0 && (
+            <div>
+              <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
+                <AlertTriangle className="w-5 h-5 text-orange-500" />
+                Aguardando Período de Votação
+              </h2>
+              <p className="text-sm text-muted-foreground mb-4">
+                Defina o período de votação para essas sugestões.
+              </p>
+
+              <div className="space-y-4">
+                {suggestionsWithoutVoting.map((suggestion) => (
+                  <Card key={suggestion._id}>
+                    <CardHeader>
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <CardTitle className="flex items-center gap-2">
+                            <Lightbulb className="w-5 h-5 text-primary" />
+                            {suggestion.title}
+                          </CardTitle>
+                          <p className="text-sm text-muted-foreground mt-2">
+                            {suggestion.description}
+                          </p>
+                        </div>
+                        {getRankBadge(suggestion.rank)}
+                      </div>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                        <div className="flex items-center gap-1">
+                          <Hash className="w-4 h-4" />
+                          <span>{suggestion.duplicateCount} duplicatas</span>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Estado vazio */}
+          {!activeSeason && (
+            <Card>
+              <CardContent className="flex flex-col items-center justify-center h-48 text-center">
+                <FolderKanban className="w-12 h-12 text-muted-foreground/50 mb-4" />
+                <p className="text-muted-foreground mb-2">
+                  Nenhuma temporada ativa no momento
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  Inicie uma nova temporada na aba "Gerenciar Temporadas" para
+                  gerenciar as sugestões de projeto.
+                </p>
+              </CardContent>
+            </Card>
+          )}
+
+          {activeSeason && projectSuggestions.length === 0 && (
+            <Card>
+              <CardContent className="flex flex-col items-center justify-center h-48 text-center">
+                <Lightbulb className="w-12 h-12 text-muted-foreground/50 mb-4" />
+                <p className="text-muted-foreground mb-2">
+                  Nenhuma sugestão processada ainda
+                </p>
+                <p className="text-sm text-muted-foreground mb-4">
+                  Aguarde os moradores cadastrarem suas sugestões e então clique
+                  em "Processar Sugestões" para gerar a lista de sugestões
+                  elegíveis.
+                </p>
+                <Button
+                  onClick={() => setIsRankSuggestionsDialogOpen(true)}
+                  className="gap-2"
+                >
+                  <Sparkles className="w-4 h-4" />
+                  Processar Sugestões (IA)
+                </Button>
+              </CardContent>
+            </Card>
+          )}
+        </TabsContent>
 
         {/* Aba de Projetos */}
         <TabsContent value="projects" className="space-y-6">
@@ -1454,6 +1962,292 @@ export default function Projects() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* AlertDialog para Processar Sugestões */}
+      <AlertDialog
+        open={isRankSuggestionsDialogOpen}
+        onOpenChange={setIsRankSuggestionsDialogOpen}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <Sparkles className="w-5 h-5 text-primary" />
+              Processar Sugestões dos Moradores
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              O sistema irá processar todas as sugestões enviadas pelos
+              moradores nesta temporada e gerar a lista final de sugestões
+              elegíveis para votação. Deseja continuar?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isSubmitting}>
+              Cancelar
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleRankSuggestions}
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? (
+                <>
+                  <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                  Processando...
+                </>
+              ) : (
+                <>
+                  <Sparkles className="w-4 h-4 mr-2" />
+                  Processar Sugestões
+                </>
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Dialog para Iniciar Votação */}
+      <Dialog
+        open={isStartVotingDialogOpen}
+        onOpenChange={(open) => {
+          setIsStartVotingDialogOpen(open);
+          if (!open) {
+            setVotingStartDate("");
+            setVotingEndDate("");
+          }
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Vote className="w-5 h-5" />
+              Definir Período de Votação
+            </DialogTitle>
+            <DialogDescription>
+              Defina as datas de início e término do período de votação para as
+              sugestões de projeto. Os moradores poderão distribuir até 3 votos
+              entre as sugestões.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            <div className="p-4 bg-muted rounded-lg">
+              <p className="text-sm font-medium mb-2">
+                Sugestões elegíveis para votação:
+              </p>
+              <p className="text-2xl font-bold text-primary">
+                {suggestionsWithoutVoting.length}
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="voting-start-date">Data e Hora de Início</Label>
+                <Input
+                  id="voting-start-date"
+                  type="datetime-local"
+                  min={minDateTime}
+                  value={votingStartDate}
+                  onChange={(e) => setVotingStartDate(e.target.value)}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Mínimo de 5 minutos a partir de agora
+                </p>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="voting-end-date">Data e Hora Final</Label>
+                <Input
+                  id="voting-end-date"
+                  type="datetime-local"
+                  min={votingStartDate || minDateTime}
+                  value={votingEndDate}
+                  onChange={(e) => setVotingEndDate(e.target.value)}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Deve ser posterior à data/hora de início
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setIsStartVotingDialogOpen(false)}
+              disabled={isSubmitting}
+            >
+              Cancelar
+            </Button>
+            <Button onClick={handleStartVoting} disabled={isSubmitting}>
+              {isSubmitting ? (
+                <>
+                  <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                  Iniciando...
+                </>
+              ) : (
+                <>
+                  <Vote className="w-4 h-4 mr-2" />
+                  Iniciar Votação
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* AlertDialog para Encerrar Votação */}
+      <AlertDialog
+        open={isEndVotingDialogOpen}
+        onOpenChange={setIsEndVotingDialogOpen}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2 text-orange-600">
+              <Square className="w-5 h-5" />
+              Encerrar Votação?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Ao encerrar a votação, os moradores não poderão mais votar nas
+              sugestões. O ranking final será calculado baseado nos votos
+              recebidos.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+
+          <div className="space-y-3 py-4">
+            <div className="p-4 bg-muted rounded-lg">
+              <p className="text-sm font-medium mb-2">Sugestões em votação:</p>
+              <p className="text-2xl font-bold text-blue-600">
+                {suggestionsWithActiveVoting.length}
+              </p>
+            </div>
+          </div>
+
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isSubmitting}>
+              Cancelar
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleEndVoting}
+              disabled={isSubmitting}
+              className="bg-orange-600 hover:bg-orange-700"
+            >
+              {isSubmitting ? (
+                <>
+                  <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                  Encerrando...
+                </>
+              ) : (
+                <>
+                  <Square className="w-4 h-4 mr-2" />
+                  Encerrar Votação
+                </>
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Dialog para Criar Projetos */}
+      <Dialog
+        open={isPromoteDialogOpen}
+        onOpenChange={(open) => {
+          setIsPromoteDialogOpen(open);
+          if (!open) {
+            setPromoteTopCount(3);
+          }
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <ArrowUpCircle className="w-5 h-5" />
+              Criar Projetos a partir das Sugestões
+            </DialogTitle>
+            <DialogDescription>
+              As sugestões mais votadas serão transformadas em projetos oficiais
+              do condomínio.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            <div className="p-4 bg-muted rounded-lg space-y-2">
+              <p className="text-sm font-medium">
+                Sugestões com votação encerrada:
+              </p>
+              <p className="text-2xl font-bold text-primary">
+                {suggestionsWithEndedVoting.length}
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="promote-count">
+                Quantidade de projetos a criar
+              </Label>
+              <Input
+                id="promote-count"
+                type="number"
+                min={1}
+                max={Math.min(10, suggestionsWithEndedVoting.length)}
+                value={promoteTopCount}
+                onChange={(e) => setPromoteTopCount(Number(e.target.value))}
+              />
+              <p className="text-xs text-muted-foreground">
+                As {promoteTopCount} sugestões mais votadas serão promovidas a
+                projetos
+              </p>
+            </div>
+
+            {suggestionsWithEndedVoting.length > 0 && (
+              <div className="space-y-2">
+                <p className="text-sm font-medium">
+                  Sugestões que serão promovidas:
+                </p>
+                <div className="space-y-2 max-h-48 overflow-y-auto">
+                  {suggestionsWithEndedVoting
+                    .slice(0, promoteTopCount)
+                    .map((s, index) => (
+                      <div
+                        key={s._id}
+                        className="flex items-center justify-between p-2 bg-muted/50 rounded"
+                      >
+                        <div className="flex items-center gap-2">
+                          {getRankBadge(index + 1)}
+                          <span className="text-sm">{s.title}</span>
+                        </div>
+                        <span className="text-sm text-muted-foreground">
+                          {s.votes} votos
+                        </span>
+                      </div>
+                    ))}
+                </div>
+              </div>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setIsPromoteDialogOpen(false)}
+              disabled={isSubmitting}
+            >
+              Cancelar
+            </Button>
+            <Button onClick={handlePromoteToProjects} disabled={isSubmitting}>
+              {isSubmitting ? (
+                <>
+                  <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                  Promovendo...
+                </>
+              ) : (
+                <>
+                  <ArrowUpCircle className="w-4 h-4 mr-2" />
+                  Criar {promoteTopCount} Projeto
+                  {promoteTopCount > 1 ? "s" : ""}
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
