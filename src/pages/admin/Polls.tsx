@@ -22,13 +22,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
   BarChart3,
   Clock,
   Calendar,
@@ -72,14 +65,6 @@ export default function Polls() {
     { ...defaultOption },
     { ...defaultOption },
   ]);
-  const [selectedMonth, setSelectedMonth] = useState(() => {
-    const now = new Date();
-    return now.getMonth() + 1; // 1-12
-  });
-  const [selectedYear, setSelectedYear] = useState(() => {
-    const now = new Date();
-    return now.getFullYear();
-  });
   const [buildingId, setBuildingId] = useState<string>("");
   const [activePolls, setActivePolls] = useState<ActivePoll[]>([]);
   const [closedPolls, setClosedPolls] = useState<FinishedCancelledPoll[]>([]);
@@ -138,26 +123,14 @@ export default function Polls() {
 
       try {
         setIsLoading(true);
-        const year = selectedYear;
-        const month = selectedMonth;
 
-        console.log("Loading polls for:", {
-          selectedMonth,
-          selectedYear,
-          year,
-          month,
-          buildingId,
-        });
+        console.log("Loading polls for buildingId:", buildingId);
 
         // Load active polls (ATIVO and PROGRAMADO)
-        const activeParams: any = { buildingId: buildingId.trim() };
-        if (month && !Number.isNaN(month) && month > 0 && month <= 12) {
-          activeParams.month = month;
-        }
-        if (year && !Number.isNaN(year) && year > 0) {
-          activeParams.year = year;
-        }
-        activeParams.status = ["ATIVO", "PROGRAMADO"];
+        const activeParams = { 
+          buildingId: buildingId.trim(),
+          status: ["ATIVO", "PROGRAMADO"]
+        };
 
         console.log("Active polls params:", activeParams);
         try {
@@ -177,9 +150,7 @@ export default function Polls() {
               activeError.statusCode === 400 ||
               activeError.statusCode === 404
             ) {
-              console.log(
-                "Nenhuma enquete ativa encontrada para o período selecionado"
-              );
+              console.log("Nenhuma enquete ativa encontrada");
               setActivePolls([]);
             } else if (activeError.statusCode === 500) {
               console.error(
@@ -199,14 +170,10 @@ export default function Polls() {
         }
 
         // Load finished/cancelled polls (FINALIZADO and CANCELADO)
-        const finishedParams: any = { buildingId: buildingId.trim() };
-        if (month && !Number.isNaN(month) && month > 0 && month <= 12) {
-          finishedParams.month = month;
-        }
-        if (year && !Number.isNaN(year) && year > 0) {
-          finishedParams.year = year;
-        }
-        finishedParams.status = ["FINALIZADO", "CANCELADO"];
+        const finishedParams = { 
+          buildingId: buildingId.trim(),
+          status: ["FINALIZADO", "CANCELADO"]
+        };
 
         console.log("Finished polls params:", finishedParams);
         try {
@@ -229,15 +196,12 @@ export default function Polls() {
               finishedError.statusCode === 400 ||
               finishedError.statusCode === 404
             ) {
-              console.log(
-                "Nenhuma enquete finalizada encontrada para o período selecionado"
-              );
+              console.log("Nenhuma enquete finalizada encontrada");
               setClosedPolls([]);
             } else if (finishedError.statusCode === 500) {
               console.error(
                 "Erro interno do servidor ao carregar enquetes finalizadas"
               );
-              // Não mostrar toast para erro 500 em enquetes finalizadas para não poluir a UI
               setClosedPolls([]);
             } else {
               setClosedPolls([]);
@@ -247,10 +211,7 @@ export default function Polls() {
           }
         }
       } catch (error: any) {
-        // Apenas logar erro, não mostrar toast para o usuário
-        // Se não houver enquetes, é normal, não é um erro
         console.error("Erro geral ao carregar enquetes:", error);
-        // Definir arrays vazios em caso de erro
         setActivePolls([]);
         setClosedPolls([]);
       } finally {
@@ -258,7 +219,7 @@ export default function Polls() {
       }
     };
     loadData();
-  }, [buildingId, selectedMonth, selectedYear]);
+  }, [buildingId]);
 
   const form = useForm<PollSchema>({
     resolver: zodResolver(pollSchema),
@@ -395,17 +356,10 @@ export default function Polls() {
 
         // Reload polls data
         try {
-          const year = selectedYear;
-          const month = selectedMonth;
-
-          const activeParams: any = { buildingId };
-          if (month && !Number.isNaN(month) && month > 0 && month <= 12) {
-            activeParams.month = month;
-          }
-          if (year && !Number.isNaN(year) && year > 0) {
-            activeParams.year = year;
-          }
-          activeParams.status = ["ATIVO", "PROGRAMADO"];
+          const activeParams = { 
+            buildingId,
+            status: ["ATIVO", "PROGRAMADO"]
+          };
 
           const activeResponse = await pollsService.getPolls(activeParams);
           if (activeResponse.success) {
@@ -416,7 +370,6 @@ export default function Polls() {
         } catch (reloadError) {
           console.error("Erro ao recarregar enquetes:", reloadError);
           setActivePolls([]);
-          // Não mostrar erro ao usuário, apenas logar
         }
       } else {
         toast.error(response.message || "Erro ao agendar enquete");
@@ -436,33 +389,7 @@ export default function Polls() {
     }
   };
 
-  // Generate all 12 months
-  const allMonths = [
-    { value: 1, label: "Janeiro" },
-    { value: 2, label: "Fevereiro" },
-    { value: 3, label: "Março" },
-    { value: 4, label: "Abril" },
-    { value: 5, label: "Maio" },
-    { value: 6, label: "Junho" },
-    { value: 7, label: "Julho" },
-    { value: 8, label: "Agosto" },
-    { value: 9, label: "Setembro" },
-    { value: 10, label: "Outubro" },
-    { value: 11, label: "Novembro" },
-    { value: 12, label: "Dezembro" },
-  ];
-
-  // Generate available years (current year and previous 5 years)
-  const availableYears = (() => {
-    const years = [];
-    const now = new Date();
-    for (let i = 0; i < 6; i++) {
-      years.push(now.getFullYear() - i);
-    }
-    return years;
-  })();
-
-  // Filter polls by month (already filtered by API, but keep for consistency)
+  // Use polls directly without filtering
   const filteredActivePolls = activePolls;
   const filteredClosedPolls = closedPolls;
 
@@ -529,19 +456,12 @@ export default function Polls() {
         setCancelReason("");
 
         // Reload polls data
-        const year = selectedYear;
-        const month = selectedMonth;
-
-        const activeParams: any = { buildingId };
-        if (month && !Number.isNaN(month) && month > 0 && month <= 12) {
-          activeParams.month = month;
-        }
-        if (year && !Number.isNaN(year) && year > 0) {
-          activeParams.year = year;
-        }
-        activeParams.status = ["ATIVO", "PROGRAMADO"];
-
         try {
+          const activeParams = { 
+            buildingId,
+            status: ["ATIVO", "PROGRAMADO"]
+          };
+
           const activeResponse = await pollsService.getPolls(activeParams);
           if (activeResponse.success) {
             setActivePolls(activeResponse.data || []);
@@ -549,14 +469,10 @@ export default function Polls() {
             setActivePolls([]);
           }
 
-          const finishedParams: any = { buildingId };
-          if (month && !Number.isNaN(month) && month > 0 && month <= 12) {
-            finishedParams.month = month;
-          }
-          if (year && !Number.isNaN(year) && year > 0) {
-            finishedParams.year = year;
-          }
-          finishedParams.status = ["FINALIZADO", "CANCELADO"];
+          const finishedParams = { 
+            buildingId,
+            status: ["FINALIZADO", "CANCELADO"]
+          };
 
           const finishedResponse = await pollsService.getPolls(finishedParams);
           if (finishedResponse.success) {
@@ -591,38 +507,6 @@ export default function Polls() {
             Gerencie e acompanhe as enquetes do condomínio
           </p>
         </div>
-        <div className="flex gap-2">
-          <Select
-            value={selectedMonth.toString()}
-            onValueChange={(value) => setSelectedMonth(Number(value))}
-          >
-            <SelectTrigger className="w-[150px]">
-              <SelectValue placeholder="Mês" />
-            </SelectTrigger>
-            <SelectContent>
-              {allMonths.map((month) => (
-                <SelectItem key={month.value} value={month.value.toString()}>
-                  {month.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Select
-            value={selectedYear.toString()}
-            onValueChange={(value) => setSelectedYear(Number(value))}
-          >
-            <SelectTrigger className="w-[120px]">
-              <SelectValue placeholder="Ano" />
-            </SelectTrigger>
-            <SelectContent>
-              {availableYears.map((year) => (
-                <SelectItem key={year} value={year.toString()}>
-                  {year}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
       </div>
 
       <Tabs defaultValue="active" className="space-y-6">
@@ -639,7 +523,7 @@ export default function Polls() {
               <CardContent className="pt-6">
                 <div className="text-center">
                   <p className="text-sm text-muted-foreground mb-2">
-                    Enquetes do mês
+                    Total de Enquetes
                   </p>
                   <p className="text-4xl font-bold text-primary">
                     {filteredActivePolls.length}
@@ -688,7 +572,7 @@ export default function Polls() {
               <Card>
                 <CardContent className="flex items-center justify-center h-32">
                   <p className="text-muted-foreground">
-                    Nenhuma enquete ativa neste mês
+                    Nenhuma enquete ativa
                   </p>
                 </CardContent>
               </Card>
@@ -712,21 +596,38 @@ export default function Polls() {
                     </div>
                   </CardHeader>
                   <CardContent className="space-y-4">
-                    <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                    <div className="flex items-center gap-4 text-sm text-muted-foreground flex-wrap">
                       <div className="flex items-center gap-1">
                         <Calendar className="w-4 h-4" />
                         <span>
-                          {new Date(poll.startDate).toLocaleDateString("pt-BR")}
+                          Início: {new Date(poll.startDate).toLocaleString("pt-BR", {
+                            day: "2-digit",
+                            month: "2-digit",
+                            year: "numeric",
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })}
                         </span>
                       </div>
                       <div className="flex items-center gap-1">
                         <Clock className="w-4 h-4" />
-                        <span>{calculateTimeRemaining(poll.endDate)}</span>
+                        <span>
+                          Fim: {new Date(poll.endDate).toLocaleString("pt-BR", {
+                            day: "2-digit",
+                            month: "2-digit",
+                            year: "numeric",
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })}
+                        </span>
                       </div>
                       <div className="flex items-center gap-1">
                         <Users className="w-4 h-4" />
                         <span>{poll.votes} votos</span>
                       </div>
+                    </div>
+                    <div className="text-sm text-muted-foreground">
+                      <span className="font-medium">{calculateTimeRemaining(poll.endDate)}</span>
                     </div>
 
                     <div className="space-y-3">
@@ -772,7 +673,7 @@ export default function Polls() {
             <Card>
               <CardContent className="flex items-center justify-center h-32">
                 <p className="text-muted-foreground">
-                  Nenhuma enquete encerrada neste mês
+                  Nenhuma enquete encerrada
                 </p>
               </CardContent>
             </Card>
@@ -787,8 +688,20 @@ export default function Polls() {
                         {poll.description}
                       </CardTitle>
                       <p className="text-sm text-muted-foreground mt-2">
-                        {new Date(poll.startDate).toLocaleDateString("pt-BR")}{" "}
-                        até {new Date(poll.endDate).toLocaleDateString("pt-BR")}
+                        {new Date(poll.startDate).toLocaleString("pt-BR", {
+                          day: "2-digit",
+                          month: "2-digit",
+                          year: "numeric",
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}{" "}
+                        até {new Date(poll.endDate).toLocaleString("pt-BR", {
+                          day: "2-digit",
+                          month: "2-digit",
+                          year: "numeric",
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
                       </p>
                       {poll.cancelReason && (
                         <p className="text-sm text-destructive mt-1">

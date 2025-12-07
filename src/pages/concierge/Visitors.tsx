@@ -60,6 +60,10 @@ import {
   ChevronDown,
   Check,
   Pencil,
+  Calendar,
+  Clock,
+  FileText,
+  UserPlus,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -75,6 +79,8 @@ import {
   type CreateVisitorRequest,
   type UpdateVisitorRequest,
   ApiClientError,
+  visitsService,
+  type Visit,
 } from "@/services/api";
 import { apartmentsService, type Apartment } from "@/services/api";
 import { CameraCapture } from "@/components/ui/camera-capture";
@@ -107,6 +113,18 @@ export default function ConciergeVisitors() {
   const [isLoadingVisitorForEdit, setIsLoadingVisitorForEdit] = useState(false);
   const [initialEditData, setInitialEditData] = useState<any>(null);
   const [isUsingLatestVisitors, setIsUsingLatestVisitors] = useState(false);
+  
+  // Visit states
+  const [visits, setVisits] = useState<Visit[]>([]);
+  const [isLoadingVisits, setIsLoadingVisits] = useState(false);
+  const [visitNote, setVisitNote] = useState("");
+  const [visitApartmentId, setVisitApartmentId] = useState("");
+  const [isRegisteringVisit, setIsRegisteringVisit] = useState(false);
+  const [visitsPage, setVisitsPage] = useState(1);
+  const [visitsTotalPages, setVisitsTotalPages] = useState(1);
+  const [visitsTotal, setVisitsTotal] = useState(0);
+  const [isVisitRegistrationMode, setIsVisitRegistrationMode] = useState(false);
+  const [modalTab, setModalTab] = useState<"detalhes" | "historico">("detalhes");
 
   useEffect(() => {
     const loadData = async () => {
@@ -204,7 +222,6 @@ export default function ConciergeVisitors() {
       email: "",
       vehicleType: "",
       vehiclePlate: "",
-      apartment: "",
       types: [],
       photo: undefined,
       note: "",
@@ -220,7 +237,6 @@ export default function ConciergeVisitors() {
       email: "",
       vehicleType: "",
       vehiclePlate: "",
-      apartment: "",
       types: [],
       note: "",
     },
@@ -334,59 +350,6 @@ export default function ConciergeVisitors() {
 
   const handleAddVisitor = async (data: VisitorSchema) => {
     try {
-      // Get token and extract buildingId
-      const token =
-        localStorage.getItem("coliseu_access_token") ||
-        sessionStorage.getItem("coliseu_access_token") ||
-        localStorage.getItem("concierge_token") ||
-        sessionStorage.getItem("concierge_token");
-
-      if (!token) {
-        toast.error("Token não encontrado. Faça login novamente.");
-        return;
-      }
-
-      let buildingId = "";
-      try {
-        const tokenParts = token.split(".");
-        if (tokenParts.length === 3) {
-          const payload = JSON.parse(atob(tokenParts[1]));
-          buildingId = payload.buildingId || payload.building_id || "";
-        }
-      } catch (decodeError) {
-        console.error("Erro ao decodificar token:", decodeError);
-      }
-
-      if (!buildingId) {
-        toast.error(
-          "BuildingId não encontrado no token. Faça login novamente."
-        );
-        return;
-      }
-
-      // Buscar o ID do apartamento pelo número e buildingId (se fornecido)
-      let apartmentId: string | undefined;
-      if (data.apartment && data.apartment.trim()) {
-        try {
-          const apartment =
-            await apartmentsService.getApartmentByNumberAndBuilding(
-              buildingId,
-              data.apartment
-            );
-          if (!apartment) {
-            toast.error(`Apartamento ${data.apartment} não encontrado.`);
-            return;
-          }
-          apartmentId = apartment._id;
-        } catch (error: any) {
-          toast.error(
-            error.message ||
-              "Erro ao buscar apartamento. Verifique se o número está correto."
-          );
-          return;
-        }
-      }
-
       // Validar que foto foi fornecida
       if (!capturedPhoto) {
         toast.error("Foto é obrigatória");
@@ -408,7 +371,6 @@ export default function ConciergeVisitors() {
           ? data.vehicleType.trim().toUpperCase() 
           : undefined,
         vehiclePlate: data.vehiclePlate?.trim() || undefined,
-        apartmentId: apartmentId,
         types: typesUpperCase,
         note: data.note?.trim() || undefined,
       };
@@ -465,10 +427,105 @@ export default function ConciergeVisitors() {
     }
   };
 
+  const loadVisitorVisits = async (visitorId: string, page: number = 1) => {
+    try {
+      setIsLoadingVisits(true);
+      console.log("Carregando visitas para visitante:", visitorId);
+      const response = await visitsService.getVisitsByVisitorId(visitorId, {
+        page,
+        limit: 5,
+      });
+      console.log("Resposta da API de visitas:", response);
+      if (response.data) {
+        const visitsData = response.data.data || [];
+        console.log("Visitas carregadas:", visitsData);
+        setVisits(visitsData);
+        setVisitsTotalPages(response.data.totalPages || 1);
+        setVisitsTotal(response.data.total || 0);
+        setVisitsPage(page);
+      } else {
+        console.warn("Resposta sem data:", response);
+        setVisits([]);
+      }
+    } catch (error: any) {
+      console.error("Erro ao carregar visitas:", error);
+      setVisits([]);
+    } finally {
+      setIsLoadingVisits(false);
+    }
+  };
+
+  const handleRegisterVisit = async () => {
+    if (!selectedVisitor) return;
+
+    try {
+      setIsRegisteringVisit(true);
+
+      const payload: { visitorId: string; apartmentId?: string; note?: string } = {
+        visitorId: selectedVisitor._id,
+      };
+
+      if (visitApartmentId && visitApartmentId.trim()) {
+        payload.apartmentId = visitApartmentId.trim();
+      }
+
+      if (visitNote && visitNote.trim()) {
+        payload.note = visitNote.trim();
+      }
+
+      await visitsService.createVisit(payload);
+      toast.success("Visita registrada com sucesso!");
+      
+      // Reset form and go back to details view
+      setVisitNote("");
+      setVisitApartmentId("");
+      setIsVisitRegistrationMode(false);
+      
+      // Reload visits
+      await loadVisitorVisits(selectedVisitor._id, 1);
+    } catch (error: any) {
+      if (error instanceof ApiClientError) {
+        toast.error(error.response.message || "Erro ao registrar visita");
+      } else {
+        toast.error("Erro ao registrar visita");
+      }
+    } finally {
+      setIsRegisteringVisit(false);
+    }
+  };
+
+  const handleQuickConfirmVisit = async (visitor: Visitor, e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    setSelectedVisitor(visitor);
+    setIsViewDialogOpen(true);
+    setIsLoadingVisitorDetails(false);
+    setPhotoError(null);
+    
+    // Reset visit states and go directly to registration mode
+    setVisits([]);
+    setVisitNote("");
+    setVisitApartmentId("");
+    setVisitsPage(1);
+    setVisitsTotalPages(1);
+    setVisitsTotal(0);
+    setIsVisitRegistrationMode(true);
+    setModalTab("detalhes");
+  };
+
   const handleViewVisitor = async (visitor: Visitor) => {
     setIsViewDialogOpen(true);
     setIsLoadingVisitorDetails(true);
     setPhotoError(null);
+    
+    // Reset visit states
+    setVisits([]);
+    setVisitNote("");
+    setVisitApartmentId("");
+    setVisitsPage(1);
+    setVisitsTotalPages(1);
+    setVisitsTotal(0);
+    setIsVisitRegistrationMode(false);
+    setModalTab("detalhes");
     
     // Iniciar loading da imagem
     if (visitor.photoUrl) {
@@ -484,14 +541,18 @@ export default function ConciergeVisitors() {
         if (response.data.photoUrl) {
           setImageLoading(prev => ({ ...prev, [response.data._id]: true }));
         }
+        // Carregar visitas do visitante
+        loadVisitorVisits(response.data._id);
       } else {
         // Se a API não retornar, usar os dados que já temos
         setSelectedVisitor(visitor);
+        loadVisitorVisits(visitor._id);
       }
     } catch (error: any) {
       console.warn("Erro ao buscar detalhes do visitante:", error);
       // Em caso de erro, usar os dados que já temos
       setSelectedVisitor(visitor);
+      loadVisitorVisits(visitor._id);
       toast.error("Erro ao carregar detalhes completos do visitante");
     } finally {
       setIsLoadingVisitorDetails(false);
@@ -554,7 +615,6 @@ export default function ConciergeVisitors() {
           ? (visitorData.vehicleType.toLowerCase() === "carro" ? "CARRO" : visitorData.vehicleType.toUpperCase())
           : "none",
         vehiclePlate: visitorData.vehiclePlate || "",
-        apartment: visitorData.apartmentNumber || "",
         types: typesForForm,
         note: visitorData.note || "",
       };
@@ -583,7 +643,6 @@ export default function ConciergeVisitors() {
           ? (visitor.vehicleType.toLowerCase() === "carro" ? "CARRO" : visitor.vehicleType.toUpperCase())
           : "none",
         vehiclePlate: visitor.vehiclePlate || "",
-        apartment: visitor.apartmentNumber || "",
         types: typesForForm,
         note: visitor.note || "",
       };
@@ -623,7 +682,6 @@ export default function ConciergeVisitors() {
     "email",
     "vehicleType",
     "vehiclePlate",
-    "apartment",
     "types",
     "note",
   ]);
@@ -654,7 +712,6 @@ export default function ConciergeVisitors() {
       normalize(currentData.email) !== normalize(initialEditData.email) ||
       normalizeVehicleType(currentData.vehicleType) !== normalizeVehicleType(initialEditData.vehicleType) ||
       normalize(currentData.vehiclePlate) !== normalize(initialEditData.vehiclePlate) ||
-      normalize(currentData.apartment) !== normalize(initialEditData.apartment) ||
       JSON.stringify((currentData.types || []).sort()) !== JSON.stringify((initialEditData.types || []).sort()) ||
       normalize(currentData.note) !== normalize(initialEditData.note);
     
@@ -665,59 +722,6 @@ export default function ConciergeVisitors() {
     if (!editingVisitor) return;
 
     try {
-      // Get token and extract buildingId
-      const token =
-        localStorage.getItem("coliseu_access_token") ||
-        sessionStorage.getItem("coliseu_access_token") ||
-        localStorage.getItem("concierge_token") ||
-        sessionStorage.getItem("concierge_token");
-
-      if (!token) {
-        toast.error("Token não encontrado. Faça login novamente.");
-        return;
-      }
-
-      let buildingId = "";
-      try {
-        const tokenParts = token.split(".");
-        if (tokenParts.length === 3) {
-          const payload = JSON.parse(atob(tokenParts[1]));
-          buildingId = payload.buildingId || payload.building_id || "";
-        }
-      } catch (decodeError) {
-        console.error("Erro ao decodificar token:", decodeError);
-      }
-
-      if (!buildingId) {
-        toast.error(
-          "BuildingId não encontrado no token. Faça login novamente."
-        );
-        return;
-      }
-
-      // Buscar o ID do apartamento pelo número e buildingId (se fornecido)
-      let apartmentId: string | undefined;
-      if (data.apartment && data.apartment.trim()) {
-        try {
-          const apartment =
-            await apartmentsService.getApartmentByNumberAndBuilding(
-              buildingId,
-              data.apartment
-            );
-          if (!apartment) {
-            toast.error(`Apartamento ${data.apartment} não encontrado.`);
-            return;
-          }
-          apartmentId = apartment._id;
-        } catch (error: any) {
-          toast.error(
-            error.message ||
-              "Erro ao buscar apartamento. Verifique se o número está correto."
-          );
-          return;
-        }
-      }
-
       // Converter tipos para maiúsculas conforme API
       const typesUpperCase = data.types.map((type) => {
         if (type === "prestador_servico") return "PRESTADOR";
@@ -733,7 +737,6 @@ export default function ConciergeVisitors() {
           ? data.vehicleType.trim().toUpperCase() 
           : undefined,
         vehiclePlate: data.vehiclePlate?.trim() || undefined,
-        apartmentId: apartmentId,
         types: typesUpperCase,
         note: data.note?.trim() || undefined,
         active: editingVisitor.active !== false, // Manter status atual ou true por padrão
@@ -981,29 +984,38 @@ export default function ConciergeVisitors() {
                               </div>
                             </div>
                             <div className="flex items-center gap-2 flex-shrink-0">
-                            <div className="flex flex-wrap gap-1.5">
-                              {[...visitor.types]
-                                .sort((a, b) => {
-                                  const aLabel = a === "convidado" || a === "CONVIDADO" ? "Convidado" : "Prestador";
-                                  const bLabel = b === "convidado" || b === "CONVIDADO" ? "Convidado" : "Prestador";
-                                  return aLabel.localeCompare(bLabel);
-                                })
-                                .map((type) => (
-                                  <Badge
-                                    key={type}
-                                    variant={
-                                      type === "convidado" || type === "CONVIDADO"
-                                        ? "default"
-                                        : "secondary"
-                                    }
-                                    className="text-xs"
-                                  >
-                                    {type === "convidado" || type === "CONVIDADO"
-                                      ? "Convidado"
-                                      : "Prestador"}
-                                  </Badge>
-                                ))}
-                            </div>
+                              <div className="flex flex-wrap gap-1.5">
+                                {[...visitor.types]
+                                  .sort((a, b) => {
+                                    const aLabel = a === "convidado" || a === "CONVIDADO" ? "Convidado" : "Prestador";
+                                    const bLabel = b === "convidado" || b === "CONVIDADO" ? "Convidado" : "Prestador";
+                                    return aLabel.localeCompare(bLabel);
+                                  })
+                                  .map((type) => (
+                                    <Badge
+                                      key={type}
+                                      variant={
+                                        type === "convidado" || type === "CONVIDADO"
+                                          ? "default"
+                                          : "secondary"
+                                      }
+                                      className="text-xs"
+                                    >
+                                      {type === "convidado" || type === "CONVIDADO"
+                                        ? "Convidado"
+                                        : "Prestador"}
+                                    </Badge>
+                                  ))}
+                              </div>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 text-green-600 hover:text-green-700 hover:bg-green-50"
+                                onClick={(e) => handleQuickConfirmVisit(visitor, e)}
+                                title="Confirmar visita"
+                              >
+                                <UserPlus className="h-4 w-4" />
+                              </Button>
                               <Button
                                 variant="ghost"
                                 size="icon"
@@ -1213,78 +1225,6 @@ export default function ConciergeVisitors() {
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="apartment">Apartamento (Opcional)</Label>
-                      <Popover>
-                        <PopoverTrigger asChild>
-                          <Button
-                            variant="outline"
-                            role="combobox"
-                            className="w-full justify-between"
-                          >
-                            {visitorForm.watch("apartment")
-                              ? (() => {
-                                  const selectedApt = apartments.find(
-                                    (apt) => apt.number === visitorForm.watch("apartment")
-                                  );
-                                  return selectedApt
-                                    ? `${selectedApt.block ? `Bloco ${selectedApt.block} - ` : ""}Apartamento ${selectedApt.number}${selectedApt.floor ? ` (${selectedApt.floor}º andar)` : ""}`
-                                    : visitorForm.watch("apartment");
-                                })()
-                              : "Selecione o apartamento"}
-                            <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                          </Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
-                          <Command>
-                            <CommandInput placeholder="Buscar apartamento..." />
-                            <CommandList>
-                              <CommandEmpty>Nenhum apartamento encontrado.</CommandEmpty>
-                              <CommandGroup>
-                                {apartments
-                                  .sort((a, b) => {
-                                    if (a.block && b.block && a.block !== b.block) {
-                                      return a.block.localeCompare(b.block);
-                                    }
-                                    return a.number.localeCompare(b.number, undefined, {
-                                      numeric: true,
-                                      sensitivity: "base",
-                                    });
-                                  })
-                                  .map((apt) => {
-                                    const aptLabel = `${apt.block ? `Bloco ${apt.block} - ` : ""}Apartamento ${apt.number}${apt.floor ? ` (${apt.floor}º andar)` : ""}`;
-                                    return (
-                                      <CommandItem
-                                        key={apt._id}
-                                        value={`${apt.number} ${apt.block || ""} ${apt.floor || ""}`}
-                                        onSelect={() => {
-                                          visitorForm.setValue("apartment", apt.number);
-                                        }}
-                                      >
-                                        <Check
-                                          className={cn(
-                                            "mr-2 h-4 w-4",
-                                            visitorForm.watch("apartment") === apt.number
-                                              ? "opacity-100"
-                                              : "opacity-0"
-                                          )}
-                                        />
-                                        {aptLabel}
-                                      </CommandItem>
-                                    );
-                                  })}
-                              </CommandGroup>
-                            </CommandList>
-                          </Command>
-                        </PopoverContent>
-                      </Popover>
-                      {visitorForm.formState.errors.apartment && (
-                        <p className="text-sm text-destructive">
-                          {visitorForm.formState.errors.apartment.message}
-                        </p>
-                      )}
-                    </div>
-
-                    <div className="space-y-2">
                       <Label>Tipo de Visitante *</Label>
                       <div className="space-y-2">
                         <div className="flex items-center space-x-2">
@@ -1452,163 +1392,380 @@ export default function ConciergeVisitors() {
             </div>
           ) : selectedVisitor ? (
             <>
-              <div className="space-y-4 overflow-y-auto px-6 flex-1 min-h-0">
-                <div className="flex justify-center">
-                  {photoError || !selectedVisitor.photoUrl ? (
-                    <div className="w-32 h-32 rounded-full bg-primary/10 flex items-center justify-center border-4 border-primary/20">
-                      <span className="text-4xl font-bold text-primary">
-                        {selectedVisitor.name.charAt(0).toUpperCase()}
-                      </span>
-                    </div>
-                  ) : (
-                    <div className="relative w-32 h-32">
-                      {imageLoading[selectedVisitor._id] && (
-                        <div className="absolute inset-0 flex items-center justify-center bg-primary/10 rounded-full border-4 border-primary/20">
-                          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-                        </div>
-                      )}
-                      <img
-                        src={selectedVisitor.photoUrl}
-                        alt={`Foto de ${selectedVisitor.name}`}
-                        className="w-32 h-32 rounded-full object-cover border-4 border-primary/20"
-                        style={{ display: imageLoading[selectedVisitor._id] ? 'none' : 'block' }}
-                        onError={() => {
-                          setPhotoError(selectedVisitor.photoUrl || null);
-                          setImageLoading(prev => ({ ...prev, [selectedVisitor._id]: false }));
-                          console.warn("Erro ao carregar foto:", selectedVisitor.photoUrl);
-                        }}
-                        onLoad={() => {
-                          setPhotoError(null);
-                          setImageLoading(prev => ({ ...prev, [selectedVisitor._id]: false }));
-                        }}
-                      />
-                    </div>
-                  )}
-                </div>
+              {/* Visitor Header - Same for both views */}
+              <div className="flex flex-col items-center px-6 pb-4">
+                {photoError || !selectedVisitor.photoUrl ? (
+                  <div className="w-24 h-24 rounded-full bg-primary/10 flex items-center justify-center border-4 border-primary/20">
+                    <span className="text-3xl font-bold text-primary">
+                      {selectedVisitor.name.charAt(0).toUpperCase()}
+                    </span>
+                  </div>
+                ) : (
+                  <div className="relative w-24 h-24">
+                    {imageLoading[selectedVisitor._id] && (
+                      <div className="absolute inset-0 flex items-center justify-center bg-primary/10 rounded-full border-4 border-primary/20">
+                        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
+                      </div>
+                    )}
+                    <img
+                      src={selectedVisitor.photoUrl}
+                      alt={`Foto de ${selectedVisitor.name}`}
+                      className="w-24 h-24 rounded-full object-cover border-4 border-primary/20"
+                      style={{ display: imageLoading[selectedVisitor._id] ? 'none' : 'block' }}
+                      onError={() => {
+                        setPhotoError(selectedVisitor.photoUrl || null);
+                        setImageLoading(prev => ({ ...prev, [selectedVisitor._id]: false }));
+                        console.warn("Erro ao carregar foto:", selectedVisitor.photoUrl);
+                      }}
+                      onLoad={() => {
+                        setPhotoError(null);
+                        setImageLoading(prev => ({ ...prev, [selectedVisitor._id]: false }));
+                      }}
+                    />
+                  </div>
+                )}
+                <p className="font-semibold text-lg mt-3">{selectedVisitor.name}</p>
+              </div>
 
-                <div className="space-y-3">
-                  <div>
-                    <Label className="text-muted-foreground">Nome</Label>
-                    <p className="font-semibold text-lg">{selectedVisitor.name}</p>
+              {/* Details View */}
+              {!isVisitRegistrationMode ? (
+                <>
+                  <div className="overflow-y-auto px-6 flex-1 min-h-0">
+                    <Tabs value={modalTab} onValueChange={(value) => setModalTab(value as "detalhes" | "historico")}>
+                      <TabsList className="grid w-full grid-cols-2 mb-4">
+                        <TabsTrigger value="detalhes">Detalhes</TabsTrigger>
+                        <TabsTrigger value="historico">Histórico de Visitas</TabsTrigger>
+                      </TabsList>
+
+                      {/* Detalhes Tab */}
+                      <TabsContent value="detalhes" className="space-y-3 mt-0">
+                        <div className="space-y-3">
+                          {selectedVisitor.document && (
+                            <div>
+                              <Label className="text-muted-foreground">Documento</Label>
+                              <p className="font-medium">{selectedVisitor.document}</p>
+                            </div>
+                          )}
+
+                          {selectedVisitor.email && (
+                            <div>
+                              <Label className="text-muted-foreground">Email</Label>
+                              <p className="font-medium">{selectedVisitor.email}</p>
+                            </div>
+                          )}
+
+                          {selectedVisitor.phone && (
+                            <div>
+                              <Label className="text-muted-foreground">Telefone</Label>
+                              <p className="font-medium">{selectedVisitor.phone}</p>
+                            </div>
+                          )}
+
+                          {selectedVisitor.apartmentNumber && (
+                            <div>
+                              <Label className="text-muted-foreground">Apartamento</Label>
+                              <p className="font-medium">{selectedVisitor.apartmentNumber}</p>
+                            </div>
+                          )}
+
+                          <div>
+                            <Label className="text-muted-foreground">Tipos</Label>
+                            <div className="flex flex-wrap gap-2 mt-1">
+                              {[...selectedVisitor.types]
+                                .sort((a, b) => {
+                                  const aLabel = a === "convidado" || a === "CONVIDADO" ? "Convidado" : "Prestador de Serviço";
+                                  const bLabel = b === "convidado" || b === "CONVIDADO" ? "Convidado" : "Prestador de Serviço";
+                                  return aLabel.localeCompare(bLabel);
+                                })
+                                .map((type) => (
+                                  <Badge
+                                    key={type}
+                                    variant={
+                                      type === "convidado" || type === "CONVIDADO" ? "default" : "secondary"
+                                    }
+                                  >
+                                    {type === "convidado" || type === "CONVIDADO"
+                                      ? "Convidado"
+                                      : "Prestador de Serviço"}
+                                  </Badge>
+                                ))}
+                            </div>
+                          </div>
+
+                          {selectedVisitor.vehicleType && (
+                            <div>
+                              <Label className="text-muted-foreground">Tipo de Veículo</Label>
+                              <p className="font-medium">{selectedVisitor.vehicleType}</p>
+                            </div>
+                          )}
+
+                          {selectedVisitor.vehiclePlate && (
+                            <div>
+                              <Label className="text-muted-foreground">Placa</Label>
+                              <p className="font-medium">{selectedVisitor.vehiclePlate}</p>
+                            </div>
+                          )}
+
+                          {selectedVisitor.note && (
+                            <div>
+                              <Label className="text-muted-foreground">Observações</Label>
+                              <p className="font-medium whitespace-pre-wrap">{selectedVisitor.note}</p>
+                            </div>
+                          )}
+
+                          {selectedVisitor.registeredAt && (
+                            <div>
+                              <Label className="text-muted-foreground">Data de Registro</Label>
+                              <p className="font-medium">
+                                {new Date(selectedVisitor.registeredAt).toLocaleString("pt-BR", {
+                                  day: "2-digit",
+                                  month: "2-digit",
+                                  year: "numeric",
+                                  hour: "2-digit",
+                                  minute: "2-digit",
+                                })}
+                              </p>
+                            </div>
+                          )}
+
+                          {selectedVisitor.registeredBy && (
+                            <div>
+                              <Label className="text-muted-foreground">Registrado por</Label>
+                              <p className="font-medium">{selectedVisitor.registeredBy}</p>
+                            </div>
+                          )}
+
+                          {selectedVisitor.updatedBy && (
+                            <div>
+                              <Label className="text-muted-foreground">Editado por</Label>
+                              <p className="font-medium">{selectedVisitor.updatedBy}</p>
+                            </div>
+                          )}
+                        </div>
+                      </TabsContent>
+
+                      {/* Histórico de Visitas Tab */}
+                      <TabsContent value="historico" className="mt-0">
+                        {isLoadingVisits ? (
+                          <div className="flex items-center justify-center py-8">
+                            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
+                          </div>
+                        ) : visits.length === 0 ? (
+                          <div className="text-center py-8 text-muted-foreground text-sm">
+                            <Clock className="w-12 h-12 mx-auto mb-3 text-muted-foreground/30" />
+                            Nenhuma visita registrada
+                          </div>
+                        ) : (
+                          <div className="space-y-3">
+                            <p className="text-sm text-muted-foreground mb-3">
+                              Total de {visitsTotal} visita(s) registrada(s)
+                            </p>
+                            {visits.map((visit) => (
+                              <div
+                                key={visit._id}
+                                className="p-3 bg-accent/30 rounded-lg text-sm"
+                              >
+                                <div className="flex items-center justify-between mb-1">
+                                  <div className="flex items-center gap-2 text-muted-foreground">
+                                    <Calendar className="w-3 h-3" />
+                                    <span>
+                                      {new Date(visit.registeredAt).toLocaleString("pt-BR", {
+                                        day: "2-digit",
+                                        month: "2-digit",
+                                        year: "numeric",
+                                        hour: "2-digit",
+                                        minute: "2-digit",
+                                      })}
+                                    </span>
+                                  </div>
+                                  {visit.apartmentNumber && (
+                                    <span className="text-xs font-medium bg-primary/10 text-primary px-2 py-0.5 rounded">
+                                      {visit.apartmentBlock ? `Bloco ${visit.apartmentBlock} - ` : ""}
+                                      Apt {visit.apartmentNumber}
+                                      {visit.apartmentFloor ? ` (${visit.apartmentFloor}º)` : ""}
+                                    </span>
+                                  )}
+                                </div>
+                                {visit.registeredBy && (
+                                  <div className="text-xs text-muted-foreground mb-1">
+                                    Registrado por: {visit.registeredBy}
+                                  </div>
+                                )}
+                                {visit.note && (
+                                  <div className="flex items-start gap-2 mt-2">
+                                    <FileText className="w-3 h-3 text-muted-foreground mt-0.5" />
+                                    <span className="text-foreground">{visit.note}</span>
+                                  </div>
+                                )}
+                              </div>
+                            ))}
+                            
+                            {/* Pagination for visits */}
+                            {visitsTotalPages > 1 && (
+                              <div className="flex items-center justify-center gap-2 pt-2">
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => {
+                                    if (selectedVisitor && visitsPage > 1) {
+                                      loadVisitorVisits(selectedVisitor._id, visitsPage - 1);
+                                    }
+                                  }}
+                                  disabled={visitsPage === 1}
+                                  className="h-7 px-2"
+                                >
+                                  <ChevronLeft className="h-4 w-4" />
+                                </Button>
+                                <span className="text-xs text-muted-foreground">
+                                  {visitsPage} / {visitsTotalPages}
+                                </span>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => {
+                                    if (selectedVisitor && visitsPage < visitsTotalPages) {
+                                      loadVisitorVisits(selectedVisitor._id, visitsPage + 1);
+                                    }
+                                  }}
+                                  disabled={visitsPage === visitsTotalPages}
+                                  className="h-7 px-2"
+                                >
+                                  <ChevronRight className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </TabsContent>
+                    </Tabs>
                   </div>
 
-                  {selectedVisitor.document && (
-                    <div>
-                      <Label className="text-muted-foreground">Documento</Label>
-                      <p className="font-medium">{selectedVisitor.document}</p>
-                    </div>
-                  )}
-
-                  {selectedVisitor.email && (
-                    <div>
-                      <Label className="text-muted-foreground">Email</Label>
-                      <p className="font-medium">{selectedVisitor.email}</p>
-                    </div>
-                  )}
-
-                  {selectedVisitor.phone && (
-                    <div>
-                      <Label className="text-muted-foreground">Telefone</Label>
-                      <p className="font-medium">{selectedVisitor.phone}</p>
-                    </div>
-                  )}
-
-                  {selectedVisitor.apartmentNumber && (
-                    <div>
-                      <Label className="text-muted-foreground">Apartamento</Label>
-                      <p className="font-medium">{selectedVisitor.apartmentNumber}</p>
-                    </div>
-                  )}
-
-                    <div>
-                      <Label className="text-muted-foreground">Tipos</Label>
-                      <div className="flex flex-wrap gap-2 mt-1">
-                        {[...selectedVisitor.types]
-                          .sort((a, b) => {
-                            const aLabel = a === "convidado" || a === "CONVIDADO" ? "Convidado" : "Prestador de Serviço";
-                            const bLabel = b === "convidado" || b === "CONVIDADO" ? "Convidado" : "Prestador de Serviço";
-                            return aLabel.localeCompare(bLabel);
-                          })
-                          .map((type) => (
-                            <Badge
-                              key={type}
-                              variant={
-                                type === "convidado" || type === "CONVIDADO" ? "default" : "secondary"
-                              }
+                  <div className="flex gap-4 pt-4 pb-6 px-6 border-t flex-shrink-0">
+                    <Button
+                      onClick={() => setIsVisitRegistrationMode(true)}
+                      className="flex-1"
+                    >
+                      Registrar Nova Visita
+                    </Button>
+                  </div>
+                </>
+              ) : (
+                /* Visit Registration View */
+                <>
+                  <div className="space-y-6 overflow-y-auto px-6 flex-1 min-h-0">
+                    {/* Registration Form */}
+                    <div className="space-y-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="visit-apartment">Apartamento (Opcional)</Label>
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <Button
+                              variant="outline"
+                              role="combobox"
+                              className="w-full justify-between"
                             >
-                              {type === "convidado" || type === "CONVIDADO"
-                                ? "Convidado"
-                                : "Prestador de Serviço"}
-                            </Badge>
-                          ))}
+                              {visitApartmentId
+                                ? (() => {
+                                    const selectedApt = apartments.find(
+                                      (apt) => apt._id === visitApartmentId
+                                    );
+                                    return selectedApt
+                                      ? `${selectedApt.block ? `Bloco ${selectedApt.block} - ` : ""}Apartamento ${selectedApt.number}`
+                                      : "Selecione";
+                                  })()
+                                : "Selecione o apartamento"}
+                              <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
+                            <Command>
+                              <CommandInput placeholder="Buscar apartamento..." />
+                              <CommandList>
+                                <CommandEmpty>Nenhum apartamento encontrado.</CommandEmpty>
+                                <CommandGroup>
+                                  <CommandItem
+                                    value="__none__"
+                                    onSelect={() => setVisitApartmentId("")}
+                                  >
+                                    <Check
+                                      className={cn(
+                                        "mr-2 h-4 w-4",
+                                        !visitApartmentId ? "opacity-100" : "opacity-0"
+                                      )}
+                                    />
+                                    Nenhum
+                                  </CommandItem>
+                                  {apartments
+                                    .sort((a, b) => {
+                                      if (a.block && b.block && a.block !== b.block) {
+                                        return a.block.localeCompare(b.block);
+                                      }
+                                      return a.number.localeCompare(b.number, undefined, {
+                                        numeric: true,
+                                        sensitivity: "base",
+                                      });
+                                    })
+                                    .map((apt) => {
+                                      const aptLabel = `${apt.block ? `Bloco ${apt.block} - ` : ""}Apartamento ${apt.number}${apt.floor ? ` (${apt.floor}º andar)` : ""}`;
+                                      return (
+                                        <CommandItem
+                                          key={apt._id}
+                                          value={`${apt.number} ${apt.block || ""} ${apt.floor || ""}`}
+                                          onSelect={() => setVisitApartmentId(apt._id)}
+                                        >
+                                          <Check
+                                            className={cn(
+                                              "mr-2 h-4 w-4",
+                                              visitApartmentId === apt._id ? "opacity-100" : "opacity-0"
+                                            )}
+                                          />
+                                          {aptLabel}
+                                        </CommandItem>
+                                      );
+                                    })}
+                                </CommandGroup>
+                              </CommandList>
+                            </Command>
+                          </PopoverContent>
+                        </Popover>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="visit-note">Anotação (Opcional)</Label>
+                        <Textarea
+                          id="visit-note"
+                          placeholder="Ex: Visita para piscina, entrega de documento, manutenção..."
+                          rows={4}
+                          value={visitNote}
+                          onChange={(e) => setVisitNote(e.target.value)}
+                        />
                       </div>
                     </div>
+                  </div>
 
-                  {selectedVisitor.vehicleType && (
-                    <div>
-                      <Label className="text-muted-foreground">Tipo de Veículo</Label>
-                      <p className="font-medium">{selectedVisitor.vehicleType}</p>
-                    </div>
-                  )}
-
-                  {selectedVisitor.vehiclePlate && (
-                    <div>
-                      <Label className="text-muted-foreground">Placa</Label>
-                      <p className="font-medium">{selectedVisitor.vehiclePlate}</p>
-                    </div>
-                  )}
-
-                  {selectedVisitor.note && (
-                    <div>
-                      <Label className="text-muted-foreground">Observações</Label>
-                      <p className="font-medium whitespace-pre-wrap">{selectedVisitor.note}</p>
-                    </div>
-                  )}
-
-                  {selectedVisitor.registeredAt && (
-                    <div>
-                      <Label className="text-muted-foreground">Data de Registro</Label>
-                      <p className="font-medium">
-                        {new Date(selectedVisitor.registeredAt).toLocaleString("pt-BR", {
-                          day: "2-digit",
-                          month: "2-digit",
-                          year: "numeric",
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })}
-                      </p>
-                    </div>
-                  )}
-
-                  {selectedVisitor.registeredBy && (
-                    <div>
-                      <Label className="text-muted-foreground">Registrado por</Label>
-                      <p className="font-medium">{selectedVisitor.registeredBy}</p>
-                    </div>
-                  )}
-
-                  {selectedVisitor.updatedBy && (
-                    <div>
-                      <Label className="text-muted-foreground">Editado por</Label>
-                      <p className="font-medium">{selectedVisitor.updatedBy}</p>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              <div className="flex gap-4 pt-4 pb-6 px-6 border-t flex-shrink-0">
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    setIsViewDialogOpen(false);
-                    setSelectedVisitor(null);
-                    setPhotoError(null);
-                  }}
-                  className="flex-1"
-                >
-                  Fechar
-                </Button>
-              </div>
+                  <div className="flex gap-4 pt-4 pb-6 px-6 border-t flex-shrink-0">
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        setIsVisitRegistrationMode(false);
+                        setVisitNote("");
+                        setVisitApartmentId("");
+                      }}
+                      disabled={isRegisteringVisit}
+                      className="flex-1"
+                    >
+                      Voltar
+                    </Button>
+                    <Button
+                      onClick={handleRegisterVisit}
+                      disabled={isRegisteringVisit}
+                      className="flex-1"
+                    >
+                      {isRegisteringVisit ? "Confirmando..." : "Confirmar Visita"}
+                    </Button>
+                  </div>
+                </>
+              )}
             </>
           ) : null}
         </DialogContent>
@@ -1755,78 +1912,6 @@ export default function ConciergeVisitors() {
                       </p>
                     )}
                   </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="edit-apartment">Apartamento (Opcional)</Label>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant="outline"
-                        role="combobox"
-                        className="w-full justify-between"
-                      >
-                        {editVisitorForm.watch("apartment")
-                          ? (() => {
-                              const selectedApt = apartments.find(
-                                (apt) => apt.number === editVisitorForm.watch("apartment")
-                              );
-                              return selectedApt
-                                ? `${selectedApt.block ? `Bloco ${selectedApt.block} - ` : ""}Apartamento ${selectedApt.number}${selectedApt.floor ? ` (${selectedApt.floor}º andar)` : ""}`
-                                : editVisitorForm.watch("apartment");
-                            })()
-                          : "Selecione o apartamento"}
-                        <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
-                      <Command>
-                        <CommandInput placeholder="Buscar apartamento..." />
-                        <CommandList>
-                          <CommandEmpty>Nenhum apartamento encontrado.</CommandEmpty>
-                          <CommandGroup>
-                            {apartments
-                              .sort((a, b) => {
-                                if (a.block && b.block && a.block !== b.block) {
-                                  return a.block.localeCompare(b.block);
-                                }
-                                return a.number.localeCompare(b.number, undefined, {
-                                  numeric: true,
-                                  sensitivity: "base",
-                                });
-                              })
-                              .map((apt) => {
-                                const aptLabel = `${apt.block ? `Bloco ${apt.block} - ` : ""}Apartamento ${apt.number}${apt.floor ? ` (${apt.floor}º andar)` : ""}`;
-                                return (
-                                  <CommandItem
-                                    key={apt._id}
-                                    value={`${apt.number} ${apt.block || ""} ${apt.floor || ""}`}
-                                    onSelect={() => {
-                                      editVisitorForm.setValue("apartment", apt.number);
-                                    }}
-                                  >
-                                    <Check
-                                      className={cn(
-                                        "mr-2 h-4 w-4",
-                                        editVisitorForm.watch("apartment") === apt.number
-                                          ? "opacity-100"
-                                          : "opacity-0"
-                                      )}
-                                    />
-                                    {aptLabel}
-                                  </CommandItem>
-                                );
-                              })}
-                          </CommandGroup>
-                        </CommandList>
-                      </Command>
-                    </PopoverContent>
-                  </Popover>
-                  {editVisitorForm.formState.errors.apartment && (
-                    <p className="text-sm text-destructive">
-                      {editVisitorForm.formState.errors.apartment.message}
-                    </p>
-                  )}
                 </div>
 
                 <div className="space-y-2">

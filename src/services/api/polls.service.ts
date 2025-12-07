@@ -72,8 +72,6 @@ export interface CreatePollResponse {
  */
 export interface GetPollsParams {
 	buildingId: string;
-	month?: number;
-	year?: number;
 	status?: string | string[]; // Can be single status or array of statuses (e.g., "ATIVO" or ["ATIVO", "PROGRAMADO"])
 }
 
@@ -82,8 +80,6 @@ export interface GetPollsParams {
  */
 export interface GetActivePollsParams {
 	buildingId: string;
-	month?: number;
-	year?: number;
 }
 
 /**
@@ -91,8 +87,6 @@ export interface GetActivePollsParams {
  */
 export interface GetFinishedCancelledPollsParams {
 	buildingId: string;
-	month?: number;
-	year?: number;
 }
 
 /**
@@ -228,7 +222,7 @@ class PollsService {
 	/**
 	 * Get polls with optional status filter
 	 * GET /v1/polls
-	 * @param params - Query parameters including buildingId, month, year, and status(es)
+	 * @param params - Query parameters including buildingId and status(es)
 	 */
 	async getPolls(params: GetPollsParams): Promise<ApiResponse<ActivePoll[]>> {
 		// Validate buildingId
@@ -237,17 +231,9 @@ class PollsService {
 			throw new Error("buildingId é obrigatório e deve ser uma string válida");
 		}
 
-		const queryParams: Record<string, string | number | string[]> = {
+		const queryParams: Record<string, string | string[]> = {
 			buildingId: params.buildingId.trim(),
 		};
-		
-		if (params.month !== undefined && params.month !== null && !isNaN(params.month) && params.month > 0 && params.month <= 12) {
-			queryParams.month = params.month;
-		}
-		
-		if (params.year !== undefined && params.year !== null && !isNaN(params.year) && params.year > 0) {
-			queryParams.year = params.year;
-		}
 
 		// Handle status parameter - can be string or array
 		// For arrays, we'll pass them directly so buildURL can create multiple params
@@ -300,15 +286,13 @@ class PollsService {
 		// Use the new getPolls method with active statuses
 		return this.getPolls({
 			buildingId: params.buildingId,
-			month: params.month,
-			year: params.year,
 			status: ["ATIVO", "PROGRAMADO"],
 		});
 	}
 
 	/**
 	 * Get all finished and cancelled polls
-	 * GET /v1/polls/finished-cancelled (deprecated - use getPolls with status=["FINALIZADA", "CANCELADA"] instead)
+	 * GET /v1/polls/finished-cancelled (deprecated - use getPolls with status=["FINALIZADO", "CANCELADO"] instead)
 	 */
 	async getFinishedCancelledPolls(
 		params: GetFinishedCancelledPollsParams,
@@ -316,9 +300,7 @@ class PollsService {
 		// Use the new getPolls method with appropriate statuses
 		return this.getPolls({
 			buildingId: params.buildingId,
-			month: params.month,
-			year: params.year,
-			status: ["FINALIZADA", "CANCELADA"],
+			status: ["FINALIZADO", "CANCELADO"],
 		}) as Promise<ApiResponse<FinishedCancelledPoll[]>>;
 	}
 
