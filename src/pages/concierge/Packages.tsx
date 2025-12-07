@@ -15,6 +15,20 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
+import { cn } from "@/lib/utils";
+import {
   Table,
   TableBody,
   TableCell,
@@ -48,6 +62,9 @@ import {
   ChevronRight,
   XCircle,
   AlertCircle,
+  Eye,
+  Check,
+  ChevronDown,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -70,7 +87,9 @@ interface PackageData {
   id: string;
   recipientName: string;
   description: string;
-  apartment: string;
+  apartmentNumber: string;
+  apartmentFloor?: number;
+  apartmentBlock?: string;
   arrivalDate: string;
   status: "pending" | "delivered" | "cancelled";
   deliveredAt?: string;
@@ -88,6 +107,8 @@ export default function ConciergePackages() {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isDeliveryDialogOpen, setIsDeliveryDialogOpen] = useState(false);
   const [isCancelDialogOpen, setIsCancelDialogOpen] = useState(false);
+  const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
+  const [viewingPackage, setViewingPackage] = useState<PackageData | null>(null);
   const [selectedPackage, setSelectedPackage] = useState<PackageData | null>(
     null
   );
@@ -192,9 +213,9 @@ export default function ConciergePackages() {
           allApartments,
           packageStatsResponse,
         ] = await Promise.all([
-          packageService.getPendingPackages(),
-          packageService.getDeliveredPackages(),
-          packageService.getCancelledPackages(),
+          packageService.getPackages({ status: "PENDENTE" }),
+          packageService.getPackages({ status: "ENTREGUE", days: 7 }),
+          packageService.getPackages({ status: "CANCELADO", days: 7 }),
           apartmentsService.getApartmentsByBuildingId(buildingId),
           packageService.getPackageStats(),
         ]);
@@ -213,11 +234,13 @@ export default function ConciergePackages() {
           id: pkg._id,
           recipientName: pkg.ownerName,
           description: pkg.description,
-          apartment: pkg.apartmentNumber,
+          apartmentNumber: pkg.apartmentNumber,
+          apartmentFloor: pkg.apartmentFloor,
+          apartmentBlock: pkg.apartmentBlock,
           arrivalDate: pkg.receiverDate,
           status: "pending" as const,
           courierName: pkg.courierName,
-          registeredBy: pkg.receiverConciergeName,
+          registeredBy: pkg.receiverBy,
           registeredAt: pkg.receiverDate,
         }));
 
@@ -226,13 +249,15 @@ export default function ConciergePackages() {
           id: pkg._id,
           recipientName: pkg.ownerName,
           description: pkg.description,
-          apartment: pkg.apartmentNumber,
+          apartmentNumber: pkg.apartmentNumber,
+          apartmentFloor: pkg.apartmentFloor,
+          apartmentBlock: pkg.apartmentBlock,
           arrivalDate: pkg.receiverDate || pkg.deliveryDate, // Use receiverDate if available, otherwise deliveryDate
           status: "delivered" as const,
           deliveredAt: pkg.deliveryDate,
           receivedBy: pkg.recipientName,
           courierName: pkg.courierName,
-          registeredBy: pkg.deliveryConciergeName,
+          registeredBy: pkg.deliveryBy,
           registeredAt: pkg.deliveryDate,
         }));
 
@@ -241,15 +266,17 @@ export default function ConciergePackages() {
           id: pkg._id,
           recipientName: pkg.ownerName,
           description: pkg.description,
-          apartment: pkg.apartmentNumber,
+          apartmentNumber: pkg.apartmentNumber,
+          apartmentFloor: pkg.apartmentFloor,
+          apartmentBlock: pkg.apartmentBlock,
           arrivalDate: pkg.receiverDate,
           status: "cancelled" as const,
           courierName: pkg.courierName,
-          registeredBy: pkg.cancelledByName,
+          registeredBy: pkg.canceledBy,
           registeredAt: pkg.receiverDate,
           cancelReason: pkg.cancelReason,
           cancelledAt: pkg.cancelledAt,
-          cancelledBy: pkg.cancelledByName,
+          cancelledBy: pkg.canceledBy,
         }));
 
         setPackages([...pendingMapped, ...deliveredMapped]);
@@ -306,7 +333,7 @@ export default function ConciergePackages() {
       (pkg) =>
         pkg.recipientName.toLowerCase().includes(searchLower) ||
         pkg.description.toLowerCase().includes(searchLower) ||
-        pkg.apartment.toLowerCase().includes(searchLower)
+        pkg.apartmentNumber.toLowerCase().includes(searchLower)
     );
   };
 
@@ -500,9 +527,9 @@ export default function ConciergePackages() {
         cancelledResponse,
         packageStatsResponse,
       ] = await Promise.all([
-        packageService.getPendingPackages(),
-        packageService.getDeliveredPackages(),
-        packageService.getCancelledPackages(),
+        packageService.getPackages({ status: "PENDENTE" }),
+        packageService.getPackages({ status: "ENTREGUE", days: 7 }),
+        packageService.getPackages({ status: "CANCELADO", days: 7 }),
         packageService.getPackageStats(),
       ]);
 
@@ -519,11 +546,13 @@ export default function ConciergePackages() {
         id: pkg._id,
         recipientName: pkg.ownerName,
         description: pkg.description,
-        apartment: pkg.apartmentNumber,
+        apartmentNumber: pkg.apartmentNumber,
+          apartmentFloor: pkg.apartmentFloor,
+          apartmentBlock: pkg.apartmentBlock,
         arrivalDate: pkg.receiverDate,
         status: "pending" as const,
         courierName: pkg.courierName,
-        registeredBy: pkg.receiverConciergeName,
+        registeredBy: pkg.receiverBy,
         registeredAt: pkg.receiverDate,
       }));
 
@@ -531,13 +560,15 @@ export default function ConciergePackages() {
         id: pkg._id,
         recipientName: pkg.ownerName,
         description: pkg.description,
-        apartment: pkg.apartmentNumber,
+        apartmentNumber: pkg.apartmentNumber,
+          apartmentFloor: pkg.apartmentFloor,
+          apartmentBlock: pkg.apartmentBlock,
         arrivalDate: pkg.receiverDate || pkg.deliveryDate,
         status: "delivered" as const,
         deliveredAt: pkg.deliveryDate,
         receivedBy: pkg.recipientName,
         courierName: pkg.courierName,
-        registeredBy: pkg.deliveryConciergeName,
+        registeredBy: pkg.deliveryBy,
         registeredAt: pkg.deliveryDate,
       }));
 
@@ -546,15 +577,17 @@ export default function ConciergePackages() {
         id: pkg._id,
         recipientName: pkg.ownerName,
         description: pkg.description,
-        apartment: pkg.apartmentNumber,
+        apartmentNumber: pkg.apartmentNumber,
+          apartmentFloor: pkg.apartmentFloor,
+          apartmentBlock: pkg.apartmentBlock,
         arrivalDate: pkg.receiverDate,
         status: "cancelled" as const,
         courierName: pkg.courierName,
-        registeredBy: pkg.cancelledByName,
+        registeredBy: pkg.canceledBy,
         registeredAt: pkg.receiverDate,
         cancelReason: pkg.cancelReason,
         cancelledAt: pkg.cancelledAt,
-        cancelledBy: pkg.cancelledByName,
+        cancelledBy: pkg.canceledBy,
       }));
 
       setPackages([...pendingMapped, ...deliveredMapped]);
@@ -629,9 +662,9 @@ export default function ConciergePackages() {
         cancelledResponse,
         packageStatsResponse,
       ] = await Promise.all([
-        packageService.getPendingPackages(),
-        packageService.getDeliveredPackages(),
-        packageService.getCancelledPackages(),
+        packageService.getPackages({ status: "PENDENTE" }),
+        packageService.getPackages({ status: "ENTREGUE", days: 7 }),
+        packageService.getPackages({ status: "CANCELADO", days: 7 }),
         packageService.getPackageStats(),
       ]);
 
@@ -648,11 +681,13 @@ export default function ConciergePackages() {
         id: pkg._id,
         recipientName: pkg.ownerName,
         description: pkg.description,
-        apartment: pkg.apartmentNumber,
+        apartmentNumber: pkg.apartmentNumber,
+          apartmentFloor: pkg.apartmentFloor,
+          apartmentBlock: pkg.apartmentBlock,
         arrivalDate: pkg.receiverDate,
         status: "pending" as const,
         courierName: pkg.courierName,
-        registeredBy: pkg.receiverConciergeName,
+        registeredBy: pkg.receiverBy,
         registeredAt: pkg.receiverDate,
       }));
 
@@ -660,13 +695,15 @@ export default function ConciergePackages() {
         id: pkg._id,
         recipientName: pkg.ownerName,
         description: pkg.description,
-        apartment: pkg.apartmentNumber,
+        apartmentNumber: pkg.apartmentNumber,
+          apartmentFloor: pkg.apartmentFloor,
+          apartmentBlock: pkg.apartmentBlock,
         arrivalDate: pkg.receiverDate || pkg.deliveryDate,
         status: "delivered" as const,
         deliveredAt: pkg.deliveryDate,
         receivedBy: pkg.recipientName,
         courierName: pkg.courierName,
-        registeredBy: pkg.deliveryConciergeName,
+        registeredBy: pkg.deliveryBy,
         registeredAt: pkg.deliveryDate,
       }));
 
@@ -675,15 +712,17 @@ export default function ConciergePackages() {
         id: pkg._id,
         recipientName: pkg.ownerName,
         description: pkg.description,
-        apartment: pkg.apartmentNumber,
+        apartmentNumber: pkg.apartmentNumber,
+          apartmentFloor: pkg.apartmentFloor,
+          apartmentBlock: pkg.apartmentBlock,
         arrivalDate: pkg.receiverDate,
         status: "cancelled" as const,
         courierName: pkg.courierName,
-        registeredBy: pkg.cancelledByName,
+        registeredBy: pkg.canceledBy,
         registeredAt: pkg.receiverDate,
         cancelReason: pkg.cancelReason,
         cancelledAt: pkg.cancelledAt,
-        cancelledBy: pkg.cancelledByName,
+        cancelledBy: pkg.canceledBy,
       }));
 
       setPackages([...pendingMapped, ...deliveredMapped]);
@@ -762,9 +801,9 @@ export default function ConciergePackages() {
         cancelledResponse,
         packageStatsResponse,
       ] = await Promise.all([
-        packageService.getPendingPackages(),
-        packageService.getDeliveredPackages(),
-        packageService.getCancelledPackages(),
+        packageService.getPackages({ status: "PENDENTE" }),
+        packageService.getPackages({ status: "ENTREGUE", days: 7 }),
+        packageService.getPackages({ status: "CANCELADO", days: 7 }),
         packageService.getPackageStats(),
       ]);
 
@@ -781,11 +820,13 @@ export default function ConciergePackages() {
         id: pkg._id,
         recipientName: pkg.ownerName,
         description: pkg.description,
-        apartment: pkg.apartmentNumber,
+        apartmentNumber: pkg.apartmentNumber,
+          apartmentFloor: pkg.apartmentFloor,
+          apartmentBlock: pkg.apartmentBlock,
         arrivalDate: pkg.receiverDate,
         status: "pending" as const,
         courierName: pkg.courierName,
-        registeredBy: pkg.receiverConciergeName,
+        registeredBy: pkg.receiverBy,
         registeredAt: pkg.receiverDate,
       }));
 
@@ -794,13 +835,15 @@ export default function ConciergePackages() {
         id: pkg._id,
         recipientName: pkg.ownerName,
         description: pkg.description,
-        apartment: pkg.apartmentNumber,
+        apartmentNumber: pkg.apartmentNumber,
+          apartmentFloor: pkg.apartmentFloor,
+          apartmentBlock: pkg.apartmentBlock,
         arrivalDate: pkg.receiverDate || pkg.deliveryDate,
         status: "delivered" as const,
         deliveredAt: pkg.deliveryDate,
         receivedBy: pkg.recipientName,
         courierName: pkg.courierName,
-        registeredBy: pkg.deliveryConciergeName,
+        registeredBy: pkg.deliveryBy,
         registeredAt: pkg.deliveryDate,
       }));
 
@@ -809,15 +852,17 @@ export default function ConciergePackages() {
         id: pkg._id,
         recipientName: pkg.ownerName,
         description: pkg.description,
-        apartment: pkg.apartmentNumber,
+        apartmentNumber: pkg.apartmentNumber,
+          apartmentFloor: pkg.apartmentFloor,
+          apartmentBlock: pkg.apartmentBlock,
         arrivalDate: pkg.receiverDate,
         status: "cancelled" as const,
         courierName: pkg.courierName,
-        registeredBy: pkg.cancelledByName,
+        registeredBy: pkg.canceledBy,
         registeredAt: pkg.receiverDate,
         cancelReason: pkg.cancelReason,
         cancelledAt: pkg.cancelledAt,
-        cancelledBy: pkg.cancelledByName,
+        cancelledBy: pkg.canceledBy,
       }));
 
       setPackages([...pendingMapped, ...deliveredMapped]);
@@ -836,6 +881,11 @@ export default function ConciergePackages() {
   const handleOpenCancelDialog = (pkg: PackageData) => {
     setSelectedPackage(pkg);
     setIsCancelDialogOpen(true);
+  };
+
+  const handleViewPackage = (pkg: PackageData) => {
+    setViewingPackage(pkg);
+    setIsViewDialogOpen(true);
   };
 
   if (isLoading) {
@@ -989,20 +1039,17 @@ export default function ConciergePackages() {
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>Apt</TableHead>
-                        <TableHead>Destinatário</TableHead>
-                        <TableHead>Descrição</TableHead>
-                        <TableHead>Rec. em</TableHead>
-                        <TableHead>Rec. por</TableHead>
-                        <TableHead>Reg. por</TableHead>
-                        <TableHead className="text-right">Ação</TableHead>
+                        <TableHead className="w-[120px]">Apartamento</TableHead>
+                        <TableHead className="w-[200px]">Destinatário</TableHead>
+                        <TableHead>Registrado por</TableHead>
+                        <TableHead className="w-[120px] text-right">Ações</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {paginatedPendingPackages.length === 0 ? (
                         <TableRow>
                           <TableCell
-                            colSpan={7}
+                            colSpan={4}
                             className="text-center py-8 text-muted-foreground"
                           >
                             {searchTerm
@@ -1012,56 +1059,54 @@ export default function ConciergePackages() {
                         </TableRow>
                       ) : (
                         paginatedPendingPackages.map((pkg) => (
-                          <TableRow key={pkg.id}>
-                            <TableCell>
-                              <Badge variant="outline">{pkg.apartment}</Badge>
+                          <TableRow 
+                            key={pkg.id}
+                            className="cursor-pointer hover:bg-accent/50"
+                            onClick={() => handleViewPackage(pkg)}
+                          >
+                            <TableCell className="w-[160px]">
+                              <span className="text-xs font-medium bg-primary/10 text-primary px-2 py-1 rounded">
+                                {pkg.apartmentBlock ? `Bloco ${pkg.apartmentBlock} - ` : ""}
+                                Apt {pkg.apartmentNumber}
+                                {pkg.apartmentFloor ? ` (${pkg.apartmentFloor}º)` : ""}
+                              </span>
                             </TableCell>
-                            <TableCell>
+                            <TableCell className="w-[200px]">
                               <div className="font-medium">
-                                {pkg.recipientName}
+                                {pkg.recipientName || "-"}
                               </div>
                             </TableCell>
-                            <TableCell>
-                              <div className="max-w-xs truncate text-sm text-muted-foreground">
-                                {pkg.description}
-                              </div>
-                            </TableCell>
-                            <TableCell className="text-sm">
-                              {new Date(pkg.arrivalDate).toLocaleString(
-                                "pt-BR",
-                                {
-                                  day: "2-digit",
-                                  month: "2-digit",
-                                  hour: "2-digit",
-                                  minute: "2-digit",
-                                }
-                              )}
-                            </TableCell>
                             <TableCell className="text-sm text-muted-foreground">
-                              {pkg.courierName || "-"}
+                              {pkg.registeredBy || "-"}
                             </TableCell>
-                            <TableCell className="text-sm text-muted-foreground">
-                              {pkg.registeredBy}
-                            </TableCell>
-                            <TableCell className="text-right">
-                              <div className="flex justify-end gap-2">
+                            <TableCell className="w-[120px] text-right">
+                              <div className="flex justify-end gap-2" onClick={(e) => e.stopPropagation()}>
                                 <Button
                                   size="sm"
-                                  variant="outline"
-                                  className="text-green-600 hover:text-green-700 hover:bg-green-50"
-                                  onClick={() => handleOpenDeliveryDialog(pkg)}
+                                  variant="ghost"
+                                  className="h-8 w-8 p-0"
+                                  onClick={() => handleViewPackage(pkg)}
+                                  title="Ver detalhes"
                                 >
-                                  <CheckCircle className="w-4 h-4 mr-2" />
-                                  Marcar Entregue
+                                  <Eye className="w-4 h-4" />
                                 </Button>
                                 <Button
                                   size="sm"
-                                  variant="outline"
-                                  className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                                  onClick={() => handleOpenCancelDialog(pkg)}
+                                  variant="ghost"
+                                  className="h-8 w-8 p-0 text-green-600 hover:text-green-700 hover:bg-green-50"
+                                  onClick={() => handleOpenDeliveryDialog(pkg)}
+                                  title="Marcar como entregue"
                                 >
-                                  <XCircle className="w-4 h-4 mr-2" />
-                                  Cancelar
+                                  <CheckCircle className="w-4 h-4" />
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+                                  onClick={() => handleOpenCancelDialog(pkg)}
+                                  title="Cancelar encomenda"
+                                >
+                                  <XCircle className="w-4 h-4" />
                                 </Button>
                               </div>
                             </TableCell>
@@ -1197,21 +1242,17 @@ export default function ConciergePackages() {
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>Apt</TableHead>
-                        <TableHead>Destinatário</TableHead>
-                        <TableHead>Descrição</TableHead>
-                        <TableHead>Rec. em</TableHead>
-                        <TableHead>Rec. por</TableHead>
-                        <TableHead>Entr. em</TableHead>
-                        <TableHead>Entr. para</TableHead>
-                        <TableHead>Reg. por</TableHead>
+                        <TableHead className="w-[120px]">Apartamento</TableHead>
+                        <TableHead className="w-[200px]">Destinatário</TableHead>
+                        <TableHead>Registrado por</TableHead>
+                        <TableHead className="w-[120px] text-right">Ações</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {paginatedDeliveredPackages.length === 0 ? (
                         <TableRow>
                           <TableCell
-                            colSpan={8}
+                            colSpan={4}
                             className="text-center py-8 text-muted-foreground"
                           >
                             {searchTerm
@@ -1221,54 +1262,38 @@ export default function ConciergePackages() {
                         </TableRow>
                       ) : (
                         paginatedDeliveredPackages.map((pkg) => (
-                          <TableRow key={pkg.id} className="bg-green-50/30">
-                            <TableCell>
-                              <Badge variant="outline">{pkg.apartment}</Badge>
+                          <TableRow 
+                            key={pkg.id} 
+                            className="cursor-pointer hover:bg-accent/50"
+                            onClick={() => handleViewPackage(pkg)}
+                          >
+                            <TableCell className="w-[160px]">
+                              <span className="text-xs font-medium bg-primary/10 text-primary px-2 py-1 rounded">
+                                {pkg.apartmentBlock ? `Bloco ${pkg.apartmentBlock} - ` : ""}
+                                Apt {pkg.apartmentNumber}
+                                {pkg.apartmentFloor ? ` (${pkg.apartmentFloor}º)` : ""}
+                              </span>
                             </TableCell>
-                            <TableCell>
+                            <TableCell className="w-[200px]">
                               <div className="font-medium">
-                                {pkg.recipientName}
-                              </div>
-                            </TableCell>
-                            <TableCell>
-                              <div className="max-w-xs truncate text-sm text-muted-foreground">
-                                {pkg.description}
-                              </div>
-                            </TableCell>
-                            <TableCell className="text-sm">
-                              {new Date(pkg.arrivalDate).toLocaleString(
-                                "pt-BR",
-                                {
-                                  day: "2-digit",
-                                  month: "2-digit",
-                                  hour: "2-digit",
-                                  minute: "2-digit",
-                                }
-                              )}
-                            </TableCell>
-                            <TableCell className="text-sm text-muted-foreground">
-                              {pkg.courierName || "-"}
-                            </TableCell>
-                            <TableCell className="text-sm">
-                              {pkg.deliveredAt &&
-                                new Date(pkg.deliveredAt).toLocaleString(
-                                  "pt-BR",
-                                  {
-                                    day: "2-digit",
-                                    month: "2-digit",
-                                    hour: "2-digit",
-                                    minute: "2-digit",
-                                  }
-                                )}
-                            </TableCell>
-                            <TableCell className="text-sm">
-                              <div className="flex items-center gap-1">
-                                <User className="w-3 h-3" />
-                                {pkg.receivedBy}
+                                {pkg.recipientName || "-"}
                               </div>
                             </TableCell>
                             <TableCell className="text-sm text-muted-foreground">
-                              {pkg.registeredBy}
+                              {pkg.registeredBy || "-"}
+                            </TableCell>
+                            <TableCell className="w-[120px] text-right">
+                              <div className="flex justify-end gap-2" onClick={(e) => e.stopPropagation()}>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  className="h-8 w-8 p-0"
+                                  onClick={() => handleViewPackage(pkg)}
+                                  title="Ver detalhes"
+                                >
+                                  <Eye className="w-4 h-4" />
+                                </Button>
+                              </div>
                             </TableCell>
                           </TableRow>
                         ))
@@ -1374,78 +1399,83 @@ export default function ConciergePackages() {
                     )}{" "}
                     de {filteredCancelledPackages.length} encomenda(s)
                   </p>
+                  <div className="flex items-center gap-2">
+                    <Label
+                      htmlFor="itemsPerPage"
+                      className="text-sm text-muted-foreground"
+                    >
+                      Itens por página:
+                    </Label>
+                    <Select
+                      value={itemsPerPage.toString()}
+                      onValueChange={(value) => {
+                        setItemsPerPage(Number(value));
+                        setCurrentPageCancelled(1);
+                      }}
+                    >
+                      <SelectTrigger className="w-20">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="5">5</SelectItem>
+                        <SelectItem value="10">10</SelectItem>
+                        <SelectItem value="20">20</SelectItem>
+                        <SelectItem value="50">50</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
                 <div className="rounded-md border">
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>Apt</TableHead>
-                        <TableHead>Destinatário</TableHead>
-                        <TableHead>Descrição</TableHead>
-                        <TableHead>Rec. em</TableHead>
-                        <TableHead>Rec. por</TableHead>
-                        <TableHead>Cancelado em</TableHead>
-                        <TableHead>Motivo</TableHead>
-                        <TableHead>Reg. por</TableHead>
+                        <TableHead className="w-[120px]">Apartamento</TableHead>
+                        <TableHead className="w-[200px]">Destinatário</TableHead>
+                        <TableHead>Registrado por</TableHead>
+                        <TableHead className="w-[120px] text-right">Ações</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {paginatedCancelledPackages.length === 0 ? (
                         <TableRow>
-                          <TableCell colSpan={8} className="h-24 text-center">
+                          <TableCell colSpan={4} className="h-24 text-center">
                             Nenhuma encomenda cancelada encontrada
                           </TableCell>
                         </TableRow>
                       ) : (
                         paginatedCancelledPackages.map((pkg) => (
-                          <TableRow key={pkg.id}>
-                            <TableCell className="font-medium">
-                              {pkg.apartment}
+                          <TableRow 
+                            key={pkg.id}
+                            className="cursor-pointer hover:bg-accent/50"
+                            onClick={() => handleViewPackage(pkg)}
+                          >
+                            <TableCell className="w-[160px]">
+                              <span className="text-xs font-medium bg-primary/10 text-primary px-2 py-1 rounded">
+                                {pkg.apartmentBlock ? `Bloco ${pkg.apartmentBlock} - ` : ""}
+                                Apt {pkg.apartmentNumber}
+                                {pkg.apartmentFloor ? ` (${pkg.apartmentFloor}º)` : ""}
+                              </span>
                             </TableCell>
-                            <TableCell className="text-sm">
-                              <div className="flex items-center gap-1">
-                                <User className="w-3 h-3" />
-                                {pkg.recipientName}
-                              </div>
-                            </TableCell>
-                            <TableCell className="text-sm">
-                              {pkg.description || "-"}
-                            </TableCell>
-                            <TableCell className="text-sm">
-                              {new Date(pkg.arrivalDate).toLocaleString(
-                                "pt-BR",
-                                {
-                                  day: "2-digit",
-                                  month: "2-digit",
-                                  hour: "2-digit",
-                                  minute: "2-digit",
-                                }
-                              )}
-                            </TableCell>
-                            <TableCell className="text-sm text-muted-foreground">
-                              {pkg.courierName || "-"}
-                            </TableCell>
-                            <TableCell className="text-sm">
-                              {pkg.cancelledAt &&
-                                new Date(pkg.cancelledAt).toLocaleString(
-                                  "pt-BR",
-                                  {
-                                    day: "2-digit",
-                                    month: "2-digit",
-                                    hour: "2-digit",
-                                    minute: "2-digit",
-                                  }
-                                )}
-                            </TableCell>
-                            <TableCell className="text-sm">
-                              <div className="whitespace-normal text-left max-w-xs px-3 py-1.5 rounded-md bg-red-50 border border-red-100">
-                                <p className="text-sm font-medium text-red-700">
-                                  {pkg.cancelReason || "-"}
-                                </p>
+                            <TableCell className="w-[200px]">
+                              <div className="font-medium">
+                                {pkg.recipientName || "-"}
                               </div>
                             </TableCell>
                             <TableCell className="text-sm text-muted-foreground">
-                              {pkg.registeredBy}
+                              {pkg.registeredBy || "-"}
+                            </TableCell>
+                            <TableCell className="w-[120px] text-right">
+                              <div className="flex justify-end gap-2" onClick={(e) => e.stopPropagation()}>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  className="h-8 w-8 p-0"
+                                  onClick={() => handleViewPackage(pkg)}
+                                  title="Ver detalhes"
+                                >
+                                  <Eye className="w-4 h-4" />
+                                </Button>
+                              </div>
                             </TableCell>
                           </TableRow>
                         ))
@@ -1573,42 +1603,69 @@ export default function ConciergePackages() {
 
               <div className="space-y-2">
                 <Label htmlFor="apartment">Apartamento *</Label>
-                <Select
-                  value={packageForm.watch("apartment")}
-                  onValueChange={(value) =>
-                    packageForm.setValue("apartment", value)
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecione o apartamento" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {apartments.length > 0 ? (
-                      apartments
-                        .sort((a, b) => {
-                          // Sort by block first, then by number
-                          if (a.block && b.block && a.block !== b.block) {
-                            return a.block.localeCompare(b.block);
-                          }
-                          return a.number.localeCompare(b.number, undefined, {
-                            numeric: true,
-                            sensitivity: "base",
-                          });
-                        })
-                        .map((apt) => (
-                          <SelectItem key={apt._id} value={apt.number}>
-                            {apt.block ? `Bloco ${apt.block} - ` : ""}
-                            Apartamento {apt.number}
-                            {apt.floor ? ` (${apt.floor}º andar)` : ""}
-                          </SelectItem>
-                        ))
-                    ) : (
-                      <SelectItem value="no-apartments" disabled>
-                        Nenhum apartamento disponível
-                      </SelectItem>
-                    )}
-                  </SelectContent>
-                </Select>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      role="combobox"
+                      className="w-full justify-between"
+                    >
+                      {packageForm.watch("apartment")
+                        ? (() => {
+                            const selectedApt = apartments.find(
+                              (apt) => apt.number === packageForm.watch("apartment")
+                            );
+                            return selectedApt
+                              ? `${selectedApt.block ? `Bloco ${selectedApt.block} - ` : ""}Apartamento ${selectedApt.number}${selectedApt.floor ? ` (${selectedApt.floor}º andar)` : ""}`
+                              : packageForm.watch("apartment");
+                          })()
+                        : "Selecione o apartamento"}
+                      <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
+                    <Command>
+                      <CommandInput placeholder="Buscar apartamento..." />
+                      <CommandList>
+                        <CommandEmpty>Nenhum apartamento encontrado.</CommandEmpty>
+                        <CommandGroup>
+                          {apartments
+                            .sort((a, b) => {
+                              if (a.block && b.block && a.block !== b.block) {
+                                return a.block.localeCompare(b.block);
+                              }
+                              return a.number.localeCompare(b.number, undefined, {
+                                numeric: true,
+                                sensitivity: "base",
+                              });
+                            })
+                            .map((apt) => {
+                              const aptLabel = `${apt.block ? `Bloco ${apt.block} - ` : ""}Apartamento ${apt.number}${apt.floor ? ` (${apt.floor}º andar)` : ""}`;
+                              return (
+                                <CommandItem
+                                  key={apt._id}
+                                  value={`${apt.number} ${apt.block || ""} ${apt.floor || ""}`}
+                                  onSelect={() => {
+                                    packageForm.setValue("apartment", apt.number);
+                                  }}
+                                >
+                                  <Check
+                                    className={cn(
+                                      "mr-2 h-4 w-4",
+                                      packageForm.watch("apartment") === apt.number
+                                        ? "opacity-100"
+                                        : "opacity-0"
+                                    )}
+                                  />
+                                  {aptLabel}
+                                </CommandItem>
+                              );
+                            })}
+                        </CommandGroup>
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
                 {packageForm.formState.errors.apartment && (
                   <p className="text-sm text-destructive">
                     {packageForm.formState.errors.apartment.message}
@@ -1723,7 +1780,11 @@ export default function ConciergePackages() {
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Apartamento</p>
-                  <p className="font-medium">{selectedPackage.apartment}</p>
+                  <p className="font-medium">
+                    {selectedPackage.apartmentBlock ? `Bloco ${selectedPackage.apartmentBlock} - ` : ""}
+                    Apt {selectedPackage.apartmentNumber}
+                    {selectedPackage.apartmentFloor ? ` (${selectedPackage.apartmentFloor}º)` : ""}
+                  </p>
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Descrição</p>
@@ -1810,7 +1871,11 @@ export default function ConciergePackages() {
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Apartamento</p>
-                  <p className="font-medium">{selectedPackage.apartment}</p>
+                  <p className="font-medium">
+                    {selectedPackage.apartmentBlock ? `Bloco ${selectedPackage.apartmentBlock} - ` : ""}
+                    Apt {selectedPackage.apartmentNumber}
+                    {selectedPackage.apartmentFloor ? ` (${selectedPackage.apartmentFloor}º)` : ""}
+                  </p>
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Descrição</p>
@@ -1869,6 +1934,217 @@ export default function ConciergePackages() {
                 </div>
               </form>
             </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* View Package Details Dialog */}
+      <Dialog 
+        open={isViewDialogOpen} 
+        onOpenChange={(open) => {
+          setIsViewDialogOpen(open);
+          if (!open) {
+            setViewingPackage(null);
+          }
+        }}
+      >
+        <DialogContent className="max-w-md max-h-[90vh] overflow-hidden flex flex-col p-0">
+          <DialogHeader className="px-6 pt-6 pb-4 flex-shrink-0">
+            <DialogTitle className="flex items-center gap-2">
+              <Package className="w-5 h-5 text-primary" />
+              Detalhes da Encomenda
+            </DialogTitle>
+          </DialogHeader>
+
+          {viewingPackage && (
+            <>
+              <div className="space-y-4 overflow-y-auto px-6 flex-1 min-h-0">
+                {/* Informações da encomenda */}
+                <div className="space-y-3">
+                  {/* Apartamento */}
+                  <div>
+                    <Label className="text-muted-foreground">Apartamento</Label>
+                    <p className="font-semibold text-lg">
+                      {viewingPackage.apartmentBlock ? `Bloco ${viewingPackage.apartmentBlock} - ` : ""}
+                      Apt {viewingPackage.apartmentNumber}
+                      {viewingPackage.apartmentFloor ? ` (${viewingPackage.apartmentFloor}º andar)` : ""}
+                    </p>
+                  </div>
+
+                  {/* Destinatário */}
+                  {viewingPackage.recipientName && (
+                    <div>
+                      <Label className="text-muted-foreground">Destinatário</Label>
+                      <p className="font-medium">{viewingPackage.recipientName}</p>
+                    </div>
+                  )}
+
+                  {/* Descrição */}
+                  {viewingPackage.description && (
+                    <div>
+                      <Label className="text-muted-foreground">Descrição</Label>
+                      <p className="font-medium">{viewingPackage.description}</p>
+                    </div>
+                  )}
+
+                  {/* Transportadora/Entregador */}
+                  {viewingPackage.courierName && (
+                    <div>
+                      <Label className="text-muted-foreground">Transportadora</Label>
+                      <p className="font-medium">{viewingPackage.courierName}</p>
+                    </div>
+                  )}
+
+                  {/* Data de Recebimento */}
+                  <div>
+                    <Label className="text-muted-foreground">Data de Recebimento</Label>
+                    <p className="font-medium">
+                      {new Date(viewingPackage.arrivalDate).toLocaleString("pt-BR", {
+                        day: "2-digit",
+                        month: "2-digit",
+                        year: "numeric",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
+                    </p>
+                  </div>
+
+                  {/* Registrado por */}
+                  {viewingPackage.registeredBy && (
+                    <div>
+                      <Label className="text-muted-foreground">Registrado por</Label>
+                      <p className="font-medium">{viewingPackage.registeredBy}</p>
+                    </div>
+                  )}
+
+                  {/* Se entregue - Data de Entrega */}
+                  {viewingPackage.status === "delivered" && viewingPackage.deliveredAt && (
+                    <div>
+                      <Label className="text-muted-foreground">Data de Entrega</Label>
+                      <p className="font-medium">
+                        {new Date(viewingPackage.deliveredAt).toLocaleString("pt-BR", {
+                          day: "2-digit",
+                          month: "2-digit",
+                          year: "numeric",
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Se entregue - Recebido por */}
+                  {viewingPackage.status === "delivered" && viewingPackage.receivedBy && (
+                    <div>
+                      <Label className="text-muted-foreground">Entregue para</Label>
+                      <p className="font-medium">{viewingPackage.receivedBy}</p>
+                    </div>
+                  )}
+
+                  {/* Se cancelado - Data de Cancelamento */}
+                  {viewingPackage.status === "cancelled" && viewingPackage.cancelledAt && (
+                    <div>
+                      <Label className="text-muted-foreground">Data de Cancelamento</Label>
+                      <p className="font-medium">
+                        {new Date(viewingPackage.cancelledAt).toLocaleString("pt-BR", {
+                          day: "2-digit",
+                          month: "2-digit",
+                          year: "numeric",
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Se cancelado - Motivo */}
+                  {viewingPackage.status === "cancelled" && viewingPackage.cancelReason && (
+                    <div>
+                      <Label className="text-muted-foreground">Motivo do Cancelamento</Label>
+                      <p className="font-medium">{viewingPackage.cancelReason}</p>
+                    </div>
+                  )}
+
+                  {/* Se cancelado - Cancelado por */}
+                  {viewingPackage.status === "cancelled" && viewingPackage.cancelledBy && (
+                    <div>
+                      <Label className="text-muted-foreground">Cancelado por</Label>
+                      <p className="font-medium">{viewingPackage.cancelledBy}</p>
+                    </div>
+                  )}
+
+                  {/* Status - Sempre por último */}
+                  <div>
+                    <Label className="text-muted-foreground">Status</Label>
+                    <div className="mt-1">
+                      <Badge 
+                        variant={
+                          viewingPackage.status === "pending" 
+                            ? "outline" 
+                            : viewingPackage.status === "delivered"
+                            ? "default"
+                            : "destructive"
+                        }
+                        className={
+                          viewingPackage.status === "pending" 
+                            ? "border-yellow-400 text-yellow-700 bg-yellow-50" 
+                            : viewingPackage.status === "delivered"
+                            ? "bg-green-600"
+                            : ""
+                        }
+                      >
+                        {viewingPackage.status === "pending" && "Pendente"}
+                        {viewingPackage.status === "delivered" && "Entregue"}
+                        {viewingPackage.status === "cancelled" && "Cancelada"}
+                      </Badge>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex gap-4 pt-4 pb-6 px-6 border-t flex-shrink-0">
+                {viewingPackage.status === "pending" && (
+                  <>
+                    <Button
+                      variant="default"
+                      className="flex-1 bg-green-600 hover:bg-green-700"
+                      onClick={() => {
+                        setIsViewDialogOpen(false);
+                        setSelectedPackage(viewingPackage);
+                        setIsDeliveryDialogOpen(true);
+                      }}
+                    >
+                      <CheckCircle className="w-4 h-4 mr-2" />
+                      Marcar Entregue
+                    </Button>
+                    <Button
+                      variant="outline"
+                      className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                      onClick={() => {
+                        setIsViewDialogOpen(false);
+                        setSelectedPackage(viewingPackage);
+                        setIsCancelDialogOpen(true);
+                      }}
+                    >
+                      <XCircle className="w-4 h-4 mr-2" />
+                      Cancelar
+                    </Button>
+                  </>
+                )}
+                {viewingPackage.status !== "pending" && (
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setIsViewDialogOpen(false);
+                      setViewingPackage(null);
+                    }}
+                    className="flex-1"
+                  >
+                    Fechar
+                  </Button>
+                )}
+              </div>
+            </>
           )}
         </DialogContent>
       </Dialog>

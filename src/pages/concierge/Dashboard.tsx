@@ -2,19 +2,27 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Package, CheckCircle2, Clock, User, ExternalLink } from "lucide-react";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
+import { Package, User, ExternalLink, UserCheck, Calendar, Inbox, ChevronDown } from "lucide-react";
 import DashboardSkeleton from "@/skeleton/concierge/DashboardSkeleton";
 import { toast } from "sonner";
 import {
   packageService,
-  type PackageStats,
+  visitsService,
+  type RecentVisit,
 } from "@/services/api";
 
 interface PackageData {
   id: string;
   recipientName: string;
   description: string;
-  apartment: string;
+  apartmentNumber: string;
+  apartmentFloor?: number;
+  apartmentBlock?: string;
   arrivalDate: string;
 }
 
@@ -22,45 +30,40 @@ export default function ConciergeDashboard() {
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(true);
   const [pendingPackages, setPendingPackages] = useState<PackageData[]>([]);
-  const [stats, setStats] = useState<PackageStats>({
-    totalPendings: 0,
-    totalConfirmed: 0,
-    totalPendingsWeek: 0,
-  });
   const [apartmentWithMostPackages, setApartmentWithMostPackages] = useState<{
     apartment: string;
     packageCount: number;
   } | null>(null);
+  const [recentVisits, setRecentVisits] = useState<RecentVisit[]>([]);
+  const [packagesOpen, setPackagesOpen] = useState(true);
+  const [visitsOpen, setVisitsOpen] = useState(true);
 
   useEffect(() => {
     const loadData = async () => {
       try {
         setIsLoading(true);
-        const [pendingResponse, packageStatsResponse] = await Promise.all([
-          packageService.getPendingPackages(),
-          packageService.getPackageStats(),
+        const [pendingResponse, recentVisitsResponse] = await Promise.all([
+          packageService.getPackages({ status: "PENDENTE" }),
+          visitsService.getRecentVisits(3),
         ]);
         
         const pending = pendingResponse.data || [];
-        const packageStats = packageStatsResponse.data || {
-          totalPendings: 0,
-          totalConfirmed: 0,
-          totalPendingsWeek: 0,
-        };
 
         // Map pending packages
         const pendingMapped: PackageData[] = pending.map((pkg) => ({
           id: pkg._id,
           recipientName: pkg.ownerName,
           description: pkg.description,
-          apartment: pkg.apartmentNumber,
+          apartmentNumber: pkg.apartmentNumber,
+          apartmentFloor: pkg.apartmentFloor,
+          apartmentBlock: pkg.apartmentBlock,
           arrivalDate: pkg.receiverDate,
         }));
 
         // Calculate apartment with most packages
         const apartmentCounts: { [key: string]: number } = {};
         for (const pkg of pendingMapped) {
-          apartmentCounts[pkg.apartment] = (apartmentCounts[pkg.apartment] || 0) + 1;
+          apartmentCounts[pkg.apartmentNumber] = (apartmentCounts[pkg.apartmentNumber] || 0) + 1;
         }
 
         const sortedApartments = Object.entries(apartmentCounts).sort(
@@ -76,7 +79,7 @@ export default function ConciergeDashboard() {
         }
 
         setPendingPackages(pendingMapped);
-        setStats(packageStats);
+        setRecentVisits(recentVisitsResponse.data || []);
       } catch (error: any) {
         toast.error(error.message || "Erro ao carregar dados do dashboard");
       } finally {
@@ -100,109 +103,165 @@ export default function ConciergeDashboard() {
         </p>
       </div>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">A Entregar</p>
-                <p className="text-3xl font-bold text-destructive">
-                  {stats.totalPendings}
-                </p>
-              </div>
-              <div className="w-12 h-12 rounded-full bg-destructive/10 flex items-center justify-center">
-                <Clock className="w-6 h-6 text-destructive" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Entregues Hoje</p>
-                <p className="text-3xl font-bold text-green-600">
-                  {stats.totalConfirmed}
-                </p>
-              </div>
-              <div className="w-12 h-12 rounded-full bg-green-500/10 flex items-center justify-center">
-                <CheckCircle2 className="w-6 h-6 text-green-600" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Entregues nesta semana</p>
-                <p className="text-3xl font-bold text-green-600">
-                  {stats.totalPendingsWeek}
-                </p>
-              </div>
-              <div className="w-12 h-12 rounded-full bg-green-500/10 flex items-center justify-center">
-                <Package className="w-6 h-6 text-green-600" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
       {/* Pending Packages List */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle>Encomendas Pendentes</CardTitle>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => navigate("/concierge/packages")}
-              className="gap-2"
-            >
-              Ver todas
-              <ExternalLink className="w-4 h-4" />
-            </Button>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-3">
-            {pendingPackages.length === 0 ? (
-              <div className="p-4 border rounded-lg text-center text-muted-foreground">
-                Nenhuma encomenda pendente encontrada
-              </div>
-            ) : (
-              pendingPackages.map((pkg) => (
-                <div
-                  key={pkg.id}
-                  className="flex items-center justify-between p-4 border rounded-lg hover:bg-accent/5 transition-colors"
-                >
-                  <div className="flex items-center gap-4">
-                    <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-                      <Package className="w-5 h-5 text-primary" />
-                    </div>
-                    <div>
-                      <p className="font-medium">{pkg.recipientName}</p>
-                      <p className="text-sm text-muted-foreground">
-                        {pkg.description || "Sem descrição"}
-                      </p>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        Chegou em:{" "}
-                        {new Date(pkg.arrivalDate).toLocaleString("pt-BR")}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <p className="font-bold text-lg">Apto {pkg.apartment}</p>
-                  </div>
+      <Collapsible open={packagesOpen} onOpenChange={setPackagesOpen}>
+        <Card>
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between">
+              <CollapsibleTrigger asChild>
+                <div className="flex items-center gap-2 cursor-pointer">
+                  <CardTitle className="flex items-center gap-2">
+                    <Package className="w-5 h-5 text-primary" />
+                    Encomendas Pendentes
+                    {pendingPackages.length > 0 && (
+                      <span className="text-xs font-normal bg-amber-500/10 text-amber-600 px-2 py-0.5 rounded-full">
+                        {pendingPackages.length}
+                      </span>
+                    )}
+                  </CardTitle>
+                  <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform ${packagesOpen ? "rotate-180" : ""}`} />
                 </div>
-              ))
-            )}
-          </div>
-        </CardContent>
-      </Card>
+              </CollapsibleTrigger>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => navigate("/concierge/packages")}
+                className="gap-2"
+              >
+                Ver todas
+                <ExternalLink className="w-4 h-4" />
+              </Button>
+            </div>
+          </CardHeader>
+          <CollapsibleContent>
+            <CardContent className="pt-0">
+              <div className="space-y-2">
+                {pendingPackages.length === 0 ? (
+                  <div className="p-4 border rounded-lg text-center text-muted-foreground">
+                    Nenhuma encomenda pendente encontrada
+                  </div>
+                ) : (
+                  pendingPackages.map((pkg) => (
+                    <div
+                      key={pkg.id}
+                      className="flex items-center justify-between p-3 border rounded-lg hover:bg-accent/5 transition-colors"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="w-9 h-9 rounded-full bg-amber-500/10 flex items-center justify-center flex-shrink-0">
+                          <Inbox className="w-4 h-4 text-amber-600" />
+                        </div>
+                        <div className="min-w-0">
+                          <p className="font-medium text-sm truncate">{pkg.recipientName}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {new Date(pkg.arrivalDate).toLocaleString("pt-BR", {
+                              day: "2-digit",
+                              month: "2-digit",
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })}
+                            {pkg.description ? ` • ${pkg.description}` : ""}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex-shrink-0 ml-2">
+                        <span className="text-xs font-medium bg-primary/10 text-primary px-2 py-1 rounded">
+                          {pkg.apartmentBlock ? `${pkg.apartmentBlock}-` : ""}
+                          {pkg.apartmentNumber}
+                        </span>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </CardContent>
+          </CollapsibleContent>
+        </Card>
+      </Collapsible>
+
+      {/* Recent Visits */}
+      <Collapsible open={visitsOpen} onOpenChange={setVisitsOpen}>
+        <Card>
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between">
+              <CollapsibleTrigger asChild>
+                <div className="flex items-center gap-2 cursor-pointer">
+                  <CardTitle className="flex items-center gap-2">
+                    <UserCheck className="w-5 h-5 text-primary" />
+                    Visitas Recentes
+                    {recentVisits.length > 0 && (
+                      <span className="text-xs font-normal bg-green-500/10 text-green-600 px-2 py-0.5 rounded-full">
+                        {recentVisits.length}
+                      </span>
+                    )}
+                  </CardTitle>
+                  <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform ${visitsOpen ? "rotate-180" : ""}`} />
+                </div>
+              </CollapsibleTrigger>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => navigate("/concierge/visitors")}
+                className="gap-2"
+              >
+                Ver todas
+                <ExternalLink className="w-4 h-4" />
+              </Button>
+            </div>
+          </CardHeader>
+          <CollapsibleContent>
+            <CardContent className="pt-0">
+              <div className="space-y-2">
+                {recentVisits.length === 0 ? (
+                  <div className="p-4 border rounded-lg text-center text-muted-foreground">
+                    Nenhuma visita registrada recentemente
+                  </div>
+                ) : (
+                  recentVisits.map((visit) => (
+                    <div
+                      key={visit._id}
+                      className="flex items-center justify-between p-3 border rounded-lg hover:bg-accent/5 transition-colors"
+                    >
+                      <div className="flex items-center gap-3">
+                        {visit.visitor.photoUrl ? (
+                          <img
+                            src={visit.visitor.photoUrl}
+                            alt={visit.visitor.name}
+                            className="w-9 h-9 rounded-full object-cover border border-primary/20"
+                          />
+                        ) : (
+                          <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center">
+                            <User className="w-4 h-4 text-primary" />
+                          </div>
+                        )}
+                        <div className="min-w-0">
+                          <p className="font-medium text-sm truncate">{visit.visitor.name}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {new Date(visit.registeredAt).toLocaleString("pt-BR", {
+                              day: "2-digit",
+                              month: "2-digit",
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })}
+                            {visit.note ? ` • ${visit.note}` : ""}
+                          </p>
+                        </div>
+                      </div>
+                      {visit.apartment && (
+                        <div className="flex-shrink-0 ml-2">
+                          <span className="text-xs font-medium bg-primary/10 text-primary px-2 py-1 rounded">
+                            {visit.apartment.block ? `${visit.apartment.block}-` : ""}
+                            {visit.apartment.number}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  ))
+                )}
+              </div>
+            </CardContent>
+          </CollapsibleContent>
+        </Card>
+      </Collapsible>
 
       {/* Apartment with Most Packages */}
       {apartmentWithMostPackages && (

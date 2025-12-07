@@ -23,7 +23,7 @@ export const visitorSchema = z.object({
 		.regex(/^[A-Z]{3}\d{4}$|^[A-Z]{3}\d[A-Z]\d{2}$/, "Placa inválida")
 		.optional()
 		.or(z.literal("")),
-	apartment: z.string().optional().or(z.literal("")),
+	// apartment removed - apartment is now linked to visit, not visitor
 	types: z
 		.array(z.enum(["convidado", "prestador_servico"]))
 		.min(1, "Selecione pelo menos um tipo de visitante"),

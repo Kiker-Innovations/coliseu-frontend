@@ -94,6 +94,11 @@ export type {
   CancelledPackage,
   CancelPackageRequest,
   PackageStats,
+  ResidentPackage,
+  GetMyPackagesParams,
+  ResidentPackageStats,
+  GetPackagesParams,
+  ConciergePackage,
 } from "./package.service";
 
 // Season service
@@ -127,6 +132,16 @@ export type {
   CreateSuggestionRequest,
   UpdateSuggestionRequest,
 } from "./residentSuggestion.service";
+
+// Visits service
+export { visitsService } from "./visits.service";
+export type {
+  CreateVisitRequest,
+  Visit,
+  RecentVisit,
+  GetVisitsResponse,
+  GetVisitsParams,
+} from "./visits.service";
 
 // Project service
 export {

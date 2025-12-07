@@ -17,11 +17,11 @@ export interface CreateVisitorRequest {
 	email?: string;
 	vehicleType?: string;
 	vehiclePlate?: string;
-	apartmentId?: string;
 	types: ("CONVIDADO" | "PRESTADOR")[]; // Tipos em maiúsculas conforme API
 	note?: string;
 	// conciergeId removed - backend extracts from token
 	// photo removed - será enviado via presignedUrl separadamente
+	// apartmentId removed - apartment is now linked to visit, not visitor
 }
 
 /**
@@ -34,10 +34,10 @@ export interface UpdateVisitorRequest {
 	email?: string;
 	vehicleType?: string;
 	vehiclePlate?: string;
-	apartmentId?: string;
 	types?: ("CONVIDADO" | "PRESTADOR")[];
 	note?: string;
 	active?: boolean;
+	// apartmentId removed - apartment is now linked to visit, not visitor
 }
 
 /**

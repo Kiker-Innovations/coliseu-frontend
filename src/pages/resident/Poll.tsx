@@ -1,12 +1,6 @@
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import PollSkeleton from "@/skeleton/resident/PollSkeleton";
 import { Button } from "@/components/ui/button";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
@@ -21,6 +15,7 @@ import {
   PlayCircle,
   PauseCircle,
   Users,
+  History,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
@@ -33,14 +28,6 @@ import {
 
 export default function Poll() {
   const [isLoading, setIsLoading] = useState(true);
-  const [selectedMonth, setSelectedMonth] = useState(() => {
-    const now = new Date();
-    return now.getMonth() + 1; // 1-12
-  });
-  const [selectedYear, setSelectedYear] = useState(() => {
-    const now = new Date();
-    return now.getFullYear();
-  });
   const [buildingId, setBuildingId] = useState<string>("");
   const [residentId, setResidentId] = useState<string>("");
   const [activePolls, setActivePolls] = useState<ActivePoll[]>([]);
@@ -109,26 +96,14 @@ export default function Poll() {
 
       try {
         setIsLoading(true);
-        const year = selectedYear;
-        const month = selectedMonth;
 
-        console.log("Loading polls for:", {
-          selectedMonth,
-          selectedYear,
-          year,
-          month,
-          buildingId,
-        });
+        console.log("Loading polls for buildingId:", buildingId);
 
         // Load active polls (only ATIVO)
-        const activeParams: any = { buildingId: buildingId.trim() };
-        if (month && !Number.isNaN(month) && month > 0 && month <= 12) {
-          activeParams.month = month;
-        }
-        if (year && !Number.isNaN(year) && year > 0) {
-          activeParams.year = year;
-        }
-        activeParams.status = ["ATIVO"];
+        const activeParams = { 
+          buildingId: buildingId.trim(),
+          status: ["ATIVO"]
+        };
 
         console.log("Active polls params:", activeParams);
 
@@ -201,9 +176,7 @@ export default function Poll() {
               activeError.statusCode === 400 ||
               activeError.statusCode === 404
             ) {
-              console.log(
-                "Nenhuma enquete ativa encontrada para o período selecionado"
-              );
+              console.log("Nenhuma enquete ativa encontrada");
               setActivePolls([]);
             } else if (activeError.statusCode === 500) {
               console.error(
@@ -222,8 +195,40 @@ export default function Poll() {
           }
         }
 
-        // Para o resident, não carregamos polls finalizadas/canceladas, apenas ATIVO
-        setClosedPolls([]);
+        // Load finished polls (FINALIZADO)
+        const finishedParams = { 
+          buildingId: buildingId.trim(),
+          status: ["FINALIZADO"]
+        };
+
+        console.log("Finished polls params:", finishedParams);
+
+        try {
+          const finishedResponse = await pollsService.getPolls(finishedParams);
+          console.log("Finished polls response:", finishedResponse);
+          if (finishedResponse.success && finishedResponse.data) {
+            setClosedPolls(
+              Array.isArray(finishedResponse.data) ? finishedResponse.data : []
+            );
+          } else {
+            setClosedPolls([]);
+          }
+        } catch (finishedError: any) {
+          console.error("Erro ao carregar enquetes finalizadas:", finishedError);
+          if (finishedError instanceof ApiClientError) {
+            if (
+              finishedError.statusCode === 400 ||
+              finishedError.statusCode === 404
+            ) {
+              console.log("Nenhuma enquete finalizada encontrada");
+              setClosedPolls([]);
+            } else {
+              setClosedPolls([]);
+            }
+          } else {
+            setClosedPolls([]);
+          }
+        }
       } catch (error: any) {
         console.error("Erro geral ao carregar enquetes:", error);
         setActivePolls([]);
@@ -233,33 +238,8 @@ export default function Poll() {
       }
     };
     loadData();
-  }, [buildingId, selectedMonth, selectedYear]);
+  }, [buildingId]);
 
-  // Generate all 12 months
-  const allMonths = [
-    { value: 1, label: "Janeiro" },
-    { value: 2, label: "Fevereiro" },
-    { value: 3, label: "Março" },
-    { value: 4, label: "Abril" },
-    { value: 5, label: "Maio" },
-    { value: 6, label: "Junho" },
-    { value: 7, label: "Julho" },
-    { value: 8, label: "Agosto" },
-    { value: 9, label: "Setembro" },
-    { value: 10, label: "Outubro" },
-    { value: 11, label: "Novembro" },
-    { value: 12, label: "Dezembro" },
-  ];
-
-  // Generate available years (current year and previous 5 years)
-  const availableYears = (() => {
-    const years = [];
-    const now = new Date();
-    for (let i = 0; i < 6; i++) {
-      years.push(now.getFullYear() - i);
-    }
-    return years;
-  })();
 
   // Helper function to check if poll is active
   const isPollActive = (poll: ActivePoll | FinishedCancelledPoll) => {
@@ -379,23 +359,9 @@ export default function Poll() {
     }
   };
 
-  // Combine active and closed polls, then sort:
-  // 1. First: polls with voting open (ativa and in voting period)
-  // 2. Then: sort by end date (closest to ending first)
-  const allPolls = [...activePolls, ...closedPolls].sort((a, b) => {
+  // Sort active polls by end date (closest to ending first)
+  const sortedActivePolls = [...activePolls].sort((a, b) => {
     try {
-      const aStatus = getPollStatus(a);
-      const bStatus = getPollStatus(b);
-      const aIsVotingOpen =
-        aStatus.status === "ativa" && isPollInVotingPeriod(a);
-      const bIsVotingOpen =
-        bStatus.status === "ativa" && isPollInVotingPeriod(b);
-
-      // If one is voting open and the other isn't, voting open comes first
-      if (aIsVotingOpen && !bIsVotingOpen) return -1;
-      if (!aIsVotingOpen && bIsVotingOpen) return 1;
-
-      // If both are voting open or both aren't, sort by end date (closest first)
       const aEndDate = a.endDate ? new Date(a.endDate).getTime() : 0;
       const bEndDate = b.endDate ? new Date(b.endDate).getTime() : 0;
       return aEndDate - bEndDate;
@@ -404,6 +370,21 @@ export default function Poll() {
       return 0;
     }
   });
+
+  // Sort closed polls by end date (most recent first)
+  const sortedClosedPolls = [...closedPolls].sort((a, b) => {
+    try {
+      const aEndDate = a.endDate ? new Date(a.endDate).getTime() : 0;
+      const bEndDate = b.endDate ? new Date(b.endDate).getTime() : 0;
+      return bEndDate - aEndDate;
+    } catch (error) {
+      console.error("Erro ao ordenar polls:", error);
+      return 0;
+    }
+  });
+
+  // For stats, combine all polls
+  const allPolls = [...activePolls, ...closedPolls];
 
   const handleSelection = (pollId: string, optionValue: string) => {
     // Extrair o id numérico do valor (formato: "option-0", "option-1", etc)
@@ -595,17 +576,10 @@ export default function Poll() {
         }
 
         // Recarregar as polls para atualizar os votos
-        const year = selectedYear;
-        const month = selectedMonth;
-
-        const activeParams: any = { buildingId };
-        if (month && !Number.isNaN(month) && month > 0 && month <= 12) {
-          activeParams.month = month;
-        }
-        if (year && !Number.isNaN(year) && year > 0) {
-          activeParams.year = year;
-        }
-        activeParams.status = ["ATIVO"];
+        const activeParams = { 
+          buildingId,
+          status: ["ATIVO"]
+        };
 
         try {
           const activeResponse = await pollsService.getPolls(activeParams);
@@ -755,38 +729,6 @@ export default function Poll() {
             Vote nas enquetes do condomínio - 1 voto por apartamento
           </p>
         </div>
-        <div className="flex gap-2">
-          <Select
-            value={selectedMonth.toString()}
-            onValueChange={(value) => setSelectedMonth(Number(value))}
-          >
-            <SelectTrigger className="w-[150px]">
-              <SelectValue placeholder="Mês" />
-            </SelectTrigger>
-            <SelectContent>
-              {allMonths.map((month) => (
-                <SelectItem key={month.value} value={month.value.toString()}>
-                  {month.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Select
-            value={selectedYear.toString()}
-            onValueChange={(value) => setSelectedYear(Number(value))}
-          >
-            <SelectTrigger className="w-[120px]">
-              <SelectValue placeholder="Ano" />
-            </SelectTrigger>
-            <SelectContent>
-              {availableYears.map((year) => (
-                <SelectItem key={year} value={year.toString()}>
-                  {year}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
       </div>
 
       {/* Poll Stats */}
@@ -795,10 +737,10 @@ export default function Poll() {
           <CardContent className="pt-6">
             <div className="text-center">
               <p className="text-sm text-muted-foreground mb-2">
-                Enquetes do Mês
+                Enquetes Ativas
               </p>
-              <p className="text-4xl font-bold text-primary">
-                {allPolls.length}
+              <p className="text-4xl font-bold text-green-600">
+                {activePolls.length}
               </p>
             </div>
           </CardContent>
@@ -807,7 +749,19 @@ export default function Poll() {
           <CardContent className="pt-6">
             <div className="text-center">
               <p className="text-sm text-muted-foreground mb-2">
-                Enquetes Respondidas
+                Enquetes Finalizadas
+              </p>
+              <p className="text-4xl font-bold text-gray-500">
+                {closedPolls.length}
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-6">
+            <div className="text-center">
+              <p className="text-sm text-muted-foreground mb-2">
+                Suas Participações
               </p>
               <p className="text-4xl font-bold text-accent">
                 {
@@ -820,30 +774,33 @@ export default function Poll() {
             </div>
           </CardContent>
         </Card>
-        <Card>
-          <CardContent className="pt-6">
-            <div className="text-center">
-              <p className="text-sm text-muted-foreground mb-2">Status</p>
-              <p className="text-xl font-bold text-muted-foreground">
-                {activePolls.length > 0 ? "Ativas" : "Encerradas"}
-              </p>
-            </div>
-          </CardContent>
-        </Card>
       </div>
 
-      {/* Polls List */}
-      <div className="space-y-6">
-        {allPolls.length === 0 ? (
-          <Card>
-            <CardContent className="flex items-center justify-center h-32">
-              <p className="text-muted-foreground">
-                Nenhuma enquete encontrada para o período selecionado
-              </p>
-            </CardContent>
-          </Card>
-        ) : (
-          allPolls.map((poll) => {
+      {/* Polls Tabs */}
+      <Tabs defaultValue="active" className="space-y-6">
+        <TabsList className="grid w-full max-w-md grid-cols-2">
+          <TabsTrigger value="active" className="gap-2">
+            <PlayCircle className="w-4 h-4" />
+            Ativas ({activePolls.length})
+          </TabsTrigger>
+          <TabsTrigger value="finished" className="gap-2">
+            <History className="w-4 h-4" />
+            Finalizadas ({closedPolls.length})
+          </TabsTrigger>
+        </TabsList>
+
+        {/* Active Polls Tab */}
+        <TabsContent value="active" className="space-y-6">
+          {sortedActivePolls.length === 0 ? (
+            <Card>
+              <CardContent className="flex items-center justify-center h-32">
+                <p className="text-muted-foreground">
+                  Nenhuma enquete ativa no momento
+                </p>
+              </CardContent>
+            </Card>
+          ) : (
+            sortedActivePolls.map((poll) => {
             const pollId = poll.id || poll._id || "";
             const isActive = isPollActive(poll);
             const hasVotedInPoll = hasVoted(pollId);
@@ -1033,25 +990,10 @@ export default function Poll() {
                                     );
                                   }
                                   // Recarregar polls
-                                  const activeParams: any = {
+                                  const activeParams = {
                                     buildingId,
                                     status: ["ATIVO"],
                                   };
-                                  if (
-                                    selectedMonth &&
-                                    !Number.isNaN(selectedMonth) &&
-                                    selectedMonth > 0 &&
-                                    selectedMonth <= 12
-                                  ) {
-                                    activeParams.month = selectedMonth;
-                                  }
-                                  if (
-                                    selectedYear &&
-                                    !Number.isNaN(selectedYear) &&
-                                    selectedYear > 0
-                                  ) {
-                                    activeParams.year = selectedYear;
-                                  }
                                   const activeResponse =
                                     await pollsService.getPolls(activeParams);
                                   if (activeResponse.success) {
@@ -1377,7 +1319,128 @@ export default function Poll() {
             );
           })
         )}
-      </div>
+        </TabsContent>
+
+        {/* Finished Polls Tab */}
+        <TabsContent value="finished" className="space-y-6">
+          {sortedClosedPolls.length === 0 ? (
+            <Card>
+              <CardContent className="flex items-center justify-center h-32">
+                <p className="text-muted-foreground">
+                  Nenhuma enquete finalizada
+                </p>
+              </CardContent>
+            </Card>
+          ) : (
+            sortedClosedPolls.map((poll) => {
+              const pollId = poll.id || poll._id || "";
+
+              return (
+                <Card
+                  key={pollId}
+                  className="border-2 border-gray-200 bg-gray-50/30"
+                >
+                  <CardHeader>
+                    <div className="flex justify-between items-start gap-4">
+                      <div className="flex-1">
+                        <div className="flex items-start justify-between gap-3 mb-3">
+                          <CardTitle className="text-xl flex-1">
+                            {poll.description}
+                          </CardTitle>
+                          <Badge className="bg-gray-500 text-white flex items-center gap-1.5 px-3 py-1">
+                            <Lock className="w-3.5 h-3.5" />
+                            Finalizada
+                          </Badge>
+                        </div>
+
+                        <div className="flex items-center gap-1 text-sm text-muted-foreground mb-3">
+                          <Users className="w-4 h-4" />
+                          <span className="font-semibold">{poll.votes}</span>
+                          <span>voto{poll.votes !== 1 ? "s" : ""}</span>
+                        </div>
+
+                        {/* Date Info */}
+                        <div className="grid grid-cols-2 gap-3">
+                          <div className="flex items-center gap-2 p-3 rounded-lg border bg-white">
+                            <Calendar className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+                            <div className="flex-1 min-w-0">
+                              <p className="text-xs text-muted-foreground">
+                                Início
+                              </p>
+                              <p className="font-medium text-sm truncate">
+                                {new Date(poll.startDate).toLocaleString(
+                                  "pt-BR",
+                                  {
+                                    day: "2-digit",
+                                    month: "2-digit",
+                                    year: "numeric",
+                                    hour: "2-digit",
+                                    minute: "2-digit",
+                                  }
+                                )}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2 p-3 rounded-lg border bg-white">
+                            <Clock className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+                            <div className="flex-1 min-w-0">
+                              <p className="text-xs text-muted-foreground">
+                                Término
+                              </p>
+                              <p className="font-medium text-sm truncate">
+                                {new Date(poll.endDate).toLocaleString(
+                                  "pt-BR",
+                                  {
+                                    day: "2-digit",
+                                    month: "2-digit",
+                                    year: "numeric",
+                                    hour: "2-digit",
+                                    minute: "2-digit",
+                                  }
+                                )}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    {/* Results */}
+                    <div className="space-y-3">
+                      {poll.options.map((option, idx) => {
+                        const optionId =
+                          option.id !== undefined && option.id !== null
+                            ? option.id
+                            : idx;
+                        return (
+                          <div
+                            key={`option-${optionId}`}
+                            className="space-y-1"
+                          >
+                            <div className="flex justify-between text-sm">
+                              <span className="font-medium">
+                                {option.description}
+                              </span>
+                              <span className="text-muted-foreground">
+                                {option.votes} votos ({option.percent}%)
+                              </span>
+                            </div>
+                            <Progress
+                              value={option.percent}
+                              className="h-2"
+                            />
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })
+          )}
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

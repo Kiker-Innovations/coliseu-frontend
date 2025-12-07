@@ -37,7 +37,7 @@ export interface PendingPackage {
 	description: string;
 	apartmentNumber: string;
 	receiverDate: string;
-	receiverConciergeName: string;
+	receiverBy: string;
 	courierName?: string;
 }
 
@@ -52,7 +52,7 @@ export interface DeliveredPackage {
 	receiverDate?: string;
 	deliveryDate: string;
 	recipientName: string;
-	deliveryConciergeName: string;
+	deliveryBy: string;
 	courierName?: string;
 }
 
@@ -74,8 +74,8 @@ export interface Package {
 	createdAt: string;
 	updatedAt: string;
 	apartmentNumber?: string;
-	receiverConciergeName?: string;
-	deliveryConciergeName?: string;
+	receiverBy?: string;
+	deliveryBy?: string;
 }
 
 /**
@@ -99,7 +99,7 @@ export interface CancelledPackage {
 	cancelReason: string;
 	cancelledConciergeId: string;
 	cancelledAt: string;
-	cancelledByName: string;
+	canceledBy: string;
 }
 
 /**
@@ -111,12 +111,80 @@ export interface CancelPackageRequest {
 }
 
 /**
- * Package statistics
+ * Package statistics (concierge)
  */
 export interface PackageStats {
 	totalPendings: number;
 	totalConfirmed: number;
 	totalPendingsWeek: number;
+}
+
+/**
+ * Resident's package
+ */
+export interface ResidentPackage {
+	_id: string;
+	apartmentId: string;
+	buildingId: string;
+	receiverBy: string;
+	deliveryBy?: string;
+	ownerName: string;
+	courierName?: string;
+	recipientName?: string;
+	description?: string;
+	receiverDate: string;
+	deliveryDate?: string;
+	status: string;
+	cancelReason?: string;
+	canceledBy?: string;
+	cancelledAt?: string;
+	createdAt: string;
+	updatedAt: string;
+}
+
+/**
+ * Query parameters for resident packages
+ */
+export interface GetMyPackagesParams {
+	status?: string;
+}
+
+/**
+ * Query parameters for concierge packages list
+ */
+export interface GetPackagesParams {
+	status: "PENDENTE" | "ENTREGUE" | "CANCELADO";
+	days?: number;
+}
+
+/**
+ * Concierge package from unified endpoint
+ */
+export interface ConciergePackage {
+	_id: string;
+	ownerName: string;
+	description: string;
+	courierName?: string;
+	apartmentNumber: string;
+	apartmentFloor?: number;
+	apartmentBlock?: string;
+	receiverDate: string;
+	receiverBy: string;
+	deliveryDate?: string;
+	recipientName?: string;
+	deliveryBy?: string;
+	cancelReason?: string;
+	canceledBy?: string;
+	cancelledAt?: string;
+}
+
+/**
+ * Resident package statistics
+ */
+export interface ResidentPackageStats {
+	totalAguardandoRetiradaMes: number;
+	totalEntregues: number;
+	totalAguardandoRetirada: number;
 }
 
 /**
@@ -225,6 +293,7 @@ class PackageService {
 	/**
 	 * Get cancelled packages
 	 * GET /v1/packages/cancelled
+	 * @deprecated Use getPackages with status="CANCELADA" instead
 	 */
 	async getCancelledPackages(days?: number): Promise<ApiResponse<CancelledPackage[]>> {
 		this.ensureToken();
@@ -239,7 +308,34 @@ class PackageService {
 	}
 
 	/**
-	 * Get package statistics
+	 * Get packages with status filter (unified endpoint for concierge)
+	 * GET /v1/packages?status=PENDENTE|ENTREGUE|CANCELADA&days=7
+	 * @param params - Query parameters (status required, days optional - only for ENTREGUE and CANCELADA)
+	 */
+	async getPackages(params: GetPackagesParams): Promise<ApiResponse<ConciergePackage[]>> {
+		this.ensureToken();
+		
+		const queryParams: Record<string, string> = {
+			status: params.status,
+		};
+		
+		// Only add days parameter for delivered and cancelled packages
+		if (params.days && (params.status === "ENTREGUE" || params.status === "CANCELADO")) {
+			queryParams.days = String(params.days);
+		}
+
+		const response = await apiClient.get<ConciergePackage[]>(this.basePath, {
+			params: queryParams,
+		});
+		
+		return {
+			...response,
+			data: response.data || [],
+		};
+	}
+
+	/**
+	 * Get package statistics (concierge)
 	 * GET /v1/packages/stats
 	 */
 	async getPackageStats(): Promise<ApiResponse<PackageStats>> {
@@ -257,6 +353,56 @@ class PackageService {
 				},
 			};
 		}
+		return response;
+	}
+
+	// ==================== RESIDENT ENDPOINTS ====================
+
+	/**
+	 * Get resident's packages
+	 * GET /v1/packages/my-packages
+	 * @param params - Optional query parameters (status filter)
+	 */
+	async getMyPackages(params?: GetMyPackagesParams): Promise<ApiResponse<ResidentPackage[]>> {
+		this.ensureToken(true);
+		
+		const queryParams: Record<string, string> = {};
+		if (params?.status) {
+			queryParams.status = params.status;
+		}
+
+		const response = await apiClient.get<ResidentPackage[]>(`${this.basePath}/my-packages`, {
+			params: Object.keys(queryParams).length > 0 ? queryParams : undefined,
+		});
+		
+		return {
+			...response,
+			data: response.data || [],
+		};
+	}
+
+	/**
+	 * Get resident's package statistics
+	 * GET /v1/packages/my-packages/stats
+	 */
+	async getMyPackagesStats(): Promise<ApiResponse<ResidentPackageStats>> {
+		this.ensureToken(true);
+		
+		const response = await apiClient.get<ResidentPackageStats>(`${this.basePath}/my-packages/stats`);
+		
+		if (!response.success || !response.data) {
+			// Return default stats if request fails
+			return {
+				success: false,
+				message: response.message || "Erro ao buscar estatísticas",
+				data: {
+					totalAguardandoRetiradaMes: 0,
+					totalEntregues: 0,
+					totalAguardandoRetirada: 0,
+				},
+			};
+		}
+		
 		return response;
 	}
 }

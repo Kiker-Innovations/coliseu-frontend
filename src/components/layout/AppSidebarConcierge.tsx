@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import {
   LayoutDashboard,
   Package,
-  AlertTriangle,
+  // AlertTriangle, // Temporariamente desabilitado (Multas)
   LogOut,
   Shield,
   User,
@@ -27,7 +27,7 @@ import coliseuIcon from "@/assets/coliseu-icon.png";
 const menuItems = [
   { title: "Dashboard", url: "/concierge/dashboard", icon: LayoutDashboard },
   { title: "Encomendas", url: "/concierge/packages", icon: Package },
-  { title: "Multas", url: "/concierge/fines", icon: AlertTriangle },
+  // { title: "Multas", url: "/concierge/fines", icon: AlertTriangle }, // Temporariamente desabilitado
   { title: "Visitantes", url: "/concierge/visitors", icon: UserCheck },
 ];
 
