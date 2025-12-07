@@ -5,7 +5,12 @@
 
 // Client and types
 export { apiClient, ApiClientError } from "./client";
-export type { ApiResponse, ApiError, RequestConfig } from "./types";
+export type {
+  ApiResponse,
+  ApiError,
+  RequestConfig,
+  ValidationError,
+} from "./types";
 
 // Residents service
 export { residentsService } from "./residents.service";

@@ -68,17 +68,24 @@ export default function Suggestions() {
     return selectedSeason.endDate !== null;
   };
 
-  // Get suggestions for the selected season
-  const filteredSuggestions = suggestions.filter((s) => {
-    // Show suggestions that belong to the selected season
-    // actualSeasonId is the current season the suggestion belongs to
-    return (
+  // Get suggestions for display in the selected season
+  // Show suggestions that currently belong to OR were originally created in this season
+  const filteredSuggestions = suggestions.filter(
+    (s) =>
       s.actualSeasonId === selectedSeasonId ||
       s.fromSeasonId === selectedSeasonId
-    );
-  });
+  );
 
-  const canCreateMore = filteredSuggestions.length < 5 && !isReadOnly();
+  // Count suggestions originally created in the selected season (for the 5-per-season limit)
+  // Each season gives the resident 5 new "slots" for suggestions
+  // Carried over suggestions don't count against the new season's limit
+  const suggestionsCreatedInSeason = suggestions.filter((s) => {
+    // If fromSeasonId is set, use it; otherwise fall back to actualSeasonId
+    const originSeasonId = s.fromSeasonId ?? s.actualSeasonId;
+    return originSeasonId === selectedSeasonId;
+  }).length;
+
+  const canCreateMore = suggestionsCreatedInSeason < 5 && !isReadOnly();
 
   // Load seasons on mount
   useEffect(() => {
@@ -184,7 +191,15 @@ export default function Suggestions() {
     } catch (error) {
       console.error("Erro ao salvar sugestão:", error);
       if (error instanceof ApiClientError) {
-        toast.error(error.response.message || "Erro ao salvar sugestão");
+        // Exibir erros detalhados de validação do Zod
+        if (error.response.errors && error.response.errors.length > 0) {
+          const errorMessages = error.response.errors
+            .map((e) => `${e.field}: ${e.message}`)
+            .join("\n");
+          toast.error(errorMessages);
+        } else {
+          toast.error(error.response.message || "Erro ao salvar sugestão");
+        }
       } else {
         toast.error("Erro ao salvar sugestão");
       }
@@ -222,7 +237,14 @@ export default function Suggestions() {
     } catch (error) {
       console.error("Erro ao excluir sugestão:", error);
       if (error instanceof ApiClientError) {
-        toast.error(error.response.message || "Erro ao excluir sugestão");
+        if (error.response.errors && error.response.errors.length > 0) {
+          const errorMessages = error.response.errors
+            .map((e) => `${e.field}: ${e.message}`)
+            .join("\n");
+          toast.error(errorMessages);
+        } else {
+          toast.error(error.response.message || "Erro ao excluir sugestão");
+        }
       } else {
         toast.error("Erro ao excluir sugestão");
       }
@@ -253,10 +275,11 @@ export default function Suggestions() {
             {isReadOnly() ? (
               <span className="flex items-center gap-1">
                 <Lock className="w-4 h-4" />
-                Temporada encerrada (para dar sugestões, deverá ser uma temporada ativa)
+                Temporada encerrada (para dar sugestões, deverá ser uma
+                temporada ativa)
               </span>
             ) : (
-              `Você pode criar até 5 sugestões (${filteredSuggestions.length}/5)`
+              `Você pode criar até 5 sugestões nesta temporada (${suggestionsCreatedInSeason}/5)`
             )}
           </p>
         </div>
@@ -315,7 +338,7 @@ export default function Suggestions() {
                   {...register("description")}
                   placeholder="Descreva sua sugestão em detalhes..."
                   rows={4}
-                  maxLength={500}
+                  maxLength={1000}
                   disabled={isSubmitting}
                 />
                 {errors.description && (
@@ -324,7 +347,7 @@ export default function Suggestions() {
                   </p>
                 )}
                 <p className="text-sm text-muted-foreground text-right">
-                  {description?.length || 0}/500
+                  {description?.length || 0}/1000
                 </p>
               </div>
               <div className="flex gap-2">
