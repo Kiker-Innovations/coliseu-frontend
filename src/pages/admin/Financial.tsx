@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -7,7 +7,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Dialog,
@@ -18,12 +17,15 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import {
   DollarSign,
   TrendingUp,
@@ -34,11 +36,12 @@ import {
   Plus,
   Edit,
   Trash2,
-  AlertCircle,
   Image as ImageIcon,
   Upload,
+  CheckCircle2,
 } from "lucide-react";
 import { toast } from "sonner";
+import { formatCurrencyInput, unformatCurrency } from "@/lib/utils";
 import {
   financialRegisterSchema,
   type FinancialRegisterSchema,
@@ -52,33 +55,53 @@ import {
   type OneTimeExpenseSchema,
 } from "@/schemas/admin/oneTimeExpense.schema";
 import FinancialSkeleton from "@/skeleton/admin/FinancialSkeleton";
+import {
+  financialService,
+  type FinancialSummary,
+  type FinancialSnapshot,
+  type RecurringExpense,
+  type OneTimeExpense,
+  type ProjectExpense,
+  type FundEntry,
+} from "@/services/api";
 
 export default function Financial() {
   const [isLoading, setIsLoading] = useState(true);
+  const [financialSummary, setFinancialSummary] =
+    useState<FinancialSummary | null>(null);
+  const [snapshots, setSnapshots] = useState<FinancialSnapshot[]>([]);
+  const [selectedSnapshot, setSelectedSnapshot] =
+    useState<FinancialSnapshot | null>(null);
+
+  // Dialog states
   const [isExpenseDialogOpen, setIsExpenseDialogOpen] = useState(false);
-  const [editingExpenseId, setEditingExpenseId] = useState<number | null>(null);
+  const [editingExpenseId, setEditingExpenseId] = useState<string | null>(null);
   const [isOneTimeExpenseDialogOpen, setIsOneTimeExpenseDialogOpen] =
     useState(false);
   const [editingOneTimeExpenseId, setEditingOneTimeExpenseId] = useState<
-    number | null
+    string | null
   >(null);
-  const [selectedMonth, setSelectedMonth] = useState("2025-10");
   const [selectedReceiptImage, setSelectedReceiptImage] = useState<File | null>(
     null
   );
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  useEffect(() => {
-    const loadData = async () => {
-      setIsLoading(false);
-    };
-    loadData();
-  }, []);
+  // Estado para confirmação do cadastro de caixa
+  const [isConfirmFundDialogOpen, setIsConfirmFundDialogOpen] = useState(false);
+  const [pendingFundEntry, setPendingFundEntry] =
+    useState<FinancialRegisterSchema | null>(null);
+  const [fundValueInput, setFundValueInput] = useState("");
+
+  // Estados para inputs de valor com máscara
+  const [recurringExpenseValueInput, setRecurringExpenseValueInput] =
+    useState("");
+  const [oneTimeExpenseValueInput, setOneTimeExpenseValueInput] = useState("");
 
   const financialForm = useForm<FinancialRegisterSchema>({
     resolver: zodResolver(financialRegisterSchema),
     defaultValues: {
-      condominiumFund: 0,
-      referenceMonth: "",
+      title: "",
+      value: 0,
     },
   });
 
@@ -87,8 +110,6 @@ export default function Financial() {
     defaultValues: {
       name: "",
       value: 0,
-      hasExpirationDate: false,
-      expirationDate: "",
     },
   });
 
@@ -101,215 +122,201 @@ export default function Financial() {
     },
   });
 
-  const hasExpirationDate = expenseForm.watch("hasExpirationDate");
+  const loadData = useCallback(async () => {
+    try {
+      setIsLoading(true);
 
-  // Mock data - em produção, buscar da API
-  const financialData = {
-    condominiumFund: 40000,
-    referenceMonth: "2025-10",
-    lastUpdate: "15/10/2025",
+      // First check if month changed
+      await financialService.checkMonth();
+
+      // Then load summary
+      const [summaryResponse, snapshotsResponse] = await Promise.all([
+        financialService.getSummary(),
+        financialService.getSnapshots(),
+      ]);
+
+      if (summaryResponse.success && summaryResponse.data) {
+        setFinancialSummary(summaryResponse.data);
+      }
+
+      if (snapshotsResponse.success && snapshotsResponse.data) {
+        setSnapshots(snapshotsResponse.data);
+      }
+    } catch (error: any) {
+      toast.error(error.message || "Erro ao carregar dados financeiros");
+      console.error("Erro ao carregar dados financeiros:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
+
+  // Helper functions
+  const getCurrentMonth = () => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(
+      2,
+      "0"
+    )}`;
   };
 
-  // Despesas recorrentes cadastradas
-  const recurringExpenses = [
-    {
-      id: 1,
-      name: "Manutenção Predial",
-      value: 3200,
-      hasExpirationDate: false,
-      expirationDate: null,
-    },
-    {
-      id: 2,
-      name: "Limpeza",
-      value: 2800,
-      hasExpirationDate: false,
-      expirationDate: null,
-    },
-    {
-      id: 3,
-      name: "Segurança",
-      value: 4500,
-      hasExpirationDate: false,
-      expirationDate: null,
-    },
-    {
-      id: 4,
-      name: "Energia Elétrica",
-      value: 1800,
-      hasExpirationDate: true,
-      expirationDate: "2025-12-31",
-    },
-    {
-      id: 5,
-      name: "Água",
-      value: 1200,
-      hasExpirationDate: true,
-      expirationDate: "2025-12-31",
-    },
-  ];
-
-  // Despesas avulsas (específicas do mês)
-  const allOneTimeExpenses = [
-    {
-      id: 1,
-      name: "Reparo do Portão Principal",
-      description:
-        "Conserto do portão principal que estava com problema na trava eletrônica",
-      value: 850,
-      referenceMonth: "2025-10",
-      receiptImage:
-        "https://via.placeholder.com/400x300/4f46e5/ffffff?text=Recibo+Portão",
-    },
-    {
-      id: 2,
-      name: "Compra de Materiais de Limpeza",
-      description:
-        "Produtos de limpeza para uso geral no condomínio - detergentes, desinfetantes e sabão",
-      value: 450,
-      referenceMonth: "2025-10",
-      receiptImage: "",
-    },
-    {
-      id: 3,
-      name: "Manutenção do Elevador 2",
-      description:
-        "Manutenção preventiva e troca de cabos do elevador do bloco 2",
-      value: 1200,
-      referenceMonth: "2025-09",
-      receiptImage:
-        "https://via.placeholder.com/400x300/10b981/ffffff?text=Recibo+Elevador",
-    },
-    {
-      id: 4,
-      name: "Pintura do Hall de Entrada",
-      description:
-        "Pintura completa do hall de entrada com tinta acrílica premium",
-      value: 2300,
-      referenceMonth: "2025-09",
-      receiptImage: "",
-    },
-  ];
-
-  // Filtrar despesas avulsas do mês selecionado
-  const oneTimeExpenses = allOneTimeExpenses.filter(
-    (expense) => expense.referenceMonth === selectedMonth
-  );
-
-  // Sugestões aprovadas com despesas
-  const approvedSuggestions = [
-    {
-      id: 1,
-      title: "Reforma da Piscina",
-      monthlyExpense: 2500,
-      totalRemaining: 15000,
-      progress: 60,
-    },
-    {
-      id: 2,
-      title: "Troca de Elevadores",
-      monthlyExpense: 4000,
-      totalRemaining: 12000,
-      progress: 30,
-    },
-    {
-      id: 3,
-      title: "Pintura da Fachada",
-      monthlyExpense: 1600,
-      totalRemaining: 8000,
-      progress: 80,
-    },
-  ];
+  const formatMonthLabel = (monthStr: string) => {
+    const [year, month] = monthStr.split("-");
+    const date = new Date(Number.parseInt(year), Number.parseInt(month) - 1, 1);
+    return date.toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
+  };
 
   // Cálculos
-  const totalRecurringExpenses = recurringExpenses.reduce(
-    (sum, exp) => sum + exp.value,
-    0
-  );
+  const totalRecurringExpenses = financialSummary?.totalRecurringExpenses || 0;
+  const totalOneTimeExpenses = financialSummary?.totalOneTimeExpenses || 0;
+  const totalProjectExpenses = financialSummary?.totalProjectExpenses || 0;
+  const totalMonthlyExpenses = financialSummary?.totalExpenses || 0;
+  const monthlyBalance = financialSummary?.monthlyBalance || 0;
+  const isMonthlyBalancePositive = monthlyBalance >= 0;
 
-  const totalOneTimeExpenses = oneTimeExpenses.reduce(
-    (sum, exp) => sum + exp.value,
-    0
-  );
-
-  const totalSuggestionsMonthlyExpense = approvedSuggestions.reduce(
-    (sum, sug) => sum + sug.monthlyExpense,
-    0
-  );
-
-  const totalSuggestionsRemaining = approvedSuggestions.reduce(
-    (sum, sug) => sum + sug.totalRemaining,
-    0
-  );
-
-  // Cálculos MENSAIS
-  const totalMonthlyExpenses =
-    totalRecurringExpenses +
-    totalSuggestionsMonthlyExpense +
-    totalOneTimeExpenses;
-  const monthlyFund = financialData.condominiumFund - totalMonthlyExpenses;
-  const isMonthlyFundPositive = monthlyFund >= 0;
-
-  // Arrecadação necessária (mês atual e próximo)
-  const totalApartments = 276;
+  // Arrecadação necessária
+  const totalApartments = 276; // TODO: Obter do building
   const currentMonthCollection = totalMonthlyExpenses;
-  const nextMonthCollection = totalMonthlyExpenses;
-  const perApartmentCurrent = currentMonthCollection / totalApartments;
-  const perApartmentNext = nextMonthCollection / totalApartments;
+  const perApartmentCurrent =
+    totalApartments > 0 ? currentMonthCollection / totalApartments : 0;
 
-  // Cálculos TOTAIS (desconsiderando mês)
-  const totalCommitted =
-    financialData.condominiumFund -
-    totalRecurringExpenses -
-    totalSuggestionsRemaining;
-  const isTotalCommittedPositive = totalCommitted >= 0;
+  // Total comprometido (para projetos em andamento)
+  const totalProjectsRemaining = (
+    financialSummary?.projectExpenses || []
+  ).reduce(
+    (sum, p) => sum + (p.totalValue - p.paidInstallments * p.monthlyValue),
+    0
+  );
 
+  // Abre o diálogo de confirmação antes de cadastrar
   const onFinancialSubmit = async (data: FinancialRegisterSchema) => {
-    try {
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+    setPendingFundEntry(data);
+    setIsConfirmFundDialogOpen(true);
+  };
 
-      toast.success("Informações financeiras cadastradas com sucesso!");
-      financialForm.reset();
+  // Confirma e cadastra a entrada de caixa
+  const handleConfirmFundEntry = async () => {
+    if (!pendingFundEntry) return;
+
+    try {
+      setIsSubmitting(true);
+
+      const response = await financialService.addFundEntry({
+        title: pendingFundEntry.title,
+        value: pendingFundEntry.value,
+      });
+
+      if (response.success) {
+        toast.success("Entrada de caixa cadastrada com sucesso!");
+        financialForm.reset();
+        setFundValueInput("");
+        setPendingFundEntry(null);
+        setIsConfirmFundDialogOpen(false);
+        await loadData();
+      } else {
+        toast.error(response.message || "Erro ao cadastrar entrada");
+      }
     } catch (error: any) {
-      toast.error(error.message || "Erro ao cadastrar informações financeiras");
+      toast.error(error.message || "Erro ao cadastrar entrada de caixa");
+    } finally {
+      setIsSubmitting(false);
     }
+  };
+
+  // Handler para input de valor com máscara
+  const handleFundValueChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const formatted = formatCurrencyInput(e.target.value);
+    setFundValueInput(formatted);
+    financialForm.setValue("value", unformatCurrency(formatted));
+  };
+
+  // Handler para input de valor de despesa recorrente com máscara
+  const handleRecurringExpenseValueChange = (
+    e: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const formatted = formatCurrencyInput(e.target.value);
+    setRecurringExpenseValueInput(formatted);
+    expenseForm.setValue("value", unformatCurrency(formatted));
+  };
+
+  // Handler para input de valor de despesa avulsa com máscara
+  const handleOneTimeExpenseValueChange = (
+    e: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const formatted = formatCurrencyInput(e.target.value);
+    setOneTimeExpenseValueInput(formatted);
+    oneTimeExpenseForm.setValue("value", unformatCurrency(formatted));
   };
 
   const onExpenseSubmit = async (data: RecurringExpenseSchema) => {
     try {
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      setIsSubmitting(true);
 
       if (editingExpenseId) {
-        toast.success("Despesa recorrente atualizada com sucesso!");
+        const response = await financialService.updateRecurringExpense(
+          editingExpenseId,
+          {
+            name: data.name,
+            value: data.value,
+          }
+        );
+
+        if (response.success) {
+          toast.success("Despesa recorrente atualizada com sucesso!");
+        } else {
+          toast.error(response.message || "Erro ao atualizar despesa");
+        }
       } else {
-        toast.success("Despesa recorrente cadastrada com sucesso!");
+        const response = await financialService.addRecurringExpense({
+          name: data.name,
+          value: data.value,
+        });
+
+        if (response.success) {
+          toast.success("Despesa recorrente cadastrada com sucesso!");
+        } else {
+          toast.error(response.message || "Erro ao cadastrar despesa");
+        }
       }
 
       expenseForm.reset();
+      setRecurringExpenseValueInput("");
       setIsExpenseDialogOpen(false);
       setEditingExpenseId(null);
+      await loadData();
     } catch (error: any) {
       toast.error(error.message || "Erro ao salvar despesa recorrente");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
-  const handleEditExpense = (expense: any) => {
-    setEditingExpenseId(expense.id);
+  const handleEditExpense = (expense: RecurringExpense) => {
+    setEditingExpenseId(expense._id);
     expenseForm.reset({
       name: expense.name,
       value: expense.value,
-      hasExpirationDate: expense.hasExpirationDate,
-      expirationDate: expense.expirationDate || "",
     });
+    setRecurringExpenseValueInput(
+      formatCurrencyInput(expense.value.toString())
+    );
     setIsExpenseDialogOpen(true);
   };
 
-  const handleDeleteExpense = async (expenseId: number) => {
+  const handleDeleteExpense = async (expenseId: string) => {
     try {
-      await new Promise((resolve) => setTimeout(resolve, 500));
-      toast.success("Despesa recorrente removida com sucesso!");
+      const response = await financialService.removeRecurringExpense(expenseId);
+      if (response.success) {
+        toast.success("Despesa recorrente removida com sucesso!");
+        await loadData();
+      } else {
+        toast.error(response.message || "Erro ao remover despesa");
+      }
     } catch (error: any) {
-      toast.error("Erro ao remover despesa recorrente");
+      toast.error(error.message || "Erro ao remover despesa recorrente");
     }
   };
 
@@ -317,6 +324,7 @@ export default function Financial() {
     setIsExpenseDialogOpen(false);
     setEditingExpenseId(null);
     expenseForm.reset();
+    setRecurringExpenseValueInput("");
   };
 
   const handleReceiptImageSelect = (
@@ -325,76 +333,83 @@ export default function Financial() {
     const file = event.target.files?.[0];
     if (file) {
       setSelectedReceiptImage(file);
-      // Criar um FileList-like object para o react-hook-form
-      const dataTransfer = new DataTransfer();
-      dataTransfer.items.add(file);
-      oneTimeExpenseForm.setValue("receiptImage", dataTransfer.files, {
-        shouldValidate: true,
-      });
       toast.success("Imagem selecionada com sucesso!");
     }
   };
 
   const handleRemoveReceiptImage = () => {
     setSelectedReceiptImage(null);
-    oneTimeExpenseForm.setValue("receiptImage", undefined);
   };
 
   const onOneTimeExpenseSubmit = async (data: OneTimeExpenseSchema) => {
     try {
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      setIsSubmitting(true);
 
-      // TODO: Implementar integração com API
-      // 1. Criar despesa avulsa e receber URL pré-assinada
-      // 2. Se houver imagem, fazer upload para a URL pré-assinada
-      // Exemplo:
-      // const response = await oneTimeExpensesService.create({
-      //   name: data.name,
-      //   description: data.description,
-      //   value: data.value,
-      //   referenceMonth: selectedMonth,
-      // });
-      //
-      // if (data.receiptImage?.[0] && response.data?.presignedUrl) {
-      //   await oneTimeExpensesService.uploadReceipt(
-      //     response.data.presignedUrl,
-      //     data.receiptImage[0]
-      //   );
-      // }
+      // TODO: Implementar upload de imagem para S3 se necessário
+      const expenseData = {
+        name: data.name,
+        description: data.description,
+        value: data.value,
+        receiptImageUrl: undefined, // TODO: URL do S3 após upload
+      };
 
       if (editingOneTimeExpenseId) {
-        toast.success("Despesa avulsa atualizada com sucesso!");
+        const response = await financialService.updateOneTimeExpense(
+          editingOneTimeExpenseId,
+          expenseData
+        );
+
+        if (response.success) {
+          toast.success("Despesa avulsa atualizada com sucesso!");
+        } else {
+          toast.error(response.message || "Erro ao atualizar despesa");
+        }
       } else {
-        toast.success("Despesa avulsa cadastrada com sucesso!");
+        const response = await financialService.addOneTimeExpense(expenseData);
+
+        if (response.success) {
+          toast.success("Despesa avulsa cadastrada com sucesso!");
+        } else {
+          toast.error(response.message || "Erro ao cadastrar despesa");
+        }
       }
 
       oneTimeExpenseForm.reset();
       setSelectedReceiptImage(null);
+      setOneTimeExpenseValueInput("");
       setIsOneTimeExpenseDialogOpen(false);
       setEditingOneTimeExpenseId(null);
+      await loadData();
     } catch (error: any) {
       toast.error(error.message || "Erro ao salvar despesa avulsa");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
-  const handleEditOneTimeExpense = (expense: any) => {
-    setEditingOneTimeExpenseId(expense.id);
+  const handleEditOneTimeExpense = (expense: OneTimeExpense) => {
+    setEditingOneTimeExpenseId(expense._id);
     oneTimeExpenseForm.reset({
       name: expense.name,
       description: expense.description,
       value: expense.value,
     });
-    // Se tiver imagem salva, pode ser carregada aqui no futuro
+    setOneTimeExpenseValueInput(formatCurrencyInput(expense.value.toString()));
     setSelectedReceiptImage(null);
     setIsOneTimeExpenseDialogOpen(true);
   };
 
-  const handleDeleteOneTimeExpense = async (expenseId: number) => {
+  const handleDeleteOneTimeExpense = async (expenseId: string) => {
     try {
-      await new Promise((resolve) => setTimeout(resolve, 500));
-      toast.success("Despesa avulsa removida com sucesso!");
+      const response = await financialService.removeOneTimeExpense(expenseId);
+      if (response.success) {
+        toast.success("Despesa avulsa removida com sucesso!");
+        await loadData();
+      } else {
+        toast.error(response.message || "Erro ao remover despesa");
+      }
     } catch (error: any) {
-      toast.error("Erro ao remover despesa avulsa");
+      toast.error(error.message || "Erro ao remover despesa avulsa");
     }
   };
 
@@ -402,6 +417,7 @@ export default function Financial() {
     setIsOneTimeExpenseDialogOpen(false);
     setEditingOneTimeExpenseId(null);
     setSelectedReceiptImage(null);
+    setOneTimeExpenseValueInput("");
     oneTimeExpenseForm.reset({
       name: "",
       description: "",
@@ -409,16 +425,24 @@ export default function Financial() {
     });
   };
 
+  const handleViewSnapshot = async (month: string) => {
+    try {
+      const response = await financialService.getSnapshotByMonth(month);
+      if (response.success && response.data) {
+        setSelectedSnapshot(response.data);
+      }
+    } catch (error: any) {
+      toast.error(error.message || "Erro ao carregar snapshot");
+    }
+  };
+
   if (isLoading) {
     return <FinancialSkeleton />;
   }
 
-  const availableMonths = [
-    { value: "2025-10", label: "Outubro 2025" },
-    { value: "2025-09", label: "Setembro 2025" },
-    { value: "2025-08", label: "Agosto 2025" },
-    { value: "2025-07", label: "Julho 2025" },
-  ];
+  const recurringExpenses = financialSummary?.recurringExpenses || [];
+  const oneTimeExpenses = financialSummary?.oneTimeExpenses || [];
+  const projectExpenses = financialSummary?.projectExpenses || [];
 
   return (
     <div className="space-y-6">
@@ -429,18 +453,11 @@ export default function Financial() {
             Gerencie as informações financeiras do condomínio
           </p>
         </div>
-        <Select value={selectedMonth} onValueChange={setSelectedMonth}>
-          <SelectTrigger className="w-[200px]">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {availableMonths.map((month) => (
-              <SelectItem key={month.value} value={month.value}>
-                {month.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <span className="text-sm text-muted-foreground bg-muted px-3 py-1 rounded-full">
+          {formatMonthLabel(
+            financialSummary?.referenceMonth || getCurrentMonth()
+          )}
+        </span>
       </div>
 
       <Tabs defaultValue="view" className="space-y-6">
@@ -449,6 +466,7 @@ export default function Financial() {
           <TabsTrigger value="register">Cadastrar Caixa</TabsTrigger>
           <TabsTrigger value="expenses">Despesas Recorrentes</TabsTrigger>
           <TabsTrigger value="one-time-expenses">Despesas Avulsas</TabsTrigger>
+          <TabsTrigger value="history">Histórico</TabsTrigger>
         </TabsList>
 
         {/* Aba de Consulta */}
@@ -472,7 +490,6 @@ export default function Financial() {
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* Mês Atual */}
                 <div className="space-y-3">
                   <div className="flex items-center gap-2">
                     <Calendar className="w-4 h-4 text-primary" />
@@ -502,31 +519,32 @@ export default function Financial() {
                   </div>
                 </div>
 
-                {/* Próximo Mês */}
                 <div className="space-y-3">
                   <div className="flex items-center gap-2">
-                    <Calendar className="w-4 h-4 text-blue-500" />
-                    <h3 className="font-semibold text-lg">Próximo Mês</h3>
+                    <PiggyBank className="w-4 h-4 text-blue-500" />
+                    <h3 className="font-semibold text-lg">Saldo Anterior</h3>
                   </div>
                   <div className="space-y-2">
                     <div>
                       <p className="text-xs text-muted-foreground">
-                        Total a arrecadar
+                        Saldo do mês anterior
                       </p>
                       <p className="text-3xl font-bold text-blue-600 dark:text-blue-500">
-                        R$ {nextMonthCollection.toLocaleString("pt-BR")}
+                        R${" "}
+                        {(
+                          financialSummary?.previousBalance || 0
+                        ).toLocaleString("pt-BR")}
                       </p>
                     </div>
                     <div className="p-3 rounded-lg bg-blue-500/5 border border-blue-500/20">
                       <p className="text-xs text-muted-foreground mb-1">
-                        Por apartamento ({totalApartments} unidades)
+                        Caixa atual (arrecadação do mês)
                       </p>
                       <p className="text-xl font-bold text-blue-600 dark:text-blue-500">
                         R${" "}
-                        {perApartmentNext.toLocaleString("pt-BR", {
-                          minimumFractionDigits: 2,
-                          maximumFractionDigits: 2,
-                        })}
+                        {(
+                          financialSummary?.condominiumFund || 0
+                        ).toLocaleString("pt-BR")}
                       </p>
                     </div>
                   </div>
@@ -543,11 +561,11 @@ export default function Financial() {
                 Análise Mensal
               </h2>
               <p className="text-sm text-muted-foreground">
-                Situação financeira considerando apenas o mês atual
+                Situação financeira do mês atual
               </p>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-              {/* Despesas Recorrentes Mensais */}
+              {/* Despesas Recorrentes */}
               <Card className="border-orange-500/50 bg-orange-500/5">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <CardTitle className="text-sm font-medium">
@@ -560,7 +578,7 @@ export default function Financial() {
                     R$ {totalRecurringExpenses.toLocaleString("pt-BR")}
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    {recurringExpenses.length} despesa(s) mensal(is)
+                    {recurringExpenses.length} despesa(s)
                   </p>
                 </CardContent>
               </Card>
@@ -578,34 +596,34 @@ export default function Financial() {
                     R$ {totalOneTimeExpenses.toLocaleString("pt-BR")}
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    {oneTimeExpenses.length} despesa(s) do mês
+                    {oneTimeExpenses.length} despesa(s)
                   </p>
                 </CardContent>
               </Card>
 
-              {/* Despesas de Sugestões (Mensal) */}
+              {/* Despesas de Projetos */}
               <Card className="border-blue-500/50 bg-blue-500/5">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <CardTitle className="text-sm font-medium">
-                    Sugestões (Mensal)
+                    Projetos (Mensal)
                   </CardTitle>
                   <TrendingUp className="h-4 w-4 text-blue-500" />
                 </CardHeader>
                 <CardContent>
                   <div className="text-2xl font-bold text-blue-600 dark:text-blue-500">
-                    R$ {totalSuggestionsMonthlyExpense.toLocaleString("pt-BR")}
+                    R$ {totalProjectExpenses.toLocaleString("pt-BR")}
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    Parcela mensal das obras
+                    {projectExpenses.length} projeto(s) em andamento
                   </p>
                 </CardContent>
               </Card>
 
-              {/* Total de Despesas Mensais */}
+              {/* Total de Despesas */}
               <Card className="border-amber-500/50 bg-amber-500/5">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <CardTitle className="text-sm font-medium">
-                    Total Despesas do Mês
+                    Total Despesas
                   </CardTitle>
                   <DollarSign className="h-4 w-4 text-amber-500" />
                 </CardHeader>
@@ -614,7 +632,7 @@ export default function Financial() {
                     R$ {totalMonthlyExpenses.toLocaleString("pt-BR")}
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    Todas as despesas
+                    Todas as despesas do mês
                   </p>
                 </CardContent>
               </Card>
@@ -622,7 +640,7 @@ export default function Financial() {
               {/* Saldo Mensal */}
               <Card
                 className={`${
-                  isMonthlyFundPositive
+                  isMonthlyBalancePositive
                     ? "border-green-500/50 bg-green-500/5"
                     : "border-red-500/50 bg-red-500/5"
                 }`}
@@ -631,7 +649,7 @@ export default function Financial() {
                   <CardTitle className="text-sm font-medium">
                     Saldo do Mês
                   </CardTitle>
-                  {isMonthlyFundPositive ? (
+                  {isMonthlyBalancePositive ? (
                     <TrendingUp className="h-4 w-4 text-green-500" />
                   ) : (
                     <TrendingDown className="h-4 w-4 text-red-500" />
@@ -640,109 +658,23 @@ export default function Financial() {
                 <CardContent>
                   <div
                     className={`text-2xl font-bold ${
-                      isMonthlyFundPositive
+                      isMonthlyBalancePositive
                         ? "text-green-600 dark:text-green-500"
                         : "text-red-600 dark:text-red-500"
                     }`}
                   >
-                    R$ {monthlyFund.toLocaleString("pt-BR")}
+                    R$ {monthlyBalance.toLocaleString("pt-BR")}
                   </div>
-                  <p className="text-xs text-muted-foreground">
-                    Caixa - Despesas Mensais
-                  </p>
+                  <p className="text-xs text-muted-foreground">Após despesas</p>
                 </CardContent>
               </Card>
             </div>
           </div>
 
-          {/* Análise TOTAL */}
-          <div>
-            <div className="mb-4">
-              <h2 className="text-xl font-bold flex items-center gap-2">
-                <PiggyBank className="w-5 h-5 text-primary" />
-                Análise Total (Todas as Despesas)
-              </h2>
-              <p className="text-sm text-muted-foreground">
-                Situação financeira considerando todas as despesas futuras
-              </p>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {/* Caixa Total */}
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">
-                    Caixa Total do Condomínio
-                  </CardTitle>
-                  <PiggyBank className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">
-                    R$ {financialData.condominiumFund.toLocaleString("pt-BR")}
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    Atualizado em {financialData.lastUpdate}
-                  </p>
-                </CardContent>
-              </Card>
-
-              {/* Total Restante das Sugestões */}
-              <Card className="border-purple-500/50 bg-purple-500/5">
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">
-                    Total Restante (Sugestões)
-                  </CardTitle>
-                  <DollarSign className="h-4 w-4 text-purple-500" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold text-purple-600 dark:text-purple-500">
-                    R$ {totalSuggestionsRemaining.toLocaleString("pt-BR")}
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    Valor total a ser pago
-                  </p>
-                </CardContent>
-              </Card>
-
-              {/* Total Comprometido */}
-              <Card
-                className={`${
-                  isTotalCommittedPositive
-                    ? "border-green-500/50 bg-green-500/5"
-                    : "border-red-500/50 bg-red-500/5"
-                }`}
-              >
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">
-                    Saldo Total Comprometido
-                  </CardTitle>
-                  {isTotalCommittedPositive ? (
-                    <TrendingUp className="h-4 w-4 text-green-500" />
-                  ) : (
-                    <TrendingDown className="h-4 w-4 text-red-500" />
-                  )}
-                </CardHeader>
-                <CardContent>
-                  <div
-                    className={`text-2xl font-bold ${
-                      isTotalCommittedPositive
-                        ? "text-green-600 dark:text-green-500"
-                        : "text-red-600 dark:text-red-500"
-                    }`}
-                  >
-                    R$ {totalCommitted.toLocaleString("pt-BR")}
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    Caixa - Todas as Despesas Futuras
-                  </p>
-                </CardContent>
-              </Card>
-            </div>
-          </div>
-
-          {/* Lista de Todas as Despesas */}
+          {/* Lista de Despesas */}
           <Card>
             <CardHeader>
-              <CardTitle>Todas as Despesas</CardTitle>
+              <CardTitle>Detalhamento das Despesas</CardTitle>
             </CardHeader>
             <CardContent className="space-y-6">
               {/* Despesas Recorrentes */}
@@ -752,35 +684,31 @@ export default function Financial() {
                   Despesas Recorrentes
                 </h3>
                 <div className="space-y-2">
-                  {recurringExpenses.map((expense) => (
-                    <div
-                      key={expense.id}
-                      className="flex justify-between items-center p-3 rounded-lg bg-muted/50 hover:bg-muted/80 transition-colors"
-                    >
-                      <div className="flex-1">
-                        <span className="font-medium">{expense.name}</span>
-                        {expense.hasExpirationDate &&
-                          expense.expirationDate && (
-                            <p className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
-                              <AlertCircle className="w-3 h-3" />
-                              Válido até:{" "}
-                              {new Date(
-                                expense.expirationDate
-                              ).toLocaleDateString("pt-BR")}
-                            </p>
-                          )}
+                  {recurringExpenses.length > 0 ? (
+                    <>
+                      {recurringExpenses.map((expense) => (
+                        <div
+                          key={expense._id}
+                          className="flex justify-between items-center p-3 rounded-lg bg-muted/50"
+                        >
+                          <span className="font-medium">{expense.name}</span>
+                          <span className="text-lg font-bold">
+                            R$ {expense.value.toLocaleString("pt-BR")}
+                          </span>
+                        </div>
+                      ))}
+                      <div className="flex justify-between items-center p-3 rounded-lg bg-orange-500/10 border-2 border-orange-500/50">
+                        <span className="font-bold">Subtotal</span>
+                        <span className="text-xl font-bold text-orange-600 dark:text-orange-500">
+                          R$ {totalRecurringExpenses.toLocaleString("pt-BR")}
+                        </span>
                       </div>
-                      <span className="text-lg font-bold">
-                        R$ {expense.value.toLocaleString("pt-BR")}
-                      </span>
-                    </div>
-                  ))}
-                  <div className="flex justify-between items-center p-3 rounded-lg bg-orange-500/10 border-2 border-orange-500/50">
-                    <span className="font-bold">Subtotal Recorrentes</span>
-                    <span className="text-xl font-bold text-orange-600 dark:text-orange-500">
-                      R$ {totalRecurringExpenses.toLocaleString("pt-BR")}
-                    </span>
-                  </div>
+                    </>
+                  ) : (
+                    <p className="text-muted-foreground text-center py-4">
+                      Nenhuma despesa recorrente cadastrada
+                    </p>
+                  )}
                 </div>
               </div>
 
@@ -788,22 +716,22 @@ export default function Financial() {
               <div>
                 <h3 className="font-semibold text-lg mb-3 flex items-center gap-2">
                   <Receipt className="w-5 h-5 text-pink-500" />
-                  Despesas Avulsas do Mês
+                  Despesas Avulsas
                 </h3>
                 <div className="space-y-2">
                   {oneTimeExpenses.length > 0 ? (
                     <>
                       {oneTimeExpenses.map((expense) => (
                         <div
-                          key={expense.id}
-                          className="flex justify-between items-start p-3 rounded-lg bg-muted/50 hover:bg-muted/80 transition-colors"
+                          key={expense._id}
+                          className="flex justify-between items-start p-3 rounded-lg bg-muted/50"
                         >
                           <div className="flex-1">
                             <div className="flex items-center gap-2">
                               <span className="font-medium">
                                 {expense.name}
                               </span>
-                              {expense.receiptImage && (
+                              {expense.receiptImageUrl && (
                                 <ImageIcon className="w-4 h-4 text-primary" />
                               )}
                             </div>
@@ -817,72 +745,81 @@ export default function Financial() {
                         </div>
                       ))}
                       <div className="flex justify-between items-center p-3 rounded-lg bg-pink-500/10 border-2 border-pink-500/50">
-                        <span className="font-bold">Subtotal Avulsas</span>
+                        <span className="font-bold">Subtotal</span>
                         <span className="text-xl font-bold text-pink-600 dark:text-pink-500">
                           R$ {totalOneTimeExpenses.toLocaleString("pt-BR")}
                         </span>
                       </div>
                     </>
                   ) : (
-                    <div className="p-3 rounded-lg bg-muted/30 text-center">
-                      <p className="text-sm text-muted-foreground">
-                        Nenhuma despesa avulsa neste mês
-                      </p>
-                    </div>
+                    <p className="text-muted-foreground text-center py-4">
+                      Nenhuma despesa avulsa neste mês
+                    </p>
                   )}
                 </div>
               </div>
 
-              {/* Despesas das Sugestões Aprovadas */}
+              {/* Projetos em Andamento */}
               <div>
                 <h3 className="font-semibold text-lg mb-3 flex items-center gap-2">
                   <TrendingUp className="w-5 h-5 text-blue-500" />
-                  Sugestões Aprovadas em Andamento
+                  Projetos em Andamento
                 </h3>
                 <div className="space-y-3">
-                  {approvedSuggestions.map((suggestion) => (
-                    <div key={suggestion.id} className="space-y-2">
-                      <div className="flex justify-between items-start">
-                        <div className="flex-1">
-                          <span className="font-medium">
-                            {suggestion.title}
-                          </span>
-                          <p className="text-xs text-muted-foreground">
-                            Mensal: R${" "}
-                            {suggestion.monthlyExpense.toLocaleString("pt-BR")}{" "}
-                            | Restante: R${" "}
-                            {suggestion.totalRemaining.toLocaleString("pt-BR")}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Progress
-                          value={suggestion.progress}
-                          className="flex-1"
-                        />
-                        <span className="text-sm text-muted-foreground w-12">
-                          {suggestion.progress}%
+                  {projectExpenses.length > 0 ? (
+                    <>
+                      {projectExpenses.map((project) => {
+                        const progress =
+                          (project.paidInstallments /
+                            project.installmentsCount) *
+                          100;
+                        return (
+                          <div key={project.projectId} className="space-y-2">
+                            <div className="flex justify-between items-start">
+                              <div className="flex-1">
+                                <span className="font-medium">
+                                  {project.projectTitle}
+                                </span>
+                                <p className="text-xs text-muted-foreground">
+                                  {project.companyName} | Parcela: R${" "}
+                                  {project.monthlyValue.toLocaleString("pt-BR")}{" "}
+                                  | Restante: R${" "}
+                                  {(
+                                    project.totalValue -
+                                    project.paidInstallments *
+                                      project.monthlyValue
+                                  ).toLocaleString("pt-BR")}
+                                </p>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Progress value={progress} className="flex-1" />
+                              <span className="text-sm text-muted-foreground w-20 text-right">
+                                {project.paidInstallments}/
+                                {project.installmentsCount}
+                              </span>
+                            </div>
+                          </div>
+                        );
+                      })}
+                      <div className="flex justify-between items-center p-3 rounded-lg bg-blue-500/10 border-2 border-blue-500/50">
+                        <span className="font-bold">Subtotal (Mensal)</span>
+                        <span className="text-xl font-bold text-blue-600 dark:text-blue-500">
+                          R$ {totalProjectExpenses.toLocaleString("pt-BR")}
                         </span>
                       </div>
-                    </div>
-                  ))}
-                  <div className="flex justify-between items-center p-3 rounded-lg bg-blue-500/10 border-2 border-blue-500/50">
-                    <span className="font-bold">
-                      Subtotal Sugestões (Mensal)
-                    </span>
-                    <span className="text-xl font-bold text-blue-600 dark:text-blue-500">
-                      R${" "}
-                      {totalSuggestionsMonthlyExpense.toLocaleString("pt-BR")}
-                    </span>
-                  </div>
+                    </>
+                  ) : (
+                    <p className="text-muted-foreground text-center py-4">
+                      Nenhum projeto em andamento
+                    </p>
+                  )}
                 </div>
               </div>
 
               {/* Total Geral */}
               <div className="flex justify-between items-center p-4 rounded-lg bg-primary/10 border-2 border-primary/50">
-                <span className="font-bold text-xl">
-                  Total de Despesas Mensais
-                </span>
+                <span className="font-bold text-xl">Total de Despesas</span>
                 <span className="text-2xl font-bold text-primary">
                   R$ {totalMonthlyExpenses.toLocaleString("pt-BR")}
                 </span>
@@ -892,12 +829,66 @@ export default function Financial() {
         </TabsContent>
 
         {/* Aba de Cadastro de Caixa */}
-        <TabsContent value="register">
+        <TabsContent value="register" className="space-y-6">
+          {/* Card de resumo do caixa atual */}
+          <Card className="border-2 border-primary/50 bg-primary/5">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <PiggyBank className="w-6 h-6 text-primary" />
+                Caixa do Mês Atual
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="p-4 bg-background rounded-lg">
+                  <p className="text-sm text-muted-foreground">
+                    Saldo Anterior
+                  </p>
+                  <p className="text-2xl font-bold text-blue-600 dark:text-blue-500">
+                    R${" "}
+                    {(financialSummary?.previousBalance || 0).toLocaleString(
+                      "pt-BR"
+                    )}
+                  </p>
+                </div>
+                <div className="p-4 bg-background rounded-lg">
+                  <p className="text-sm text-muted-foreground">
+                    Arrecadação do Mês
+                  </p>
+                  <p className="text-2xl font-bold text-primary">
+                    R${" "}
+                    {(financialSummary?.condominiumFund || 0).toLocaleString(
+                      "pt-BR"
+                    )}
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {(financialSummary?.fundEntries || []).length} entrada(s)
+                    cadastrada(s)
+                  </p>
+                </div>
+                <div className="p-4 bg-background rounded-lg">
+                  <p className="text-sm text-muted-foreground">
+                    Total Disponível
+                  </p>
+                  <p className="text-2xl font-bold text-green-600 dark:text-green-500">
+                    R${" "}
+                    {(
+                      (financialSummary?.previousBalance || 0) +
+                      (financialSummary?.condominiumFund || 0)
+                    ).toLocaleString("pt-BR")}
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Formulário de cadastro */}
           <Card>
             <CardHeader>
-              <CardTitle>Cadastrar Caixa do Condomínio</CardTitle>
+              <CardTitle>Adicionar Entrada de Caixa</CardTitle>
               <p className="text-sm text-muted-foreground">
-                Registre o valor total do caixa do condomínio
+                Registre um novo valor de arrecadação para o mês atual. Você
+                pode cadastrar múltiplas entradas.
               </p>
             </CardHeader>
             <CardContent>
@@ -907,43 +898,38 @@ export default function Financial() {
               >
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-2">
-                    <Label htmlFor="condominiumFund">
-                      Caixa do Condomínio (R$)
-                    </Label>
-                    <div className="relative">
-                      <DollarSign className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                      <Input
-                        id="condominiumFund"
-                        type="number"
-                        step="0.01"
-                        placeholder="50000.00"
-                        {...financialForm.register("condominiumFund", {
-                          valueAsNumber: true,
-                        })}
-                        className="pl-9"
-                      />
-                    </div>
-                    {financialForm.formState.errors.condominiumFund && (
+                    <Label htmlFor="fundTitle">Nome</Label>
+                    <Input
+                      id="fundTitle"
+                      placeholder="Ex: Taxa de condomínio - Dezembro"
+                      {...financialForm.register("title")}
+                    />
+                    {financialForm.formState.errors.title && (
                       <p className="text-sm text-destructive">
-                        {financialForm.formState.errors.condominiumFund.message}
+                        {financialForm.formState.errors.title.message}
                       </p>
                     )}
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="referenceMonth">Mês de Referência</Label>
+                    <Label htmlFor="fundValue">Valor (R$)</Label>
                     <div className="relative">
-                      <Calendar className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">
+                        R$
+                      </span>
                       <Input
-                        id="referenceMonth"
-                        type="month"
-                        {...financialForm.register("referenceMonth")}
-                        className="pl-9"
+                        id="fundValue"
+                        type="text"
+                        inputMode="numeric"
+                        placeholder="0,00"
+                        className="pl-10"
+                        value={fundValueInput}
+                        onChange={handleFundValueChange}
                       />
                     </div>
-                    {financialForm.formState.errors.referenceMonth && (
+                    {financialForm.formState.errors.value && (
                       <p className="text-sm text-destructive">
-                        {financialForm.formState.errors.referenceMonth.message}
+                        {financialForm.formState.errors.value.message}
                       </p>
                     )}
                   </div>
@@ -953,17 +939,19 @@ export default function Financial() {
                   <Button
                     type="submit"
                     className="flex-1"
-                    disabled={financialForm.formState.isSubmitting}
+                    disabled={isSubmitting}
                   >
-                    {financialForm.formState.isSubmitting
-                      ? "Cadastrando..."
-                      : "Cadastrar Informações"}
+                    <Plus className="w-4 h-4 mr-2" />
+                    {isSubmitting ? "Cadastrando..." : "Cadastrar Entrada"}
                   </Button>
                   <Button
                     type="button"
                     variant="outline"
-                    onClick={() => financialForm.reset()}
-                    disabled={financialForm.formState.isSubmitting}
+                    onClick={() => {
+                      financialForm.reset();
+                      setFundValueInput("");
+                    }}
+                    disabled={isSubmitting}
                   >
                     Limpar
                   </Button>
@@ -971,11 +959,139 @@ export default function Financial() {
               </form>
             </CardContent>
           </Card>
+
+          {/* Lista de entradas cadastradas */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Entradas Cadastradas</CardTitle>
+              <p className="text-sm text-muted-foreground">
+                Histórico de todas as entradas de caixa deste mês
+              </p>
+            </CardHeader>
+            <CardContent>
+              {(financialSummary?.fundEntries || []).length > 0 ? (
+                <div className="space-y-3">
+                  {(financialSummary?.fundEntries || []).map((entry) => (
+                    <div
+                      key={entry._id}
+                      className="flex justify-between items-center p-4 rounded-lg bg-muted/50 border"
+                    >
+                      <div className="flex items-center gap-3">
+                        <CheckCircle2 className="w-5 h-5 text-green-500" />
+                        <div>
+                          <p className="font-medium">{entry.title}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {new Date(entry.createdAt).toLocaleDateString(
+                              "pt-BR",
+                              {
+                                day: "2-digit",
+                                month: "long",
+                                year: "numeric",
+                                hour: "2-digit",
+                                minute: "2-digit",
+                              }
+                            )}
+                          </p>
+                        </div>
+                      </div>
+                      <span className="text-lg font-bold text-primary">
+                        R$ {entry.value.toLocaleString("pt-BR")}
+                      </span>
+                    </div>
+                  ))}
+                  <div className="flex justify-between items-center p-4 rounded-lg bg-primary/10 border-2 border-primary/50">
+                    <span className="font-bold">Total Arrecadado</span>
+                    <span className="text-xl font-bold text-primary">
+                      R${" "}
+                      {(financialSummary?.condominiumFund || 0).toLocaleString(
+                        "pt-BR"
+                      )}
+                    </span>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex flex-col items-center justify-center py-8 text-center">
+                  <PiggyBank className="w-12 h-12 text-muted-foreground/50 mb-4" />
+                  <p className="text-muted-foreground">
+                    Nenhuma entrada cadastrada neste mês
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    Cadastre a primeira entrada de caixa acima
+                  </p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Diálogo de Confirmação */}
+          <AlertDialog
+            open={isConfirmFundDialogOpen}
+            onOpenChange={setIsConfirmFundDialogOpen}
+          >
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Confirmar Cadastro</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Você está prestes a cadastrar a seguinte entrada de caixa:
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+
+              {pendingFundEntry && (
+                <div className="p-4 bg-muted rounded-lg space-y-2">
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Título:</span>
+                    <span className="font-medium">
+                      {pendingFundEntry.title}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Valor:</span>
+                    <span className="font-bold text-primary text-lg">
+                      R${" "}
+                      {pendingFundEntry.value.toLocaleString("pt-BR", {
+                        minimumFractionDigits: 2,
+                      })}
+                    </span>
+                  </div>
+                </div>
+              )}
+
+              <div className="p-3 bg-orange-500/10 border border-orange-500/20 rounded-lg">
+                <p className="text-sm text-orange-600 dark:text-orange-500">
+                  ⚠️ Esta ação não pode ser desfeita. Verifique se os dados
+                  estão corretos.
+                </p>
+              </div>
+
+              <AlertDialogFooter>
+                <AlertDialogCancel
+                  disabled={isSubmitting}
+                  onClick={() => setPendingFundEntry(null)}
+                >
+                  Cancelar
+                </AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={handleConfirmFundEntry}
+                  disabled={isSubmitting}
+                >
+                  {isSubmitting ? "Cadastrando..." : "Confirmar Cadastro"}
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </TabsContent>
 
         {/* Aba de Despesas Recorrentes */}
         <TabsContent value="expenses" className="space-y-6">
-          <div className="flex justify-end">
+          <div className="flex justify-between items-center">
+            <div>
+              <h2 className="text-2xl font-bold">
+                Despesas Recorrentes do Mês
+              </h2>
+              <p className="text-sm text-muted-foreground">
+                Despesas que acontecem todos os meses
+              </p>
+            </div>
             <Dialog
               open={isExpenseDialogOpen}
               onOpenChange={(open) => {
@@ -1018,18 +1134,19 @@ export default function Financial() {
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="value">Valor (R$)</Label>
+                    <Label htmlFor="recurringExpenseValue">Valor (R$)</Label>
                     <div className="relative">
-                      <DollarSign className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">
+                        R$
+                      </span>
                       <Input
-                        id="value"
-                        type="number"
-                        step="0.01"
-                        placeholder="0.00"
-                        {...expenseForm.register("value", {
-                          valueAsNumber: true,
-                        })}
-                        className="pl-9"
+                        id="recurringExpenseValue"
+                        type="text"
+                        inputMode="numeric"
+                        placeholder="0,00"
+                        value={recurringExpenseValueInput}
+                        onChange={handleRecurringExpenseValueChange}
+                        className="pl-10"
                       />
                     </div>
                     {expenseForm.formState.errors.value && (
@@ -1039,50 +1156,13 @@ export default function Financial() {
                     )}
                   </div>
 
-                  <div className="space-y-2">
-                    <div className="flex items-center space-x-2">
-                      <Checkbox
-                        id="hasExpirationDate"
-                        checked={hasExpirationDate}
-                        onCheckedChange={(checked) =>
-                          expenseForm.setValue(
-                            "hasExpirationDate",
-                            checked as boolean
-                          )
-                        }
-                      />
-                      <Label
-                        htmlFor="hasExpirationDate"
-                        className="cursor-pointer"
-                      >
-                        Definir prazo de validade
-                      </Label>
-                    </div>
-                  </div>
-
-                  {hasExpirationDate && (
-                    <div className="space-y-2">
-                      <Label htmlFor="expirationDate">Data de Validade</Label>
-                      <Input
-                        id="expirationDate"
-                        type="date"
-                        {...expenseForm.register("expirationDate")}
-                      />
-                      {expenseForm.formState.errors.expirationDate && (
-                        <p className="text-sm text-destructive">
-                          {expenseForm.formState.errors.expirationDate.message}
-                        </p>
-                      )}
-                    </div>
-                  )}
-
                   <div className="flex gap-4">
                     <Button
                       type="submit"
                       className="flex-1"
-                      disabled={expenseForm.formState.isSubmitting}
+                      disabled={isSubmitting}
                     >
-                      {expenseForm.formState.isSubmitting
+                      {isSubmitting
                         ? "Salvando..."
                         : editingExpenseId
                         ? "Atualizar"
@@ -1103,7 +1183,7 @@ export default function Financial() {
 
           <div className="grid grid-cols-1 gap-4">
             {recurringExpenses.map((expense) => (
-              <Card key={expense.id}>
+              <Card key={expense._id}>
                 <CardHeader>
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
@@ -1111,26 +1191,9 @@ export default function Financial() {
                         <Receipt className="w-5 h-5" />
                         {expense.name}
                       </CardTitle>
-                      <div className="flex items-center gap-4 mt-2">
-                        <p className="text-2xl font-bold text-primary">
-                          R$ {expense.value.toLocaleString("pt-BR")}
-                        </p>
-                        {expense.hasExpirationDate &&
-                          expense.expirationDate && (
-                            <p className="text-sm text-muted-foreground flex items-center gap-1">
-                              <AlertCircle className="w-4 h-4" />
-                              Válido até:{" "}
-                              {new Date(
-                                expense.expirationDate
-                              ).toLocaleDateString("pt-BR")}
-                            </p>
-                          )}
-                        {!expense.hasExpirationDate && (
-                          <p className="text-sm text-muted-foreground">
-                            Sem prazo de validade
-                          </p>
-                        )}
-                      </div>
+                      <p className="text-2xl font-bold text-primary mt-2">
+                        R$ {expense.value.toLocaleString("pt-BR")}
+                      </p>
                     </div>
                     <div className="flex gap-2">
                       <Button
@@ -1143,7 +1206,7 @@ export default function Financial() {
                       <Button
                         size="sm"
                         variant="outline"
-                        onClick={() => handleDeleteExpense(expense.id)}
+                        onClick={() => handleDeleteExpense(expense._id)}
                       >
                         <Trash2 className="w-4 h-4" />
                       </Button>
@@ -1157,13 +1220,9 @@ export default function Financial() {
           {recurringExpenses.length === 0 && (
             <Card>
               <CardContent className="flex flex-col items-center justify-center h-32">
-                <p className="text-muted-foreground mb-4">
+                <p className="text-muted-foreground">
                   Nenhuma despesa recorrente cadastrada
                 </p>
-                <Button onClick={() => setIsExpenseDialogOpen(true)}>
-                  <Plus className="w-4 h-4 mr-2" />
-                  Cadastrar Primeira Despesa
-                </Button>
               </CardContent>
             </Card>
           )}
@@ -1175,7 +1234,7 @@ export default function Financial() {
             <div>
               <h2 className="text-2xl font-bold">Despesas Avulsas do Mês</h2>
               <p className="text-sm text-muted-foreground">
-                Despesas que aparecem apenas no mês selecionado
+                Despesas que aparecem apenas no mês atual
               </p>
             </div>
             <Dialog
@@ -1198,8 +1257,7 @@ export default function Financial() {
                     Avulsa
                   </DialogTitle>
                   <DialogDescription>
-                    Despesa única que será contabilizada apenas no mês
-                    selecionado
+                    Despesa única que será contabilizada no mês atual
                   </DialogDescription>
                 </DialogHeader>
                 <form
@@ -1243,16 +1301,17 @@ export default function Financial() {
                   <div className="space-y-2">
                     <Label htmlFor="oneTimeValue">Valor (R$)</Label>
                     <div className="relative">
-                      <DollarSign className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">
+                        R$
+                      </span>
                       <Input
                         id="oneTimeValue"
-                        type="number"
-                        step="0.01"
-                        placeholder="0.00"
-                        {...oneTimeExpenseForm.register("value", {
-                          valueAsNumber: true,
-                        })}
-                        className="pl-9"
+                        type="text"
+                        inputMode="numeric"
+                        placeholder="0,00"
+                        value={oneTimeExpenseValueInput}
+                        onChange={handleOneTimeExpenseValueChange}
+                        className="pl-10"
                       />
                     </div>
                     {oneTimeExpenseForm.formState.errors.value && (
@@ -1266,7 +1325,6 @@ export default function Financial() {
                     <Label htmlFor="receiptImage">
                       Imagem do Recibo (Opcional)
                     </Label>
-
                     {selectedReceiptImage ? (
                       <div className="space-y-3">
                         <div className="relative border rounded-lg overflow-hidden bg-muted">
@@ -1285,7 +1343,7 @@ export default function Financial() {
                               }
                             >
                               <Upload className="mr-2 h-4 w-4" />
-                              Trocar Imagem
+                              Trocar
                             </Button>
                             <Button
                               type="button"
@@ -1314,47 +1372,29 @@ export default function Financial() {
                           <div className="p-3 rounded-full bg-primary/10">
                             <Upload className="h-8 w-8 text-primary" />
                           </div>
-                          <div>
-                            <p className="font-medium">
-                              Clique para selecionar
-                            </p>
-                            <p className="text-xs text-muted-foreground mt-1">
-                              ou arraste a imagem aqui
-                            </p>
-                          </div>
+                          <p className="font-medium">Clique para selecionar</p>
                           <p className="text-xs text-muted-foreground">
                             PNG, JPG, JPEG ou WebP (máx. 5MB)
                           </p>
                         </div>
                       </button>
                     )}
-
                     <input
                       id="receiptImage"
                       type="file"
                       accept="image/jpeg,image/jpg,image/png,image/webp"
-                      {...oneTimeExpenseForm.register("receiptImage")}
                       onChange={handleReceiptImageSelect}
                       className="hidden"
                     />
-
-                    {oneTimeExpenseForm.formState.errors.receiptImage && (
-                      <p className="text-sm text-destructive">
-                        {
-                          oneTimeExpenseForm.formState.errors.receiptImage
-                            .message
-                        }
-                      </p>
-                    )}
                   </div>
 
                   <div className="flex gap-4">
                     <Button
                       type="submit"
                       className="flex-1"
-                      disabled={oneTimeExpenseForm.formState.isSubmitting}
+                      disabled={isSubmitting}
                     >
-                      {oneTimeExpenseForm.formState.isSubmitting
+                      {isSubmitting
                         ? "Salvando..."
                         : editingOneTimeExpenseId
                         ? "Atualizar"
@@ -1375,7 +1415,7 @@ export default function Financial() {
 
           <div className="grid grid-cols-1 gap-4">
             {oneTimeExpenses.map((expense) => (
-              <Card key={expense.id}>
+              <Card key={expense._id}>
                 <CardHeader>
                   <div className="flex items-start justify-between gap-4">
                     <div className="flex-1 space-y-2">
@@ -1386,28 +1426,17 @@ export default function Financial() {
                       <p className="text-sm text-muted-foreground">
                         {expense.description}
                       </p>
-                      <div className="flex items-center gap-4">
-                        <p className="text-2xl font-bold text-primary">
-                          R$ {expense.value.toLocaleString("pt-BR")}
-                        </p>
-                        <p className="text-sm text-muted-foreground flex items-center gap-1">
-                          <Calendar className="w-4 h-4" />
-                          {new Date(
-                            `${expense.referenceMonth}-01`
-                          ).toLocaleDateString("pt-BR", {
-                            month: "long",
-                            year: "numeric",
-                          })}
-                        </p>
-                      </div>
-                      {expense.receiptImage && (
+                      <p className="text-2xl font-bold text-primary">
+                        R$ {expense.value.toLocaleString("pt-BR")}
+                      </p>
+                      {expense.receiptImageUrl && (
                         <div className="mt-3">
                           <p className="text-xs text-muted-foreground mb-2 flex items-center gap-1">
                             <ImageIcon className="w-3 h-3" />
                             Recibo/Nota Fiscal
                           </p>
                           <img
-                            src={expense.receiptImage}
+                            src={expense.receiptImageUrl}
                             alt="Recibo"
                             className="max-w-xs h-auto rounded-lg border"
                           />
@@ -1425,7 +1454,7 @@ export default function Financial() {
                       <Button
                         size="sm"
                         variant="outline"
-                        onClick={() => handleDeleteOneTimeExpense(expense.id)}
+                        onClick={() => handleDeleteOneTimeExpense(expense._id)}
                       >
                         <Trash2 className="w-4 h-4" />
                       </Button>
@@ -1439,15 +1468,209 @@ export default function Financial() {
           {oneTimeExpenses.length === 0 && (
             <Card>
               <CardContent className="flex flex-col items-center justify-center h-32">
-                <p className="text-muted-foreground mb-4">
-                  Nenhuma despesa avulsa cadastrada para este mês
+                <p className="text-muted-foreground">
+                  Nenhuma despesa avulsa neste mês
                 </p>
-                <Button onClick={() => setIsOneTimeExpenseDialogOpen(true)}>
-                  <Plus className="w-4 h-4 mr-2" />
-                  Cadastrar Primeira Despesa
-                </Button>
               </CardContent>
             </Card>
+          )}
+        </TabsContent>
+
+        {/* Aba de Histórico */}
+        <TabsContent value="history" className="space-y-6">
+          <div>
+            <h2 className="text-2xl font-bold mb-2">Histórico Financeiro</h2>
+            <p className="text-sm text-muted-foreground mb-6">
+              Visualize os snapshots dos meses anteriores
+            </p>
+          </div>
+
+          {snapshots.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {snapshots.map((snapshot) => (
+                <Card
+                  key={snapshot._id}
+                  className="cursor-pointer hover:border-primary/50 transition-colors"
+                  onClick={() => handleViewSnapshot(snapshot.referenceMonth)}
+                >
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Calendar className="w-5 h-5" />
+                      {formatMonthLabel(snapshot.referenceMonth)}
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-2">
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">
+                        Arrecadação:
+                      </span>
+                      <span className="font-medium">
+                        R$ {snapshot.condominiumFund.toLocaleString("pt-BR")}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">
+                        Total Despesas:
+                      </span>
+                      <span className="font-medium">
+                        R${" "}
+                        {(
+                          snapshot.totalRecurringExpenses +
+                          snapshot.totalOneTimeExpenses +
+                          snapshot.totalProjectExpenses
+                        ).toLocaleString("pt-BR")}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">
+                        Saldo Final:
+                      </span>
+                      <span
+                        className={`font-bold ${
+                          snapshot.finalBalance >= 0
+                            ? "text-green-600"
+                            : "text-red-600"
+                        }`}
+                      >
+                        R$ {snapshot.finalBalance.toLocaleString("pt-BR")}
+                      </span>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          ) : (
+            <Card>
+              <CardContent className="flex flex-col items-center justify-center h-32">
+                <p className="text-muted-foreground">
+                  Nenhum histórico disponível ainda
+                </p>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Modal de detalhes do snapshot */}
+          {selectedSnapshot && (
+            <Dialog
+              open={!!selectedSnapshot}
+              onOpenChange={() => setSelectedSnapshot(null)}
+            >
+              <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+                <DialogHeader>
+                  <DialogTitle>
+                    Snapshot:{" "}
+                    {formatMonthLabel(selectedSnapshot.referenceMonth)}
+                  </DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="p-3 bg-muted rounded-lg">
+                      <p className="text-sm text-muted-foreground">
+                        Arrecadação
+                      </p>
+                      <p className="text-xl font-bold">
+                        R${" "}
+                        {selectedSnapshot.condominiumFund.toLocaleString(
+                          "pt-BR"
+                        )}
+                      </p>
+                    </div>
+                    <div className="p-3 bg-muted rounded-lg">
+                      <p className="text-sm text-muted-foreground">
+                        Saldo Anterior
+                      </p>
+                      <p className="text-xl font-bold">
+                        R${" "}
+                        {selectedSnapshot.previousBalance.toLocaleString(
+                          "pt-BR"
+                        )}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <h4 className="font-semibold">Despesas Recorrentes</h4>
+                    {selectedSnapshot.recurringExpenses.map((exp) => (
+                      <div
+                        key={exp._id}
+                        className="flex justify-between p-2 bg-muted/50 rounded"
+                      >
+                        <span>{exp.name}</span>
+                        <span>R$ {exp.value.toLocaleString("pt-BR")}</span>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="space-y-2">
+                    <h4 className="font-semibold">Despesas Avulsas</h4>
+                    {selectedSnapshot.oneTimeExpenses.length > 0 ? (
+                      selectedSnapshot.oneTimeExpenses.map((exp) => (
+                        <div
+                          key={exp._id}
+                          className="flex justify-between p-2 bg-muted/50 rounded"
+                        >
+                          <span>{exp.name}</span>
+                          <span>R$ {exp.value.toLocaleString("pt-BR")}</span>
+                        </div>
+                      ))
+                    ) : (
+                      <p className="text-muted-foreground text-sm">
+                        Nenhuma despesa avulsa
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="space-y-2">
+                    <h4 className="font-semibold">Projetos</h4>
+                    {selectedSnapshot.projectExpenses.length > 0 ? (
+                      selectedSnapshot.projectExpenses.map((proj) => (
+                        <div
+                          key={proj.projectId}
+                          className="p-2 bg-muted/50 rounded"
+                        >
+                          <div className="flex justify-between">
+                            <span>{proj.projectTitle}</span>
+                            <span>
+                              R$ {proj.monthlyValue.toLocaleString("pt-BR")}
+                            </span>
+                          </div>
+                          <p className="text-xs text-muted-foreground">
+                            {proj.companyName} | Parcela {proj.paidInstallments}
+                            /{proj.installmentsCount}
+                          </p>
+                        </div>
+                      ))
+                    ) : (
+                      <p className="text-muted-foreground text-sm">
+                        Nenhum projeto
+                      </p>
+                    )}
+                  </div>
+
+                  <div
+                    className={`p-4 rounded-lg ${
+                      selectedSnapshot.finalBalance >= 0
+                        ? "bg-green-500/10 border border-green-500/50"
+                        : "bg-red-500/10 border border-red-500/50"
+                    }`}
+                  >
+                    <div className="flex justify-between">
+                      <span className="font-bold">Saldo Final</span>
+                      <span
+                        className={`text-xl font-bold ${
+                          selectedSnapshot.finalBalance >= 0
+                            ? "text-green-600"
+                            : "text-red-600"
+                        }`}
+                      >
+                        R${" "}
+                        {selectedSnapshot.finalBalance.toLocaleString("pt-BR")}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </DialogContent>
+            </Dialog>
           )}
         </TabsContent>
       </Tabs>

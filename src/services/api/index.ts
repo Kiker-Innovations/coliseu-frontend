@@ -153,9 +153,12 @@ export {
 export type {
   Project,
   ProjectOffer,
+  FullProjectOffer,
   CreateOfferOption,
   CreateOfferPollRequest,
   CreatedOffer,
+  VoteOfferResponse,
+  MyOfferVote,
 } from "./project.service";
 
 // Project Suggestions service
@@ -175,3 +178,21 @@ export type {
   VoteResponse,
   MyVote,
 } from "./projectSuggestions.service";
+
+// Financial service
+export { financialService } from "./financial.service";
+export type {
+  FundEntry,
+  RecurringExpense,
+  OneTimeExpense,
+  ProjectExpense,
+  FinancialSummary,
+  Financial,
+  FinancialSnapshot,
+  MonthCheckResult,
+  AddFundEntryRequest,
+  CreateRecurringExpenseRequest,
+  UpdateRecurringExpenseRequest,
+  CreateOneTimeExpenseRequest,
+  UpdateOneTimeExpenseRequest,
+} from "./financial.service";

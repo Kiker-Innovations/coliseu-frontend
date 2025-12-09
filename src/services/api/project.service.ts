@@ -11,6 +11,7 @@ import type { ApiResponse } from "./types";
  * Offer data structure for a project
  */
 export interface ProjectOffer {
+  _id: string;
   companyName: string;
   description: string;
   companyCnpj: string;
@@ -19,6 +20,17 @@ export interface ProjectOffer {
   paidInstallments: number | null;
   votes: number;
   paymentStartDate: string | null;
+}
+
+/**
+ * Full offer data structure from API
+ */
+export interface FullProjectOffer extends ProjectOffer {
+  buildingId: string;
+  seasonId: string;
+  projectId: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 /**
@@ -38,6 +50,21 @@ export interface Project {
   offer: ProjectOffer | Record<string, never>;
   createdAt: string;
   updatedAt: string;
+}
+
+/**
+ * Vote offer response
+ */
+export interface VoteOfferResponse {
+  voteId: string;
+  offerId: string;
+}
+
+/**
+ * My vote response
+ */
+export interface MyOfferVote {
+  offerId: string | null;
 }
 
 /**
@@ -161,6 +188,51 @@ class ProjectService {
   async deleteProjectOffers(projectId: string): Promise<ApiResponse<null>> {
     return apiClient.delete<null>(
       `${this.offersBasePath}/project/${projectId}`
+    );
+  }
+
+  /**
+   * Get all offers for a project
+   * GET /v1/project-offers/project/:projectId
+   */
+  async getProjectOffers(
+    projectId: string
+  ): Promise<ApiResponse<FullProjectOffer[]>> {
+    return apiClient.get<FullProjectOffer[]>(
+      `${this.offersBasePath}/project/${projectId}`
+    );
+  }
+
+  /**
+   * Vote for a project offer
+   * POST /v1/project-offers/vote
+   */
+  async voteOffer(offerId: string): Promise<ApiResponse<VoteOfferResponse>> {
+    return apiClient.post<VoteOfferResponse>(`${this.offersBasePath}/vote`, {
+      offerId,
+    });
+  }
+
+  /**
+   * Get my vote for a project
+   * GET /v1/project-offers/project/:projectId/my-vote
+   */
+  async getMyOfferVote(projectId: string): Promise<ApiResponse<MyOfferVote>> {
+    return apiClient.get<MyOfferVote>(
+      `${this.offersBasePath}/project/${projectId}/my-vote`
+    );
+  }
+
+  /**
+   * Choose the winning offer for a project (admin only)
+   * POST /v1/project-offers/project/:projectId/choose-winner
+   */
+  async chooseWinningOffer(
+    projectId: string
+  ): Promise<ApiResponse<FullProjectOffer>> {
+    return apiClient.post<FullProjectOffer>(
+      `${this.offersBasePath}/project/${projectId}/choose-winner`,
+      {}
     );
   }
 }

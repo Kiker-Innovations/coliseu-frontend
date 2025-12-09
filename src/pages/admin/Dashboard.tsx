@@ -1,75 +1,76 @@
+import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Progress } from "@/components/ui/progress";
 import { Trophy, TrendingUp, DollarSign, TrendingDown } from "lucide-react";
 import DashboardSkeleton from "@/skeleton/admin/DashboardSkeleton";
-import { useState, useEffect } from "react";
+import { toast } from "sonner";
+import {
+  financialService,
+  type FinancialSummary,
+  type ProjectExpense,
+} from "@/services/api";
 
 export default function AdminDashboard() {
   const [isLoading, setIsLoading] = useState(true);
-  const [selectedMonth, setSelectedMonth] = useState("2025-10");
+  const [financialSummary, setFinancialSummary] =
+    useState<FinancialSummary | null>(null);
+  const [projectsProgress, setProjectsProgress] = useState<ProjectExpense[]>(
+    []
+  );
 
-  useEffect(() => {
-    // Simula carregamento de dados
-    const loadData = async () => {
+  const loadData = useCallback(async () => {
+    try {
+      setIsLoading(true);
+
+      // First check if month changed
+      await financialService.checkMonth();
+
+      // Then load data
+      const [summaryResponse, projectsResponse] = await Promise.all([
+        financialService.getSummary(),
+        financialService.getProjectsProgress(),
+      ]);
+
+      if (summaryResponse.success && summaryResponse.data) {
+        setFinancialSummary(summaryResponse.data);
+      }
+
+      if (projectsResponse.success && projectsResponse.data) {
+        setProjectsProgress(projectsResponse.data);
+      }
+    } catch (error: any) {
+      toast.error(error.message || "Erro ao carregar dados");
+      console.error("Erro ao carregar dados:", error);
+    } finally {
       setIsLoading(false);
-    };
-
-    loadData();
+    }
   }, []);
 
-  // Mock data - will be replaced with real data later
-  const topSuggestions = [
-    { id: 1, title: "Reforma da Piscina", votes: 45 },
-    { id: 2, title: "Nova Área de Churrasqueira", votes: 38 },
-    { id: 3, title: "Academia ao Ar Livre", votes: 32 },
-  ];
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
 
-  const rankingSuggestions = [
-    { id: 1, title: "Reforma da Piscina", votes: 45 },
-    { id: 2, title: "Nova Área de Churrasqueira", votes: 38 },
-    { id: 3, title: "Academia ao Ar Livre", votes: 32 },
-    { id: 4, title: "Pintura da Fachada", votes: 28 },
-    { id: 5, title: "Playground Infantil", votes: 25 },
-    { id: 6, title: "Iluminação LED", votes: 22 },
-    { id: 7, title: "Sistema de Segurança", votes: 19 },
-    { id: 8, title: "Jardim Vertical", votes: 16 },
-    { id: 9, title: "Salão de Festas", votes: 14 },
-    { id: 10, title: "Garagem Coberta", votes: 12 },
-  ];
-
-  const financialData = {
-    totalBudget: 50000,
-    approvedSuggestions: [
-      { name: "Reforma da Piscina", total: 15000, installments: 10, paid: 3 },
-      { name: "Nova Churrasqueira", total: 8000, installments: 8, paid: 2 },
-      { name: "Academia", total: 12000, installments: 12, paid: 1 },
-    ],
-  };
-
-  const monthlyPayment = financialData.approvedSuggestions.reduce(
-    (sum, s) => sum + s.total / s.installments,
+  // Cálculos
+  const totalBudget =
+    (financialSummary?.previousBalance || 0) +
+    (financialSummary?.condominiumFund || 0);
+  const monthlyPayment = financialSummary?.totalProjectExpenses || 0;
+  const totalCommitted = projectsProgress.reduce(
+    (sum, p) => sum + (p.totalValue - p.paidInstallments * p.monthlyValue),
     0
   );
-  const totalCommitted = financialData.approvedSuggestions.reduce(
-    (sum, s) => sum + s.total,
-    0
-  );
-  const remainingBudget = financialData.totalBudget - monthlyPayment;
-  const budgetBalance = financialData.totalBudget - totalCommitted;
+  const remainingBudget = totalBudget - (financialSummary?.totalExpenses || 0);
+  const budgetBalance = totalBudget - totalCommitted;
   const isPositiveBalance = budgetBalance >= 0;
 
-  const availableMonths = [
-    { value: "2025-10", label: "Outubro 2025" },
-    { value: "2025-09", label: "Setembro 2025" },
-    { value: "2025-08", label: "Agosto 2025" },
-    { value: "2025-07", label: "Julho 2025" },
-  ];
+  // Top projetos por progresso
+  const topProjects = [...projectsProgress]
+    .sort((a, b) => {
+      const progressA = (a.paidInstallments / a.installmentsCount) * 100;
+      const progressB = (b.paidInstallments / b.installmentsCount) * 100;
+      return progressB - progressA;
+    })
+    .slice(0, 3);
 
   if (isLoading) {
     return <DashboardSkeleton />;
@@ -79,18 +80,6 @@ export default function AdminDashboard() {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h1 className="text-3xl font-bold">Painel Administrativo</h1>
-        <Select value={selectedMonth} onValueChange={setSelectedMonth}>
-          <SelectTrigger className="w-[200px]">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {availableMonths.map((month) => (
-              <SelectItem key={month.value} value={month.value}>
-                {month.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
       </div>
 
       {/* Financial Information - Main Focus */}
@@ -108,13 +97,16 @@ export default function AdminDashboard() {
                 Caixa Total do Condomínio
               </p>
               <p className="text-3xl font-bold text-primary">
-                R$ {financialData.totalBudget.toLocaleString("pt-BR")}
+                R$ {totalBudget.toLocaleString("pt-BR")}
+              </p>
+              <p className="text-xs text-muted-foreground mt-1">
+                Saldo anterior + Arrecadação do mês
               </p>
             </div>
 
             <div className="p-6 bg-accent/10 rounded-lg border-2 border-accent">
               <p className="text-sm text-muted-foreground mb-2">
-                Caixa Restante (após parcelas)
+                Caixa Restante (após despesas)
               </p>
               <p className="text-3xl font-bold text-accent">
                 R${" "}
@@ -132,7 +124,7 @@ export default function AdminDashboard() {
               }`}
             >
               <p className="text-sm text-muted-foreground mb-2">
-                Total Comprometido
+                Total Comprometido (Projetos)
               </p>
               <p
                 className={`text-3xl font-bold ${
@@ -146,145 +138,181 @@ export default function AdminDashboard() {
             </div>
           </div>
 
-          <div className="space-y-3">
-            <div className="flex items-center gap-2 mb-4">
-              <TrendingDown className="w-5 h-5 text-muted-foreground" />
-              <h4 className="font-semibold text-lg">Sugestões Aprovadas</h4>
-            </div>
-            {financialData.approvedSuggestions.map((suggestion) => {
-              const monthlyValue = suggestion.total / suggestion.installments;
-              const remainingInstallments =
-                suggestion.installments - suggestion.paid;
-              const progressPercentage =
-                (suggestion.paid / suggestion.installments) * 100;
+          {projectsProgress.length > 0 && (
+            <div className="space-y-3">
+              <div className="flex items-center gap-2 mb-4">
+                <TrendingDown className="w-5 h-5 text-muted-foreground" />
+                <h4 className="font-semibold text-lg">Projetos em Andamento</h4>
+              </div>
+              {projectsProgress.map((project) => {
+                const progressPercentage =
+                  (project.paidInstallments / project.installmentsCount) * 100;
+                const remainingInstallments =
+                  project.installmentsCount - project.paidInstallments;
+                const remainingValue =
+                  project.totalValue -
+                  project.paidInstallments * project.monthlyValue;
 
-              return (
-                <div
-                  key={suggestion.name}
-                  className="p-4 border-2 border-border rounded-lg bg-card hover:bg-accent/5 transition-colors"
-                >
-                  <p className="font-medium mb-3 text-lg">{suggestion.name}</p>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm mb-3">
-                    <div>
-                      <p className="text-muted-foreground">Valor Total</p>
-                      <p className="font-bold text-base">
-                        R$ {suggestion.total.toLocaleString("pt-BR")}
-                      </p>
+                return (
+                  <div
+                    key={project.projectId}
+                    className="p-4 border-2 border-border rounded-lg bg-card hover:bg-accent/5 transition-colors"
+                  >
+                    <p className="font-medium mb-3 text-lg">
+                      {project.projectTitle}
+                    </p>
+                    <p className="text-sm text-muted-foreground mb-2">
+                      {project.companyName}
+                    </p>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm mb-3">
+                      <div>
+                        <p className="text-muted-foreground">Valor Total</p>
+                        <p className="font-bold text-base">
+                          R$ {project.totalValue.toLocaleString("pt-BR")}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground">Parcela Mensal</p>
+                        <p className="font-bold text-base">
+                          R${" "}
+                          {project.monthlyValue.toLocaleString("pt-BR", {
+                            maximumFractionDigits: 0,
+                          })}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground">Progresso</p>
+                        <p className="font-bold text-base">
+                          {project.paidInstallments}/{project.installmentsCount}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground">Restante</p>
+                        <p className="font-bold text-base text-destructive">
+                          R$ {remainingValue.toLocaleString("pt-BR")}
+                        </p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="text-muted-foreground">Parcela Mensal</p>
-                      <p className="font-bold text-base">
-                        R${" "}
-                        {monthlyValue.toLocaleString("pt-BR", {
-                          maximumFractionDigits: 0,
-                        })}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-muted-foreground">Progresso</p>
-                      <p className="font-bold text-base">
-                        {suggestion.paid}/{suggestion.installments}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-muted-foreground">
-                        Parcelas Restantes
-                      </p>
-                      <p className="font-bold text-base text-destructive">
-                        {remainingInstallments}
-                      </p>
+                    <div className="w-full bg-muted rounded-full h-2">
+                      <div
+                        className="bg-primary h-2 rounded-full transition-all"
+                        style={{ width: `${progressPercentage}%` }}
+                      />
                     </div>
                   </div>
-                  <div className="w-full bg-muted rounded-full h-2">
-                    <div
-                      className="bg-primary h-2 rounded-full transition-all"
-                      style={{ width: `${progressPercentage}%` }}
-                    />
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+                );
+              })}
+            </div>
+          )}
+
+          {projectsProgress.length === 0 && (
+            <div className="text-center py-8 text-muted-foreground">
+              <p>Nenhum projeto em andamento no momento</p>
+            </div>
+          )}
 
           <div className="mt-6 p-4 bg-primary/5 rounded-lg border border-primary/20">
             <div className="flex justify-between items-center">
               <span className="font-semibold text-lg">
-                Pagamento Mensal Total
+                Despesas Mensais Total
               </span>
               <span className="text-2xl font-bold text-primary">
                 R${" "}
-                {monthlyPayment.toLocaleString("pt-BR", {
-                  maximumFractionDigits: 0,
-                })}
+                {(financialSummary?.totalExpenses || 0).toLocaleString(
+                  "pt-BR",
+                  {
+                    maximumFractionDigits: 0,
+                  }
+                )}
               </span>
             </div>
           </div>
         </CardContent>
       </Card>
 
-      {/* Top 3 Podium */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Trophy className="w-6 h-6 text-accent" />
-            Pódio do Mês - Top 3 Sugestões Mais Votadas
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {topSuggestions.map((suggestion, index) => (
-              <div
-                key={suggestion.id}
-                className={`p-6 rounded-lg text-center transition-all ${
-                  index === 0
-                    ? "bg-accent text-accent-foreground transform scale-105"
-                    : index === 1
-                    ? "bg-secondary text-secondary-foreground"
-                    : "bg-muted text-muted-foreground"
-                }`}
-              >
-                <div className="text-4xl font-bold mb-2">
-                  {index === 0 ? "🥇" : index === 1 ? "🥈" : "🥉"}
-                </div>
-                <h3 className="font-semibold text-lg mb-2">
-                  {suggestion.title}
-                </h3>
-                <p className="text-2xl font-bold">{suggestion.votes} votos</p>
-              </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
+      {/* Top 3 Projects Progress */}
+      {topProjects.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Trophy className="w-6 h-6 text-accent" />
+              Top 3 Projetos - Maior Progresso
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {topProjects.map((project, index) => {
+                const progress =
+                  (project.paidInstallments / project.installmentsCount) * 100;
+                return (
+                  <div
+                    key={project.projectId}
+                    className={`p-6 rounded-lg text-center transition-all ${
+                      index === 0
+                        ? "bg-accent text-accent-foreground transform scale-105"
+                        : index === 1
+                        ? "bg-secondary text-secondary-foreground"
+                        : "bg-muted text-muted-foreground"
+                    }`}
+                  >
+                    <div className="text-4xl font-bold mb-2">
+                      {index === 0 ? "🥇" : index === 1 ? "🥈" : "🥉"}
+                    </div>
+                    <h3 className="font-semibold text-lg mb-2">
+                      {project.projectTitle}
+                    </h3>
+                    <p className="text-2xl font-bold">{progress.toFixed(0)}%</p>
+                    <p className="text-sm mt-1">
+                      {project.paidInstallments}/{project.installmentsCount}{" "}
+                      parcelas
+                    </p>
+                  </div>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
-      {/* Top 10 Ranking */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <TrendingUp className="w-5 h-5" />
-            Ranking das 10 Principais Sugestões
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-2 max-h-96 overflow-y-auto">
-            {rankingSuggestions.map((suggestion, index) => (
-              <div
-                key={suggestion.id}
-                className="flex justify-between items-center p-3 rounded-md bg-muted/50 hover:bg-muted transition-colors"
-              >
-                <div className="flex items-center gap-3">
-                  <span className="font-bold text-muted-foreground w-6">
-                    {index + 1}º
-                  </span>
-                  <span className="font-medium">{suggestion.title}</span>
-                </div>
-                <span className="font-bold text-primary">
-                  {suggestion.votes}
-                </span>
-              </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
+      {/* All Projects Progress */}
+      {projectsProgress.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <TrendingUp className="w-5 h-5" />
+              Progresso de Todos os Projetos
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {projectsProgress.map((project) => {
+                const progress =
+                  (project.paidInstallments / project.installmentsCount) * 100;
+                return (
+                  <div key={project.projectId} className="space-y-2">
+                    <div className="flex justify-between items-center">
+                      <span className="font-medium">
+                        {project.projectTitle}
+                      </span>
+                      <span className="font-bold text-primary">
+                        {progress.toFixed(0)}%
+                      </span>
+                    </div>
+                    <Progress value={progress} className="h-2" />
+                    <div className="flex justify-between text-sm text-muted-foreground">
+                      <span>{project.companyName}</span>
+                      <span>
+                        {project.paidInstallments}/{project.installmentsCount}{" "}
+                        parcelas
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

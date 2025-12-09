@@ -65,6 +65,8 @@ import {
   isSeasonFinished,
   projectService,
   hasChosenOffer,
+  hasActiveOfferPoll,
+  isOfferPollEnded,
   isVotingActive,
   isVotingEnded,
   isWaitingForVoting,
@@ -471,16 +473,28 @@ export default function Projects() {
     try {
       setIsSubmitting(true);
 
-      // TODO: Implementar chamada de API para iniciar projeto
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      // If project doesn't have a chosen offer yet, choose the winner first
+      if (!hasChosenOffer(selectedProject)) {
+        const response = await projectService.chooseWinningOffer(
+          selectedProject._id
+        );
 
-      toast.success(
-        `Projeto "${selectedProject.title}" iniciado com sucesso! O projeto foi adicionado ao financeiro.`
-      );
+        if (response.success) {
+          toast.success(
+            `Oferta vencedora escolhida para o projeto "${selectedProject.title}"!`
+          );
+        } else {
+          toast.error(response.message || "Erro ao escolher oferta vencedora");
+          return;
+        }
+      }
+
       setIsStartProjectDialogOpen(false);
       setSelectedProject(null);
+      await loadProjects();
     } catch (error: any) {
-      toast.error(error.message || "Erro ao iniciar projeto");
+      toast.error(error.message || "Erro ao escolher oferta vencedora");
+      console.error("Erro ao escolher oferta vencedora:", error);
     } finally {
       setIsSubmitting(false);
     }
@@ -626,7 +640,15 @@ export default function Projects() {
         toast.error(response.message || "Erro ao criar enquete de ofertas");
       }
     } catch (error: any) {
-      toast.error(error.message || "Erro ao criar enquete de ofertas");
+      // O backend retorna a mensagem de validação diretamente no campo message
+      // Também verifica se há errors array como fallback
+      const validationErrors = error?.response?.errors;
+      const errorMessage =
+        validationErrors?.[0]?.message ||
+        error?.response?.message ||
+        error.message ||
+        "Erro ao criar enquete de ofertas";
+      toast.error(errorMessage);
       console.error("Erro ao criar enquete de ofertas:", error);
     } finally {
       setIsSubmitting(false);
@@ -698,8 +720,12 @@ export default function Projects() {
     .filter((p) => !hasChosenOffer(p) && !p.offerStartDate)
     .sort((a, b) => (a.rank || 999) - (b.rank || 999));
 
-  const projectsWithPendingOfferPoll = projects
-    .filter((p) => !hasChosenOffer(p) && p.offerStartDate && p.offerEndDate)
+  const projectsWithActiveOfferPoll = projects
+    .filter((p) => !hasChosenOffer(p) && hasActiveOfferPoll(p))
+    .sort((a, b) => (a.rank || 999) - (b.rank || 999));
+
+  const projectsWithEndedOfferPoll = projects
+    .filter((p) => !hasChosenOffer(p) && isOfferPollEnded(p))
     .sort((a, b) => (a.rank || 999) - (b.rank || 999));
 
   const projectsWithOffer = projects
@@ -1036,7 +1062,7 @@ export default function Projects() {
         {/* Aba de Projetos */}
         <TabsContent value="projects" className="space-y-6">
           {/* Stats Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
             <Card>
               <CardContent className="pt-6">
                 <div className="text-center">
@@ -1065,10 +1091,22 @@ export default function Projects() {
               <CardContent className="pt-6">
                 <div className="text-center">
                   <p className="text-sm text-muted-foreground mb-2">
-                    Enquete em Andamento
+                    Enquete Ativa
                   </p>
                   <p className="text-4xl font-bold text-blue-500">
-                    {projectsWithPendingOfferPoll.length}
+                    {projectsWithActiveOfferPoll.length}
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="pt-6">
+                <div className="text-center">
+                  <p className="text-sm text-muted-foreground mb-2">
+                    Aguardando Escolha
+                  </p>
+                  <p className="text-4xl font-bold text-purple-500">
+                    {projectsWithEndedOfferPoll.length}
                   </p>
                 </div>
               </CardContent>
@@ -1188,8 +1226,79 @@ export default function Projects() {
             </div>
           )}
 
+          {/* Projetos aguardando escolha da oferta vencedora */}
+          {projectsWithEndedOfferPoll.length > 0 && (
+            <div>
+              <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
+                <Trophy className="w-5 h-5 text-purple-500" />
+                Aguardando Escolha da Oferta Vencedora
+              </h2>
+              <p className="text-sm text-muted-foreground mb-4">
+                A votação destas ofertas foi encerrada. Clique em "Escolher
+                Oferta Vencedora" para definir a oferta com mais votos como a
+                escolhida.
+              </p>
+
+              <div className="space-y-4">
+                {projectsWithEndedOfferPoll.map((project) => (
+                  <Card
+                    key={project._id}
+                    className="border-2 border-purple-500/50 bg-purple-500/5"
+                  >
+                    <CardHeader>
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <CardTitle className="flex items-center gap-2">
+                            <Lightbulb className="w-5 h-5 text-purple-600" />
+                            {project.title}
+                            <Badge
+                              variant="outline"
+                              className="ml-2 text-purple-600 border-purple-600"
+                            >
+                              <CheckCircle2 className="w-3 h-3 mr-1" />
+                              Votação encerrada
+                            </Badge>
+                          </CardTitle>
+                          <p className="text-sm text-muted-foreground mt-2">
+                            {project.description}
+                          </p>
+                        </div>
+                        {project.rank && getRankBadge(project.rank)}
+                      </div>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                        <div className="flex items-center gap-1">
+                          <Users className="w-4 h-4" />
+                          <span>{project.votes} votos no projeto</span>
+                        </div>
+                        {project.offerStartDate && project.offerEndDate && (
+                          <div className="flex items-center gap-1">
+                            <Calendar className="w-4 h-4" />
+                            <span>
+                              Votação encerrada em{" "}
+                              {formatDate(project.offerEndDate)}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+
+                      <Button
+                        onClick={() => openStartProjectDialog(project)}
+                        className="w-full md:w-auto"
+                      >
+                        <Trophy className="w-4 h-4 mr-2" />
+                        Escolher Oferta Vencedora
+                      </Button>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Projetos com enquete de ofertas em andamento */}
-          {projectsWithPendingOfferPoll.length > 0 && (
+          {projectsWithActiveOfferPoll.length > 0 && (
             <div>
               <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
                 <Clock className="w-5 h-5 text-blue-500" />
@@ -1201,7 +1310,7 @@ export default function Projects() {
               </p>
 
               <div className="space-y-4">
-                {projectsWithPendingOfferPoll.map((project) => (
+                {projectsWithActiveOfferPoll.map((project) => (
                   <Card
                     key={project._id}
                     className="border-2 border-blue-500/50 bg-blue-500/5"
@@ -1859,53 +1968,79 @@ export default function Projects() {
         </DialogContent>
       </Dialog>
 
-      {/* AlertDialog para Iniciar Projeto */}
+      {/* AlertDialog para Escolher Oferta Vencedora / Iniciar Projeto */}
       <AlertDialog
         open={isStartProjectDialogOpen}
         onOpenChange={setIsStartProjectDialogOpen}
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Iniciar Projeto?</AlertDialogTitle>
+            <AlertDialogTitle>
+              {selectedProject && hasChosenOffer(selectedProject)
+                ? "Iniciar Projeto?"
+                : "Escolher Oferta Vencedora?"}
+            </AlertDialogTitle>
             <AlertDialogDescription>
-              Ao iniciar o projeto "{selectedProject?.title}", ele será
-              adicionado ao módulo financeiro para acompanhamento de custos e
-              andamento. Os pagamentos serão iniciados conforme a oferta
-              escolhida.
+              {selectedProject && hasChosenOffer(selectedProject)
+                ? `Ao iniciar o projeto "${selectedProject?.title}", ele será adicionado ao módulo financeiro para acompanhamento de custos e andamento. Os pagamentos serão iniciados conforme a oferta escolhida.`
+                : `A oferta com mais votos será automaticamente escolhida como a oferta vencedora do projeto "${selectedProject?.title}". Esta ação não pode ser desfeita.`}
             </AlertDialogDescription>
           </AlertDialogHeader>
 
           {selectedProject &&
             hasChosenOffer(selectedProject) &&
             "companyName" in selectedProject.offer && (
-              <div className="p-4 bg-muted rounded-lg space-y-2 my-2">
-                <h4 className="font-semibold text-sm">Resumo da Oferta:</h4>
-                <div className="grid grid-cols-2 gap-2 text-sm">
-                  <div>
-                    <span className="text-muted-foreground">Empresa:</span>
-                    <p className="font-medium">
-                      {selectedProject.offer.companyName}
-                    </p>
-                  </div>
-                  <div>
-                    <span className="text-muted-foreground">Valor:</span>
-                    <p className="font-medium text-green-600">
-                      {formatCurrency(selectedProject.offer.totalValue)}
-                    </p>
-                  </div>
-                  <div>
-                    <span className="text-muted-foreground">Parcelas:</span>
-                    <p className="font-medium">
-                      {selectedProject.offer.installmentsCount}x de{" "}
-                      {formatCurrency(
-                        selectedProject.offer.totalValue /
-                          selectedProject.offer.installmentsCount
-                      )}
-                    </p>
+              <div className="space-y-2 my-2">
+                <div className="p-4 bg-muted rounded-lg space-y-2">
+                  <h4 className="font-semibold text-sm">Resumo da Oferta:</h4>
+                  <div className="grid grid-cols-2 gap-2 text-sm">
+                    <div>
+                      <span className="text-muted-foreground">Empresa:</span>
+                      <p className="font-medium">
+                        {selectedProject.offer.companyName}
+                      </p>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">Valor:</span>
+                      <p className="font-medium text-green-600">
+                        {formatCurrency(selectedProject.offer.totalValue)}
+                      </p>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">Parcelas:</span>
+                      <p className="font-medium">
+                        {selectedProject.offer.installmentsCount}x de{" "}
+                        {formatCurrency(
+                          selectedProject.offer.totalValue /
+                            selectedProject.offer.installmentsCount
+                        )}
+                      </p>
+                    </div>
                   </div>
                 </div>
+                {!selectedProject.offer.paymentStartDate && (
+                  <div className="p-4 bg-orange-500/10 border border-orange-500/20 rounded-lg">
+                    <p className="text-sm text-orange-600 font-medium">
+                      ⚠️ Ao iniciar o projeto, a primeira parcela começará a ser
+                      contabilizada automaticamente neste mês.
+                    </p>
+                  </div>
+                )}
               </div>
             )}
+
+          {selectedProject && !hasChosenOffer(selectedProject) && (
+            <div className="p-4 bg-purple-500/10 border border-purple-500/20 rounded-lg my-2 space-y-2">
+              <p className="text-sm text-purple-600 font-medium">
+                A votação foi encerrada. A oferta mais votada será selecionada
+                automaticamente.
+              </p>
+              <p className="text-sm text-orange-600 font-medium">
+                ⚠️ Atenção: Ao escolher a oferta vencedora, o pagamento das
+                parcelas será iniciado automaticamente no mês atual.
+              </p>
+            </div>
+          )}
 
           <AlertDialogFooter>
             <AlertDialogCancel disabled={isSubmitting}>
@@ -1915,7 +2050,11 @@ export default function Projects() {
               onClick={handleStartProject}
               disabled={isSubmitting}
             >
-              {isSubmitting ? "Iniciando..." : "Iniciar Projeto"}
+              {isSubmitting
+                ? "Processando..."
+                : selectedProject && hasChosenOffer(selectedProject)
+                ? "Iniciar Projeto"
+                : "Escolher Oferta Vencedora"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

@@ -1,14 +1,14 @@
 import { z } from "zod";
 
 export const financialRegisterSchema = z.object({
-	condominiumFund: z
-		.number()
-		.min(0, "O valor do caixa não pode ser negativo")
-		.nonnegative("O valor deve ser positivo"),
-	referenceMonth: z
-		.string()
-		.min(1, "Mês de referência é obrigatório")
-		.regex(/^\d{4}-\d{2}$/, "Formato inválido (AAAA-MM)"),
+  title: z
+    .string()
+    .min(3, "O título deve ter pelo menos 3 caracteres")
+    .max(100, "O título deve ter no máximo 100 caracteres"),
+  value: z
+    .number()
+    .min(0.01, "O valor deve ser maior que zero")
+    .nonnegative("O valor deve ser positivo"),
 });
 
 export type FinancialRegisterSchema = z.infer<typeof financialRegisterSchema>;
