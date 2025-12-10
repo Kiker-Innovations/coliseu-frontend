@@ -45,6 +45,7 @@ import AdminConcierge from "./pages/admin/Concierge";
 import AdminConciergeEdit from "./pages/admin/ConciergeEdit";
 import AdminConciergeView from "./pages/admin/ConciergeView";
 import AdminProjects from "./pages/admin/Projects";
+import AdminDocuments from "./pages/admin/Documents";
 
 // Concierge pages
 import ConciergeLogin from "./pages/concierge/auth/Login";
@@ -119,6 +120,7 @@ const App = () => (
                 />
                 <Route path="/admin/fines" element={<AdminFines />} />
                 <Route path="/admin/notices" element={<AdminNotices />} />
+                <Route path="/admin/documents" element={<AdminDocuments />} />
                 <Route path="/admin/concierge" element={<AdminConcierge />} />
                 <Route
                   path="/admin/concierge/edit/:id"

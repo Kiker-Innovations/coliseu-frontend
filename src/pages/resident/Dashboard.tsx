@@ -90,15 +90,15 @@ export default function Dashboard() {
       </div>
 
       {/* Top 3 Podium */}
-      {topProjects.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Trophy className="w-6 h-6 text-accent" />
-              Pódio - Top 3 Projetos em Andamento
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Trophy className="w-6 h-6 text-accent" />
+            Pódio - Top 3 Projetos em Andamento
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {topProjects.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               {topProjects.map((project, index) => {
                 const progress =
@@ -129,22 +129,32 @@ export default function Dashboard() {
                 );
               })}
             </div>
-          </CardContent>
-        </Card>
-      )}
+          ) : (
+            <div className="flex flex-col items-center justify-center min-h-32 text-center">
+              <Trophy className="w-12 h-12 text-muted-foreground/50 mb-4" />
+              <p className="text-muted-foreground mb-2">
+                Nenhum projeto no pódio no momento
+              </p>
+              <p className="text-sm text-muted-foreground">
+                Os projetos com maior progresso aparecerão aqui.
+              </p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Rankings and Financial Info */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Projects Ranking */}
-        {rankingProjects.length > 0 && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <TrendingUp className="w-5 h-5" />
-                Ranking dos Projetos em Andamento
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <TrendingUp className="w-5 h-5" />
+              Ranking dos Projetos em Andamento
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {rankingProjects.length > 0 ? (
               <div className="space-y-3 max-h-96 overflow-y-auto">
                 {rankingProjects.map((project, index) => {
                   const progress =
@@ -173,9 +183,20 @@ export default function Dashboard() {
                   );
                 })}
               </div>
-            </CardContent>
-          </Card>
-        )}
+            ) : (
+              <div className="flex flex-col items-center justify-center min-h-32 text-center">
+                <TrendingUp className="w-12 h-12 text-muted-foreground/50 mb-4" />
+                <p className="text-muted-foreground mb-2">
+                  Nenhum projeto no ranking no momento
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  Projetos em andamento aparecerão no ranking assim que forem
+                  aprovados.
+                </p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
         {/* Financial Information */}
         <Card>
@@ -264,7 +285,7 @@ export default function Dashboard() {
             </div>
 
             {/* Projetos em Andamento */}
-            {projectsProgress.length > 0 && (
+            {projectsProgress.length > 0 ? (
               <div className="space-y-2">
                 <h4 className="font-semibold text-sm">Projetos em Andamento</h4>
                 <div className="space-y-2 max-h-48 overflow-y-auto">
@@ -304,25 +325,12 @@ export default function Dashboard() {
                   })}
                 </div>
               </div>
+            ) : (
+              <></>
             )}
           </CardContent>
         </Card>
       </div>
-
-      {/* Empty state */}
-      {projectsProgress.length === 0 && (
-        <Card>
-          <CardContent className="flex flex-col items-center justify-center h-48 text-center">
-            <TrendingUp className="w-12 h-12 text-muted-foreground/50 mb-4" />
-            <p className="text-muted-foreground mb-2">
-              Nenhum projeto em andamento no momento
-            </p>
-            <p className="text-sm text-muted-foreground">
-              Os projetos aprovados aparecerão aqui quando iniciarem.
-            </p>
-          </CardContent>
-        </Card>
-      )}
     </div>
   );
 }

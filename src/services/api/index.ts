@@ -196,3 +196,12 @@ export type {
   CreateOneTimeExpenseRequest,
   UpdateOneTimeExpenseRequest,
 } from "./financial.service";
+
+// Documents service
+export { documentsService } from "./documents.service";
+export type {
+  Document,
+  CreateDocumentRequest,
+  CreateDocumentResponse,
+  UpdateDocumentRequest,
+} from "./documents.service";

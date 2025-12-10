@@ -10,6 +10,7 @@ import {
   BarChart3,
   DoorOpen,
   FolderKanban,
+  FileText,
 } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
 import {
@@ -40,6 +41,7 @@ const menuItems = [
   },
   { title: "Multas", url: "/admin/fines", icon: AlertTriangle },
   { title: "Avisos", url: "/admin/notices", icon: Megaphone },
+  { title: "Documentos", url: "/admin/documents", icon: FileText },
   { title: "Portaria", url: "/admin/concierge", icon: DoorOpen },
 ];
 
