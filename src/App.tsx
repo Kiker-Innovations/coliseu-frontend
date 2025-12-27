@@ -8,6 +8,7 @@ import {
   ProtectedResidentRoute,
   ProtectedConciergeRoute,
   ProtectedAdminRoute,
+  ProtectedStatusRoute,
 } from "./components/auth/ProtectedRoute";
 import { AppLayout } from "./components/layout/AppLayout";
 import { AppLayoutAdmin } from "./components/layout/AppLayoutAdmin";
@@ -19,6 +20,7 @@ import Register from "./pages/resident/auth/Register";
 import ResetPassword from "./pages/resident/auth/ResetPassword";
 import UpdatePassword from "./pages/resident/auth/UpdatePassword";
 import ConfirmCode from "./pages/resident/auth/ConfirmCode";
+import StatusTimeline from "./pages/resident/auth/StatusTimeline";
 import Dashboard from "./pages/resident/Dashboard";
 import Suggestions from "./pages/resident/Suggestions";
 import Vote from "./pages/resident/Vote";
@@ -27,6 +29,7 @@ import Poll from "./pages/resident/Poll";
 import Fines from "./pages/resident/Fines";
 import Documents from "./pages/resident/Documents";
 import Packages from "./pages/resident/Packages";
+import Bookings from "./pages/resident/Bookings";
 import NotFound from "./pages/NotFound";
 
 // Admin pages
@@ -75,6 +78,14 @@ const App = () => (
             <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="/update-password" element={<UpdatePassword />} />
             <Route path="/confirmcode" element={<ConfirmCode />} />
+            <Route
+              path="/status"
+              element={
+                <ProtectedStatusRoute>
+                  <StatusTimeline />
+                </ProtectedStatusRoute>
+              }
+            />
 
             {/* Protected Resident Routes */}
             <Route element={<ProtectedResidentRoute />}>
@@ -87,6 +98,7 @@ const App = () => (
                 <Route path="/fines" element={<Fines />} />
                 <Route path="/documents" element={<Documents />} />
                 <Route path="/packages" element={<Packages />} />
+                <Route path="/bookings" element={<Bookings />} />
               </Route>
             </Route>
 

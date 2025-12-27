@@ -18,3 +18,18 @@ export const commonAreaSchema = z.object({
 });
 
 export type CommonAreaSchema = z.infer<typeof commonAreaSchema>;
+
+export const amenitySchema = z.object({
+	name: z.string().min(1, "Nome é obrigatório").trim(),
+	quantity: z.number().min(1, "Quantidade deve ser pelo menos 1").int("Deve ser um número inteiro").optional(),
+	description: z.string().optional(),
+	type: z.enum(["COMODIDADE", "AREA_COMUM"]).optional(),
+	value: z.number().min(0, "Valor não pode ser negativo").optional(),
+	fineValue: z.number().min(0, "Valor da multa não pode ser negativo").optional(),
+	maxResidents: z.number().min(1, "Máximo de residents deve ser pelo menos 1").int("Deve ser um número inteiro").optional(),
+	bookingType: z.enum(["DIARIO", "POR_HORAS"]).optional(),
+	maxHours: z.number().min(1, "Máximo de horas deve ser pelo menos 1").int("Deve ser um número inteiro").optional(),
+	status: z.enum(["ATIVO", "INATIVO"]).default("ATIVO"),
+});
+
+export type AmenitySchema = z.infer<typeof amenitySchema>;

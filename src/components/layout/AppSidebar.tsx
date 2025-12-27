@@ -7,6 +7,7 @@ import {
   FileText,
   AlertTriangle,
   Package,
+  Calendar,
   LogOut,
 } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
@@ -34,6 +35,7 @@ const menuItems = [
   { title: "Multas", url: "/fines", icon: AlertTriangle },
   { title: "Documentos", url: "/documents", icon: FileText },
   { title: "Encomendas", url: "/packages", icon: Package },
+  { title: "Agendamentos", url: "/bookings", icon: Calendar },
 ];
 
 export function AppSidebar() {
