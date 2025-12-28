@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { RichTextEditor } from "@/components/ui/RichTextEditor";
 import {
   Table,
   TableBody,
@@ -236,7 +237,7 @@ export default function CondominiumInfo() {
     loadData();
   }, []);
 
-  // Carregar agendamentos de comodidades
+  // Carregar reservas de comodidades
   useEffect(() => {
     const loadBookings = async () => {
       try {
@@ -248,7 +249,7 @@ export default function CondominiumInfo() {
           setBookings([]);
         }
       } catch (error: any) {
-        console.error("Erro ao carregar agendamentos:", error);
+        console.error("Erro ao carregar reservas:", error);
         setBookings([]);
       } finally {
         setIsLoadingBookings(false);
@@ -595,7 +596,8 @@ export default function CondominiumInfo() {
     resolver: zodResolver(amenitySchema),
     defaultValues: {
       name: "",
-      quantity: undefined,
+      nonComplianceFine: undefined,
+      usageRules: undefined,
       description: undefined,
       type: undefined,
       value: undefined,
@@ -614,7 +616,9 @@ export default function CondominiumInfo() {
         const updateData: any = {};
         
         if (data.name) updateData.name = data.name;
-        if (data.quantity !== undefined) updateData.quantity = data.quantity;
+        if (data.usageRules !== undefined && data.usageRules !== null) {
+          updateData.usageRules = data.usageRules.trim() || undefined;
+        }
         if (data.description !== undefined && data.description !== "") updateData.description = data.description;
         // Sempre enviar o tipo se estiver definido (importante para AREA_COMUM)
         if (data.type !== undefined && data.type !== null) {
@@ -629,6 +633,14 @@ export default function CondominiumInfo() {
         if (data.type !== "AREA_COMUM") {
           if (data.value !== undefined) updateData.value = data.value;
           if (data.fineValue !== undefined) updateData.fineValue = data.fineValue;
+        }
+        // nonComplianceFine pode ser enviado para ambos os tipos (incluindo 0 ou null)
+        if (data.nonComplianceFine !== undefined) {
+          if (data.nonComplianceFine === null) {
+            updateData.nonComplianceFine = null;
+          } else {
+            updateData.nonComplianceFine = Number(data.nonComplianceFine);
+          }
         }
         if (data.maxResidents !== undefined) updateData.maxResidents = data.maxResidents;
         if (data.bookingType) updateData.bookingType = data.bookingType;
@@ -666,7 +678,8 @@ export default function CondominiumInfo() {
           }
         } catch (error: any) {
           console.error("Erro ao atualizar comodidade:", error);
-          toast.error(error.message || "Erro ao atualizar comodidade");
+          console.error("Erro completo:", error.response?.data || error);
+          toast.error(error.response?.data?.message || error.message || "Erro ao atualizar comodidade");
           return;
         }
         
@@ -694,7 +707,9 @@ export default function CondominiumInfo() {
         };
         
         // Adicionar apenas campos que foram preenchidos
-        if (data.quantity !== undefined) createData.quantity = data.quantity;
+        if (data.usageRules !== undefined && data.usageRules !== null) {
+          createData.usageRules = data.usageRules.trim() || undefined;
+        }
         if (data.description !== undefined && data.description !== "") createData.description = data.description;
         // Sempre enviar o tipo se estiver definido (importante para AREA_COMUM)
         if (data.type !== undefined && data.type !== null) {
@@ -711,12 +726,28 @@ export default function CondominiumInfo() {
           if (data.value !== undefined) createData.value = data.value;
           if (data.fineValue !== undefined) createData.fineValue = data.fineValue;
         }
+        // nonComplianceFine pode ser enviado para ambos os tipos (incluindo 0)
+        if (data.nonComplianceFine !== undefined && data.nonComplianceFine !== null) {
+          createData.nonComplianceFine = Number(data.nonComplianceFine);
+        }
         if (data.maxResidents !== undefined) createData.maxResidents = data.maxResidents;
         if (data.bookingType) createData.bookingType = data.bookingType;
         if (data.maxHours !== undefined) createData.maxHours = data.maxHours;
         
-        await amenitiesService.createAmenity(createData);
-        toast.success("Comodidade cadastrada com sucesso!");
+        try {
+          const response = await amenitiesService.createAmenity(createData);
+          
+          if (response.success) {
+            toast.success("Comodidade cadastrada com sucesso!");
+          } else {
+            toast.error(response.message || "Erro ao cadastrar comodidade");
+            return;
+          }
+        } catch (error: any) {
+          console.error("Erro ao cadastrar comodidade:", error);
+          toast.error(error.message || "Erro ao cadastrar comodidade");
+          return;
+        }
       }
 
       // Recarregar comodidades
@@ -754,15 +785,16 @@ export default function CondominiumInfo() {
   const handleEditArea = (area: Amenity) => {
     setEditingAreaId(area._id);
     areaForm.reset({
-      name: area.name,
-      quantity: area.quantity,
+      name: area.name || "",
+      nonComplianceFine: area.nonComplianceFine ?? undefined,
+      usageRules: area.usageRules || "",
       description: area.description || "",
-      type: area.type,
-      value: area.value || 0,
-      fineValue: area.fineValue || 0,
-      maxResidents: area.maxResidents,
-      bookingType: area.bookingType,
-      maxHours: area.maxHours,
+      type: area.type ?? undefined,
+      value: area.value ?? undefined,
+      fineValue: area.fineValue ?? undefined,
+      maxResidents: area.maxResidents ?? undefined,
+      bookingType: area.bookingType ?? undefined,
+      maxHours: area.maxHours ?? undefined,
       status: area.status || "ATIVO",
     });
     setIsAreaDialogOpen(true);
@@ -877,15 +909,15 @@ export default function CondominiumInfo() {
             </Card>
           </div>
 
-          {/* Agendamentos de Comodidades */}
+          {/* Reservas de Comodidades */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <CalendarDays className="w-5 h-5 text-primary" />
-                Agendamentos de Comodidades
+                Reservas de Comodidades
               </CardTitle>
               <p className="text-sm text-muted-foreground mt-1">
-                Visualize os agendamentos das comodidades do condomínio
+                Visualize as reservas das comodidades do condomínio
               </p>
             </CardHeader>
             <CardContent>
@@ -897,10 +929,10 @@ export default function CondominiumInfo() {
                 <div className="space-y-3">
                   {bookings.length === 0 ? (
                     <p className="text-sm text-muted-foreground text-center py-4">
-                      Nenhum agendamento encontrado
+                      Nenhuma reserva encontrada
                     </p>
                   ) : (
-                    bookings.map((booking) => {
+                    bookings.map((booking, index) => {
                       const startDate = booking.startDate ? new Date(booking.startDate) : null;
                       const endDate = booking.endDate ? new Date(booking.endDate) : null;
                       const apartmentNumber = booking.apartment?.number || "N/A";
@@ -909,7 +941,7 @@ export default function CondominiumInfo() {
 
                       return (
                         <div
-                          key={booking._id}
+                          key={booking._id || `booking-${index}`}
                           className="flex items-center justify-between p-4 rounded-lg bg-muted/50 hover:bg-muted/80 transition-colors border"
                         >
                           <div className="flex-1">
@@ -1039,7 +1071,14 @@ export default function CondominiumInfo() {
                       </DialogDescription>
                     </DialogHeader>
                     <form
-                      onSubmit={areaForm.handleSubmit(onAreaSubmit)}
+                      onSubmit={areaForm.handleSubmit(onAreaSubmit, (errors) => {
+                        console.error("Erros de validação:", errors);
+                        const errorMessages = Object.entries(errors).map(([key, error]: [string, any]) => {
+                          return `${key}: ${error?.message || "erro"}`;
+                        }).join(", ");
+                        console.error("Detalhes dos erros:", errorMessages);
+                        toast.error(`Erros no formulário: ${errorMessages}`);
+                      })}
                       className="space-y-4 overflow-y-auto flex-1 pr-2"
                     >
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -1057,35 +1096,6 @@ export default function CondominiumInfo() {
                           )}
                         </div>
 
-                        <div className="space-y-2">
-                          <Label htmlFor="quantity">Quantidade (Opcional)</Label>
-                          <Input
-                            id="quantity"
-                            type="number"
-                            min="1"
-                            placeholder="Ex: 1"
-                            {...areaForm.register("quantity", {
-                              valueAsNumber: true,
-                            })}
-                          />
-                          {areaForm.formState.errors.quantity && (
-                            <p className="text-sm text-destructive">
-                              {areaForm.formState.errors.quantity.message}
-                            </p>
-                          )}
-                        </div>
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label htmlFor="description">
-                          Descrição (Opcional)
-                        </Label>
-                        <Textarea
-                          id="description"
-                          placeholder="Descreva a área comum..."
-                          rows={3}
-                          {...areaForm.register("description")}
-                        />
                       </div>
 
                       <div className="space-y-2">
@@ -1117,9 +1127,8 @@ export default function CondominiumInfo() {
                       </div>
 
                       {areaForm.watch("type") !== "AREA_COMUM" && (
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          <div className="space-y-2">
-                            <Label htmlFor="value">Valor de Uso (R$)</Label>
+                        <div className="space-y-2">
+                          <Label htmlFor="value">Valor de Uso (R$)</Label>
                           <div className="relative">
                             <DollarSign className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                             <Input
@@ -1140,9 +1149,11 @@ export default function CondominiumInfo() {
                             </p>
                           )}
                         </div>
+                      )}
 
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="space-y-2">
-                          <Label htmlFor="fineValue">Valor da Multa (R$)</Label>
+                          <Label htmlFor="fineValue">Multa por Atraso (R$)</Label>
                           <div className="relative">
                             <DollarSign className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                             <Input
@@ -1153,6 +1164,7 @@ export default function CondominiumInfo() {
                               placeholder="0.00"
                               {...areaForm.register("fineValue", {
                                 valueAsNumber: true,
+                                setValueAs: (v) => (v === "" || v === null || v === undefined ? undefined : Number(v)),
                               })}
                               className="pl-9"
                             />
@@ -1163,12 +1175,35 @@ export default function CondominiumInfo() {
                             </p>
                           )}
                         </div>
+
+                        <div className="space-y-2">
+                          <Label htmlFor="nonComplianceFine">Multa por Não Seguir as Conformidades (R$)</Label>
+                          <div className="relative">
+                            <DollarSign className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                            <Input
+                              id="nonComplianceFine"
+                              type="number"
+                              step="0.01"
+                              min="0"
+                              placeholder="0.00"
+                              {...areaForm.register("nonComplianceFine", {
+                                valueAsNumber: true,
+                                setValueAs: (v) => (v === "" || v === null || v === undefined ? undefined : Number(v)),
+                              })}
+                              className="pl-9"
+                            />
+                          </div>
+                          {areaForm.formState.errors.nonComplianceFine && (
+                            <p className="text-sm text-destructive">
+                              {areaForm.formState.errors.nonComplianceFine.message}
+                            </p>
+                          )}
                         </div>
-                      )}
+                      </div>
 
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="space-y-2">
-                          <Label htmlFor="maxResidents">Quantidade Máxima de Residents</Label>
+                          <Label htmlFor="maxResidents">Quantidade Máxima de Residentes</Label>
                           <Input
                             id="maxResidents"
                             type="number"
@@ -1186,7 +1221,7 @@ export default function CondominiumInfo() {
                         </div>
 
                         <div className="space-y-2">
-                          <Label htmlFor="bookingType">Tipo de Agendamento</Label>
+                          <Label htmlFor="bookingType">Tipo de Reserva</Label>
                           <Select
                             value={areaForm.watch("bookingType") || ""}
                             onValueChange={(value) => {
@@ -1215,7 +1250,9 @@ export default function CondominiumInfo() {
 
                       {areaForm.watch("bookingType") === "POR_HORAS" && (
                         <div className="space-y-2">
-                          <Label htmlFor="maxHours">Máximo de Horas</Label>
+                          <Label htmlFor="maxHours">
+                            Limite de Horas por Reserva (Opcional)
+                          </Label>
                           <Input
                             id="maxHours"
                             type="number"
@@ -1223,8 +1260,18 @@ export default function CondominiumInfo() {
                             placeholder="Ex: 4"
                             {...areaForm.register("maxHours", {
                               valueAsNumber: true,
+                              setValueAs: (v) => {
+                                if (v === "" || v === null || v === undefined || v === 0) {
+                                  return undefined;
+                                }
+                                const num = Number(v);
+                                return isNaN(num) || num <= 0 ? undefined : num;
+                              },
                             })}
                           />
+                          <p className="text-xs text-muted-foreground">
+                            Defina o número máximo de horas que podem ser agendadas por vez
+                          </p>
                           {areaForm.formState.errors.maxHours && (
                             <p className="text-sm text-destructive">
                               {areaForm.formState.errors.maxHours.message}
@@ -1232,6 +1279,23 @@ export default function CondominiumInfo() {
                           )}
                         </div>
                       )}
+
+                      <div className="space-y-2">
+                        <Label htmlFor="usageRules">
+                          Normas de Uso (Opcional)
+                        </Label>
+                        <RichTextEditor
+                          key={`usageRules-${editingAreaId || "new"}`}
+                          value={areaForm.watch("usageRules") || ""}
+                          onChange={(value) => areaForm.setValue("usageRules", value)}
+                          placeholder="Digite as normas de uso da comodidade..."
+                        />
+                        {areaForm.formState.errors.usageRules && (
+                          <p className="text-sm text-destructive">
+                            {areaForm.formState.errors.usageRules.message}
+                          </p>
+                        )}
+                      </div>
 
                       <div className="space-y-2">
                         <Label htmlFor="status">Status *</Label>
@@ -1303,8 +1367,12 @@ export default function CondominiumInfo() {
                               </Badge>
                               {area.bookingType && (
                                 <Badge variant="secondary" className="text-xs">
-                                  {area.bookingType === "DIARIO" ? "Agendamento Diário" : "Agendamento por Horas"}
-                                  {area.bookingType === "POR_HORAS" && area.maxHours && ` (Máx: ${area.maxHours}h)`}
+                                  {area.bookingType === "DIARIO" ? "Reserva Diária" : "Reserva por Horas"}
+                                </Badge>
+                              )}
+                              {area.bookingType === "POR_HORAS" && area.maxHours && (
+                                <Badge variant="outline" className="text-xs">
+                                  Máx. {area.maxHours}h
                                 </Badge>
                               )}
                               <Badge
@@ -1316,32 +1384,39 @@ export default function CondominiumInfo() {
                                 {area.status || "ATIVO"}
                               </Badge>
                             </div>
-                            <div className="flex items-center gap-4 mt-2">
-                              <span className="text-sm text-muted-foreground">
-                                Quantidade: {area.quantity}
-                              </span>
+                            <div className="flex flex-wrap items-center gap-2 mt-2">
                               {area.value && area.value > 0 && (
-                                <span className="text-sm text-muted-foreground">
-                                  Valor: R$ {area.value.toLocaleString("pt-BR")}
+                                <span className="text-xs text-muted-foreground">
+                                  Valor: R$ {area.value.toLocaleString("pt-BR", {
+                                    minimumFractionDigits: 2,
+                                    maximumFractionDigits: 2,
+                                  })}
                                 </span>
                               )}
                               {area.fineValue && area.fineValue > 0 && (
-                                <span className="text-sm text-muted-foreground">
-                                  Multa: R${" "}
-                                  {area.fineValue.toLocaleString("pt-BR")}
+                                <span className="text-xs text-muted-foreground">
+                                  Multa Atraso: R${" "}
+                                  {area.fineValue.toLocaleString("pt-BR", {
+                                    minimumFractionDigits: 2,
+                                    maximumFractionDigits: 2,
+                                  })}
+                                </span>
+                              )}
+                              {area.nonComplianceFine && area.nonComplianceFine > 0 && (
+                                <span className="text-xs text-muted-foreground">
+                                  Multa Conformidade: R${" "}
+                                  {area.nonComplianceFine.toLocaleString("pt-BR", {
+                                    minimumFractionDigits: 2,
+                                    maximumFractionDigits: 2,
+                                  })}
                                 </span>
                               )}
                               {area.maxResidents && (
-                                <span className="text-sm text-muted-foreground">
-                                  Máx. Residents: {area.maxResidents}
+                                <span className="text-xs text-muted-foreground">
+                                  Máx. Residentes: {area.maxResidents}
                                 </span>
                               )}
                             </div>
-                            {area.description && (
-                              <p className="text-sm text-muted-foreground mt-2">
-                                {area.description}
-                              </p>
-                            )}
                           </div>
                           <div className="flex gap-2">
                             <Select

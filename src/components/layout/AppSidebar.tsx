@@ -35,7 +35,7 @@ const menuItems = [
   { title: "Multas", url: "/fines", icon: AlertTriangle },
   { title: "Documentos", url: "/documents", icon: FileText },
   { title: "Encomendas", url: "/packages", icon: Package },
-  { title: "Agendamentos", url: "/bookings", icon: Calendar },
+  { title: "Reservas", url: "/bookings", icon: Calendar },
 ];
 
 export function AppSidebar() {

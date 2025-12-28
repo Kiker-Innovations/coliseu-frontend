@@ -18,8 +18,15 @@ export interface AmenityBooking {
 	apartmentId?: string;
 	startDate: string; // ISO 8601 format
 	endDate: string; // ISO 8601 format
+	startTime?: string; // HH:mm format
+	endTime?: string; // HH:mm format
+	numberOfHours?: number;
+	numberOfDays?: number;
 	totalValue: number;
 	status: "PENDENTE" | "CONFIRMADO" | "EM_ANDAMENTO" | "FINALIZADO" | "CANCELADO";
+	qrCode?: string;
+	qrCodeExpiry?: string;
+	observation?: string;
 	createdAt?: string;
 	updatedAt?: string;
 	amenity?: {
@@ -27,6 +34,9 @@ export interface AmenityBooking {
 		name: string;
 		description?: string | null;
 		type?: string | null;
+		bookingType?: "DIARIO" | "POR_HORAS";
+		maxHours?: number;
+		value?: number;
 	};
 	apartment?: {
 		_id: string;
@@ -45,10 +55,13 @@ export interface AmenityBooking {
  * Create amenity booking request
  */
 export interface CreateAmenityBookingRequest {
+	observation?: string;
 	amenityId: string;
 	startDate: string; // ISO 8601 format (e.g., "2024-01-15T14:00:00Z")
-	endDate: string; // ISO 8601 format (e.g., "2024-01-15T16:00:00Z")
-	totalValue: number;
+	endDate?: string; // ISO 8601 format (e.g., "2024-01-15T16:00:00Z") - required for DIARIO
+	startTime?: string; // HH:mm format (required for POR_HORAS)
+	endTime?: string; // HH:mm format (required for POR_HORAS)
+	numberOfHours?: number;
 }
 
 /**
@@ -87,6 +100,26 @@ class AmenityBookingsService {
 		data: CreateAmenityBookingRequest,
 	): Promise<ApiResponse<AmenityBooking>> {
 		return apiClient.post<AmenityBooking>(this.basePath, data);
+	}
+
+	/**
+	 * Get available time slots for an amenity on a specific date
+	 * GET /v1/amenity-bookings/:id/available-slots?date=YYYY-MM-DD
+	 */
+	async getAvailableTimeSlots(
+		amenityId: string,
+		date: Date,
+	): Promise<ApiResponse<{
+		availableSlots: string[];
+		bookedSlots: Array<{ time: string; bookingId: string }>;
+	}>> {
+		const dateStr = date.toISOString().split("T")[0]; // YYYY-MM-DD
+		return apiClient.get<{
+			availableSlots: string[];
+			bookedSlots: Array<{ time: string; bookingId: string }>;
+		}>(`${this.basePath}/${amenityId}/available-slots`, {
+			params: { date: dateStr },
+		});
 	}
 
 	/**

@@ -14,12 +14,13 @@ export interface Amenity {
 	_id: string;
 	buildingId: string;
 	name: string;
-	quantity: number;
 	description?: string;
 	type?: "COMODIDADE" | "AREA_COMUM";
 	value?: number;
 	fineValue?: number;
+	nonComplianceFine?: number;
 	maxResidents?: number;
+	usageRules?: string; // HTML content
 	bookingType?: "DIARIO" | "POR_HORAS";
 	maxHours?: number;
 	status?: "ATIVO" | "INATIVO";
@@ -73,12 +74,13 @@ class AmenitiesService {
 	async createAmenity(data: {
 		buildingId: string;
 		name: string;
-		quantity: number;
 		description?: string;
 		type?: "COMODIDADE" | "AREA_COMUM";
 		value?: number;
 		fineValue?: number;
+		nonComplianceFine?: number;
 		maxResidents?: number;
+		usageRules?: string;
 		bookingType?: "DIARIO" | "POR_HORAS";
 		maxHours?: number;
 		status?: "ATIVO" | "INATIVO";
@@ -94,12 +96,13 @@ class AmenitiesService {
 		id: string,
 		data: {
 			name?: string;
-			quantity?: number;
 			description?: string;
 			type?: "COMODIDADE" | "AREA_COMUM";
 			value?: number;
 			fineValue?: number;
+			nonComplianceFine?: number;
 			maxResidents?: number;
+			usageRules?: string;
 			bookingType?: "DIARIO" | "POR_HORAS";
 			maxHours?: number;
 			status?: "ATIVO" | "INATIVO";
