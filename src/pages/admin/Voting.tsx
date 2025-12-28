@@ -574,7 +574,7 @@ export default function Voting() {
             ))}
           </div>
 
-          {/* Dialog de Agendamento */}
+          {/* Dialog de Reserva */}
           <Dialog
             open={isScheduleDialogOpen}
             onOpenChange={setIsScheduleDialogOpen}

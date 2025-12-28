@@ -26,6 +26,7 @@ import {
   buildingsService,
   type Building,
 } from "@/services/api/buildings.service";
+import { ApiClientError } from "@/services/api/client";
 
 export default function Login() {
   const navigate = useNavigate();
@@ -91,7 +92,41 @@ export default function Login() {
         window.location.reload();
       }, 1000);
     } catch (error: any) {
-      toast.error(error.message || "Erro ao fazer login");
+      let errorMessage = "Erro ao fazer login";
+      
+      if (error instanceof ApiClientError) {
+        errorMessage = error.response?.message || error.message || errorMessage;
+      } else if (error?.message) {
+        errorMessage = error.message;
+      } else if (error?.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      }
+      
+      // Verificar se é o erro de aguardando aprovação, confirmação de email ou rejeitado
+      const lowerMessage = errorMessage.toLowerCase();
+      if (
+        lowerMessage.includes("aguardando aprovação") ||
+        lowerMessage.includes("aguardando aprovação do administrador") ||
+        lowerMessage.includes("cadastro não confirmado") ||
+        lowerMessage.includes("verifique seu email") ||
+        lowerMessage.includes("cadastro rejeitado") ||
+        lowerMessage.includes("atualize seus dados") ||
+        errorMessage.includes("A_VALIDACAO") ||
+        errorMessage.includes("A_CONFIRMACAO_EMAIL") ||
+        errorMessage.includes("REJEITADO")
+      ) {
+        // Gerar token temporário para acesso seguro à tela de status
+        const accessToken = crypto.randomUUID();
+        // Armazenar token temporário (válido por 5 minutos)
+        sessionStorage.setItem(`status_access_${data.email}`, accessToken);
+        sessionStorage.setItem(`status_access_time_${data.email}`, Date.now().toString());
+        
+        // Redirecionar para a tela de status apenas com o email (token fica no sessionStorage)
+        navigate(`/status?email=${encodeURIComponent(data.email)}`);
+        return;
+      }
+      
+      toast.error(errorMessage);
     }
   };
 

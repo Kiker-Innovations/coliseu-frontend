@@ -3,7 +3,8 @@
  * Wraps routes that require authentication and specific user types
  */
 
-import { Navigate, Outlet } from "react-router-dom";
+import React, { useState, useEffect } from "react";
+import { Navigate, Outlet, useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/hooks/use-auth";
 import type { UserType } from "@/services/auth.service";
 
@@ -102,4 +103,76 @@ function getRedirectPath(userType: UserType | null): string {
     default:
       return "/login";
   }
+}
+
+/**
+ * Protected Route for Status Timeline
+ * Requires a valid token in sessionStorage (set during login attempt)
+ */
+export function ProtectedStatusRoute({ children }: { children: React.ReactNode }) {
+  const [isAuthorized, setIsAuthorized] = useState(false);
+  const [isValidating, setIsValidating] = useState(true);
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const email = searchParams.get("email");
+
+  useEffect(() => {
+    const validateAccess = () => {
+      if (!email) {
+        navigate("/login", { replace: true });
+        return;
+      }
+
+      // Buscar token do sessionStorage
+      const storedToken = sessionStorage.getItem(`status_access_${email}`);
+      const storedTime = sessionStorage.getItem(`status_access_time_${email}`);
+
+      if (!storedToken) {
+        navigate("/login", { replace: true });
+        return;
+      }
+
+      // Verificar se o token expirou (5 minutos)
+      if (storedTime) {
+        const tokenAge = Date.now() - parseInt(storedTime, 10);
+        const fiveMinutes = 5 * 60 * 1000;
+
+        if (tokenAge > fiveMinutes) {
+          // Token expirado, limpar e redirecionar
+          sessionStorage.removeItem(`status_access_${email}`);
+          sessionStorage.removeItem(`status_access_time_${email}`);
+          navigate("/login", { replace: true });
+          return;
+        }
+      }
+
+      // Se chegou aqui, o acesso é autorizado
+      setIsAuthorized(true);
+      setIsValidating(false);
+    };
+
+    validateAccess();
+  }, [email, navigate]);
+
+  // Mostrar loading durante validação
+  if (isValidating) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto" />
+          <p className="mt-4 text-muted-foreground">
+            Verificando acesso...
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  // Se não autorizado, não renderiza nada (já redirecionou)
+  if (!isAuthorized) {
+    return null;
+  }
+
+  // Renderizar conteúdo apenas se autorizado
+  return <>{children}</>;
 }

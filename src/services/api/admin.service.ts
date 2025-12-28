@@ -203,12 +203,236 @@ class AdminService {
 		}>(`${this.basePath}/me`);
 	}
 
+	/**
+	 * Get residents with pagination and filters
+	 * GET /v1/admins/residents
+	 */
+	async getResidents(params?: {
+		page?: number;
+		limit?: number;
+		search?: string;
+		filterBy?: "name" | "phone" | "email" | "apartment";
+		status?: "A_CONFIRMACAO_EMAIL" | "A_VALIDACAO" | "REJEITADO" | "ATIVO" | "INATIVO";
+	}): Promise<ApiResponse<{
+		data: Array<{
+			_id: string;
+			name: string;
+			email: string;
+			phone?: string;
+			apartmentNumber?: string;
+			status: string;
+		}>;
+		total: number;
+		totalPages: number;
+	}>> {
+		return apiClient.get<{
+			data: Array<{
+				name: string;
+				email: string;
+				phone?: string;
+				apartmentNumber?: string;
+				status: string;
+			}>;
+			total: number;
+			totalPages: number;
+		}>(`${this.basePath}/residents`, { params });
+	}
+
+	/**
+	 * Get resident by ID with all details
+	 * GET /v1/admins/residents/:id
+	 */
+	async getResidentById(id: string): Promise<ApiResponse<{
+		_id: string;
+		name: string;
+		email: string;
+		phone: string;
+		buildingId: string;
+		apartmentId: string;
+		status: string;
+		photoUrl: string | null;
+		residentCode: string;
+		createdAt: string;
+		updatedAt: string;
+		apartment: {
+			_id: string;
+			number: string;
+			block: string;
+			floor: number;
+			status: string;
+		} | null;
+	}>> {
+		return apiClient.get<{
+			_id: string;
+			name: string;
+			email: string;
+			phone: string;
+			buildingId: string;
+			apartmentId: string;
+			status: string;
+			photoUrl: string | null;
+			residentCode: string;
+			createdAt: string;
+			updatedAt: string;
+			apartment: {
+				_id: string;
+				number: string;
+				block: string;
+				floor: number;
+				status: string;
+			} | null;
+		}>(`${this.basePath}/residents/${id}`);
+	}
+
+	/**
+	 * Count residents by building
+	 * GET /v1/admins/residents/count
+	 */
+	async countResidents(): Promise<ApiResponse<number>> {
+		return apiClient.get<number>(`${this.basePath}/residents/count`);
+	}
+
+	/**
+	 * Approve resident (change status from A_VALIDACAO to ATIVO)
+	 * POST /v1/admins/residents/:id/approve
+	 */
+	async approveResident(id: string): Promise<ApiResponse<{
+		_id: string;
+		name: string;
+		email: string;
+		status: string;
+	}>> {
+		return apiClient.post<{
+			_id: string;
+			name: string;
+			email: string;
+			status: string;
+		}>(`${this.basePath}/residents/${id}/approve`, {});
+	}
+
+	/**
+	 * Reject resident (change status from A_VALIDACAO to REJEITADO)
+	 * POST /v1/admins/residents/:id/reject
+	 */
+	async rejectResident(
+		id: string,
+		rejectType: string,
+		rejectNote?: string,
+	): Promise<ApiResponse<{
+		_id: string;
+		name: string;
+		email: string;
+		status: string;
+		rejectType: string;
+		rejectNote?: string;
+	}>> {
+		return apiClient.post<{
+			_id: string;
+			name: string;
+			email: string;
+			status: string;
+			rejectType: string;
+			rejectNote?: string;
+		}>(`${this.basePath}/residents/${id}/reject`, {
+			rejectType,
+			rejectNote,
+		});
+	}
+
+	/**
+	 * Deactivate resident (change status from ATIVO to INATIVO)
+	 * POST /v1/admins/residents/:id/deactivate
+	 */
+	async deactivateResident(
+		id: string,
+		inactiveType: string,
+		inactiveNote?: string,
+	): Promise<ApiResponse<{
+		_id: string;
+		name: string;
+		email: string;
+		status: string;
+	}>> {
+		return apiClient.post<{
+			_id: string;
+			name: string;
+			email: string;
+			status: string;
+		}>(`${this.basePath}/residents/${id}/deactivate`, {
+			inactiveType,
+			inactiveNote,
+		});
+	}
+
+	/**
+	 * Activate resident (change status from INATIVO to ATIVO)
+	 * POST /v1/admins/residents/:id/activate
+	 */
+	async activateResident(id: string): Promise<ApiResponse<{
+		_id: string;
+		name: string;
+		email: string;
+		status: string;
+	}>> {
+		return apiClient.post<{
+			_id: string;
+			name: string;
+			email: string;
+			status: string;
+		}>(`${this.basePath}/residents/${id}/activate`, {});
+	}
+
+	/**
+	 * Get resident by ID with all details
+	 * GET /v1/admins/residents/:id
+	 */
+	async getResidentById(id: string): Promise<ApiResponse<{
+		_id: string;
+		name: string;
+		email: string;
+		phone: string;
+		buildingId: string;
+		apartmentId: string;
+		status: string;
+		photoUrl: string | null;
+		residentCode: string;
+		createdAt: string;
+		updatedAt: string;
+		apartment: {
+			_id: string;
+			number: string;
+			block: string;
+			floor: number;
+			status: string;
+		} | null;
+	}>> {
+		return apiClient.get<{
+			_id: string;
+			name: string;
+			email: string;
+			phone: string;
+			buildingId: string;
+			apartmentId: string;
+			status: string;
+			photoUrl: string | null;
+			residentCode: string;
+			createdAt: string;
+			updatedAt: string;
+			apartment: {
+				_id: string;
+				number: string;
+				block: string;
+				floor: number;
+				status: string;
+			} | null;
+		}>(`${this.basePath}/residents/${id}`);
+	}
+
 	// TODO: Add more admin endpoints as needed:
 	// - Financial management
 	// - Fines management
 	// - Polls management
 	// - Voting management
-	// - Resident management
 	// - Condominium info management
 }
 
