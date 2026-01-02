@@ -30,6 +30,7 @@ import Fines from "./pages/resident/Fines";
 import Documents from "./pages/resident/Documents";
 import Packages from "./pages/resident/Packages";
 import Bookings from "./pages/resident/Bookings";
+import Notices from "./pages/resident/Notices";
 import NotFound from "./pages/NotFound";
 
 // Admin pages
@@ -99,6 +100,7 @@ const App = () => (
                 <Route path="/documents" element={<Documents />} />
                 <Route path="/packages" element={<Packages />} />
                 <Route path="/bookings" element={<Bookings />} />
+                <Route path="/notices" element={<Notices />} />
               </Route>
             </Route>
 

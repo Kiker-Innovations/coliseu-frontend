@@ -9,6 +9,7 @@ import {
   Package,
   Calendar,
   LogOut,
+  Megaphone,
 } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
 import {
@@ -34,6 +35,7 @@ const menuItems = [
   { title: "Enquete", url: "/poll", icon: MessageSquare },
   { title: "Multas", url: "/fines", icon: AlertTriangle },
   { title: "Documentos", url: "/documents", icon: FileText },
+  { title: "Avisos", url: "/notices", icon: Megaphone },
   { title: "Encomendas", url: "/packages", icon: Package },
   { title: "Reservas", url: "/bookings", icon: Calendar },
 ];
