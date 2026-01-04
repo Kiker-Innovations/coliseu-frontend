@@ -30,6 +30,8 @@ import Fines from "./pages/resident/Fines";
 import Documents from "./pages/resident/Documents";
 import Packages from "./pages/resident/Packages";
 import Bookings from "./pages/resident/Bookings";
+import Notices from "./pages/resident/Notices";
+import Profile from "./pages/resident/Profile";
 import NotFound from "./pages/NotFound";
 
 // Admin pages
@@ -49,6 +51,7 @@ import AdminConciergeEdit from "./pages/admin/ConciergeEdit";
 import AdminConciergeView from "./pages/admin/ConciergeView";
 import AdminProjects from "./pages/admin/Projects";
 import AdminDocuments from "./pages/admin/Documents";
+import AdminProfile from "./pages/admin/Profile";
 
 // Concierge pages
 import ConciergeLogin from "./pages/concierge/auth/Login";
@@ -99,6 +102,8 @@ const App = () => (
                 <Route path="/documents" element={<Documents />} />
                 <Route path="/packages" element={<Packages />} />
                 <Route path="/bookings" element={<Bookings />} />
+                <Route path="/notices" element={<Notices />} />
+                <Route path="/profile" element={<Profile />} />
               </Route>
             </Route>
 
@@ -142,6 +147,7 @@ const App = () => (
                   path="/admin/concierge/view/:id"
                   element={<AdminConciergeView />}
                 />
+                <Route path="/admin/profile" element={<AdminProfile />} />
               </Route>
             </Route>
 

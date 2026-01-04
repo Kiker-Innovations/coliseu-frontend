@@ -223,3 +223,32 @@ export type {
   BookingsListResponse,
   AvailableTimeSlot,
 } from "./bookings.service";
+
+// Notices service
+export { noticesService } from "./notices.service";
+export type {
+  Notice,
+  NoticeDetail,
+  CreateNoticeRequest,
+  CreateNoticeResponse,
+  GetNoticesParams,
+  PaginatedNoticesResponse,
+} from "./notices.service";
+
+// Fines service
+export { finesService } from "./fines.service";
+export type {
+  Fine as BaseFine,
+  CreateFineRequest,
+  UpdateFineRequest,
+} from "./fines.service";
+
+// Infractions service
+export { infractionsService } from "./infractions.service";
+export type {
+  Infraction,
+  ApartmentWithInfractions,
+  CreateFineInfractionRequest,
+  CreateNotificationInfractionRequest,
+  GetInfractionsParams,
+} from "./infractions.service";

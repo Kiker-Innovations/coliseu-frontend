@@ -16,6 +16,7 @@ export interface ResidentUser {
 	buildingName: string;
 	apartmentNumber: string;
 	blockName: string;
+	phone?: string;
 }
 
 export interface ConciergeUser {
@@ -23,12 +24,14 @@ export interface ConciergeUser {
 	name: string;
 	buildingName: string;
 	shift: string;
+	phone?: string;
 }
 
 export interface AdminUser {
 	email: string;
 	name: string;
 	buildingName: string;
+	phone?: string;
 }
 
 export type User = ResidentUser | ConciergeUser | AdminUser;
@@ -51,6 +54,7 @@ export interface ValidateResponse {
 	apartmentNumber?: string;
 	blockName?: string;
 	shift?: string;
+	phone?: string;
 }
 
 export interface RefreshResponse {

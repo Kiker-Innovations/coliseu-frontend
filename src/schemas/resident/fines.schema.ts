@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 export const contestFineSchema = z.object({
-	description: z.string().min(20, "Descrição deve ter no mínimo 20 caracteres").trim(),
+	description: z.string().min(1, "Descrição é obrigatória").trim(),
 	attachmentFile: z.any().optional(),
 });
 

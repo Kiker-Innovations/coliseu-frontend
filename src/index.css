@@ -97,3 +97,28 @@ All colors MUST be HSL.
     @apply bg-background text-foreground;
   }
 }
+
+@layer components {
+  /* Estilos para garantir que listas sejam exibidas corretamente no prose */
+  .prose ul,
+  .prose ol {
+    @apply my-4 pl-6;
+  }
+
+  .prose ul {
+    @apply list-disc;
+  }
+
+  .prose ol {
+    @apply list-decimal;
+  }
+
+  .prose li {
+    @apply my-2;
+  }
+
+  .prose li > ul,
+  .prose li > ol {
+    @apply my-2 ml-4;
+  }
+}
