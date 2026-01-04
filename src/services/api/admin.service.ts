@@ -219,6 +219,7 @@ class AdminService {
 			name: string;
 			email: string;
 			phone?: string;
+			apartmentId?: string;
 			apartmentNumber?: string;
 			status: string;
 		}>;
@@ -227,9 +228,11 @@ class AdminService {
 	}>> {
 		return apiClient.get<{
 			data: Array<{
+				_id: string;
 				name: string;
 				email: string;
 				phone?: string;
+				apartmentId?: string;
 				apartmentNumber?: string;
 				status: string;
 			}>;
