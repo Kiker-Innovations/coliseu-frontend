@@ -155,21 +155,173 @@ class ResidentsService {
 	}
 
 	/**
-	 * Get resident profile
-	 * GET /v1/residents/:id
-	 * (Prepared for future implementation)
+	 * Get user ID from token
 	 */
-	async getProfile(id: string): Promise<ApiResponse<Resident>> {
-		return apiClient.get<Resident>(`${this.basePath}/${id}`);
+	private getUserIdFromToken(): string | null {
+		const token =
+			localStorage.getItem("coliseu_access_token") ||
+			sessionStorage.getItem("coliseu_access_token");
+
+		if (token) {
+			try {
+				const tokenParts = token.split(".");
+				if (tokenParts.length === 3) {
+					const payload = JSON.parse(atob(tokenParts[1]));
+					return payload.id || payload._id || payload.userId || payload.user_id || null;
+				}
+			} catch (e) {
+				console.error("Erro ao decodificar token:", e);
+			}
+		}
+		return null;
+	}
+
+	/**
+	 * Get resident profile
+	 * GET /v1/residents/me
+	 */
+	async getProfile(): Promise<ApiResponse<{
+		id?: string;
+		_id?: string;
+		email: string;
+		name: string;
+		phone?: string;
+		photoUrl?: string | null;
+		apartmentNumber?: string;
+		buildingName?: string;
+		buildingId?: string;
+		apartmentId?: string;
+		apartment?: {
+			number?: string;
+			block?: string;
+			floor?: number;
+		};
+		apartmentBlock?: string;
+		apartmentFloor?: number;
+	}>> {
+		return apiClient.get<{
+			id?: string;
+			_id?: string;
+			email: string;
+			name: string;
+			phone?: string;
+			photoUrl?: string | null;
+			apartmentNumber?: string;
+			buildingName?: string;
+			buildingId?: string;
+			apartmentId?: string;
+			apartment?: {
+				number?: string;
+				block?: string;
+				floor?: number;
+			};
+			apartmentBlock?: string;
+			apartmentFloor?: number;
+		}>(`${this.basePath}/me`);
 	}
 
 	/**
 	 * Update resident profile
-	 * PATCH /v1/residents/:id
-	 * (Prepared for future implementation)
+	 * PUT /v1/residents/{id}
 	 */
-	async updateProfile(id: string, data: Partial<Resident>): Promise<ApiResponse<Resident>> {
-		return apiClient.patch<Resident>(`${this.basePath}/${id}`, data);
+	async updateProfile(data: {
+		name?: string;
+		email?: string;
+		phone?: string;
+		photoUrl?: string;
+		buildingId?: string;
+		apartmentId?: string;
+	}): Promise<ApiResponse<{
+		id: string;
+		email: string;
+		name: string;
+		phone?: string;
+		photoUrl?: string | null;
+		status?: string;
+		createdAt?: string;
+		updatedAt?: string;
+	}>> {
+		const userId = this.getUserIdFromToken();
+		if (!userId) {
+			throw new Error("Não foi possível obter o ID do usuário do token");
+		}
+
+		return apiClient.put<{
+			id: string;
+			email: string;
+			name: string;
+			phone?: string;
+			photoUrl?: string | null;
+			status?: string;
+			createdAt?: string;
+			updatedAt?: string;
+		}>(`${this.basePath}/${userId}`, data);
+	}
+
+	/**
+	 * Get presigned URL for photo upload
+	 * POST /v1/residents/{id}/photo/presigned-url
+	 */
+	async getPhotoPresignedUrl(data: {
+		fileName?: string;
+		fileSize?: number;
+		contentType?: string;
+		fileExtension?: string;
+	}): Promise<ApiResponse<{
+		presignedUrl: string;
+		photoUrl: string;
+		s3Key?: string;
+		instructions?: string;
+		expiresIn?: string;
+	}>> {
+		const userId = this.getUserIdFromToken();
+		if (!userId) {
+			throw new Error("Não foi possível obter o ID do usuário do token");
+		}
+
+		// Extrair extensão do arquivo do fileName ou usar fileExtension
+		let fileExtension = data.fileExtension;
+		if (!fileExtension && data.fileName) {
+			const match = data.fileName.match(/\.([^.]+)$/);
+			fileExtension = match ? match[1].toLowerCase() : "jpg";
+		}
+		if (!fileExtension) {
+			// Tentar inferir do contentType
+			if (data.contentType?.includes("jpeg") || data.contentType?.includes("jpg")) {
+				fileExtension = "jpg";
+			} else if (data.contentType?.includes("png")) {
+				fileExtension = "png";
+			} else {
+				fileExtension = "jpg"; // Default
+			}
+		}
+
+		return apiClient.post<{
+			presignedUrl: string;
+			photoUrl: string;
+			s3Key?: string;
+			instructions?: string;
+			expiresIn?: string;
+		}>(`${this.basePath}/${userId}/photo/presigned-url`, {
+			fileExtension,
+		});
+	}
+
+	/**
+	 * Change resident password
+	 * POST /v1/residents/me/password
+	 */
+	async changePassword(data: {
+		currentPassword: string;
+		newPassword: string;
+		confirmPassword: string;
+	}): Promise<ApiResponse<null>> {
+		const userId = this.getUserIdFromToken();
+		if (!userId) {
+			throw new Error("Não foi possível obter o ID do usuário do token");
+		}
+
+		return apiClient.post<null>(`${this.basePath}/me/password`, data);
 	}
 
 	/**

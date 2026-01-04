@@ -192,6 +192,8 @@ class AdminService {
 		name: string;
 		buildingId: string;
 		role?: string;
+		phone?: string;
+		photoUrl?: string | null;
 	}>> {
 		return apiClient.get<{
 			_id: string;
@@ -200,7 +202,162 @@ class AdminService {
 			name: string;
 			buildingId: string;
 			role?: string;
+			phone?: string;
+			photoUrl?: string | null;
 		}>(`${this.basePath}/me`);
+	}
+
+	/**
+	 * Get user ID from token
+	 */
+	private getUserIdFromToken(): string | null {
+		const token =
+			localStorage.getItem("coliseu_access_token") ||
+			sessionStorage.getItem("coliseu_access_token");
+
+		if (token) {
+			try {
+				const tokenParts = token.split(".");
+				if (tokenParts.length === 3) {
+					const payload = JSON.parse(atob(tokenParts[1]));
+					return payload.id || payload._id || payload.userId || payload.user_id || payload.adminId || null;
+				}
+			} catch (e) {
+				console.error("Erro ao decodificar token:", e);
+			}
+		}
+		return null;
+	}
+
+	/**
+	 * Get building ID from token
+	 */
+	private getBuildingIdFromToken(): string | null {
+		const token =
+			localStorage.getItem("coliseu_access_token") ||
+			sessionStorage.getItem("coliseu_access_token");
+
+		if (token) {
+			try {
+				const tokenParts = token.split(".");
+				if (tokenParts.length === 3) {
+					const payload = JSON.parse(atob(tokenParts[1]));
+					return payload.buildingId || payload.building_id || null;
+				}
+			} catch (e) {
+				console.error("Erro ao decodificar token:", e);
+			}
+		}
+		return null;
+	}
+
+	/**
+	 * Get admin profile
+	 * GET /v1/admins/me
+	 */
+	async getProfile(): Promise<ApiResponse<{
+		id?: string;
+		_id?: string;
+		email: string;
+		name: string;
+		phone?: string;
+		photoUrl?: string | null;
+		buildingId: string;
+	}>> {
+		return apiClient.get<{
+			id?: string;
+			_id?: string;
+			email: string;
+			name: string;
+			phone?: string;
+			photoUrl?: string | null;
+			buildingId: string;
+		}>(`${this.basePath}/me`);
+	}
+
+	/**
+	 * Update admin profile
+	 * PUT /v1/admins/{id}
+	 */
+	async updateProfile(data: {
+		name?: string;
+		email?: string;
+		phone?: string;
+		photoUrl?: string;
+		buildingId?: string;
+	}): Promise<ApiResponse<{
+		id: string;
+		email: string;
+		name: string;
+		phone?: string;
+		photoUrl?: string | null;
+		status?: string;
+		createdAt?: string;
+		updatedAt?: string;
+	}>> {
+		const userId = this.getUserIdFromToken();
+		if (!userId) {
+			throw new Error("Não foi possível obter o ID do usuário do token");
+		}
+
+		const buildingId = data.buildingId || this.getBuildingIdFromToken();
+		if (!buildingId && data.buildingId === undefined) {
+			console.warn("BuildingId não encontrado no token");
+		}
+
+		return apiClient.put<{
+			id: string;
+			email: string;
+			name: string;
+			phone?: string;
+			photoUrl?: string | null;
+			status?: string;
+			createdAt?: string;
+			updatedAt?: string;
+		}>(`${this.basePath}/${userId}`, {
+			...data,
+			buildingId: buildingId || data.buildingId,
+		});
+	}
+
+	/**
+	 * Get presigned URL for photo upload
+	 * POST /v1/admins/{id}/photo/presigned-url
+	 */
+	async getPhotoPresignedUrl(data: {
+		fileName: string;
+		fileSize: number;
+		contentType: string;
+	}): Promise<ApiResponse<{
+		presignedUrl: string;
+		photoUrl: string;
+	}>> {
+		const userId = this.getUserIdFromToken();
+		if (!userId) {
+			throw new Error("Não foi possível obter o ID do usuário do token");
+		}
+
+		return apiClient.post<{
+			presignedUrl: string;
+			photoUrl: string;
+		}>(`${this.basePath}/${userId}/photo/presigned-url`, data);
+	}
+
+	/**
+	 * Upload admin photo to presigned URL
+	 */
+	async uploadPhoto(presignedUrl: string, photo: File): Promise<void> {
+		const response = await fetch(presignedUrl, {
+			method: "PUT",
+			body: photo,
+			headers: {
+				"Content-Type": photo.type,
+			},
+		});
+
+		if (!response.ok) {
+			throw new Error("Falha ao fazer upload da foto");
+		}
 	}
 
 	/**
@@ -437,6 +594,23 @@ class AdminService {
 	// - Polls management
 	// - Voting management
 	// - Condominium info management
+
+	/**
+	 * Change admin password
+	 * POST /v1/admins/me/password
+	 */
+	async changePassword(data: {
+		currentPassword: string;
+		newPassword: string;
+		confirmPassword: string;
+	}): Promise<ApiResponse<null>> {
+		const userId = this.getUserIdFromToken();
+		if (!userId) {
+			throw new Error("Não foi possível obter o ID do usuário do token");
+		}
+
+		return apiClient.post<null>(`${this.basePath}/me/password`, data);
+	}
 }
 
 // Export singleton instance

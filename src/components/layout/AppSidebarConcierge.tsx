@@ -1,4 +1,3 @@
-import { useState, useEffect } from "react";
 import {
   LayoutDashboard,
   Package,
@@ -7,6 +6,7 @@ import {
   Shield,
   User,
   UserCheck,
+  ChevronDown,
 } from "lucide-react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import {
@@ -23,6 +23,14 @@ import {
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/use-auth";
 import coliseuIcon from "@/assets/coliseu-icon.png";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 const menuItems = [
   { title: "Dashboard", url: "/concierge/dashboard", icon: LayoutDashboard },
@@ -35,52 +43,19 @@ export function AppSidebarConcierge() {
   const { state } = useSidebar();
   const location = useLocation();
   const navigate = useNavigate();
-  const { logout } = useAuth();
+  const { logout, user } = useAuth();
   const collapsed = state === "collapsed";
-  const [conciergeName, setConciergeName] = useState<string>("Porteiro");
 
   const isActive = (path: string) => location.pathname === path;
-
-  useEffect(() => {
-    const loadConciergeName = () => {
-      // Extract name from token (rota /concierges/me não existe mais)
-      const token = localStorage.getItem("coliseu_access_token") || 
-                    sessionStorage.getItem("coliseu_access_token") ||
-                    localStorage.getItem("concierge_token") || 
-                    sessionStorage.getItem("concierge_token") ||
-                    localStorage.getItem("coliseu_access_token") ||
-                    sessionStorage.getItem("coliseu_access_token");
-      
-      if (token) {
-        try {
-          const tokenParts = token.split('.');
-          if (tokenParts.length === 3) {
-            const payload = JSON.parse(atob(tokenParts[1]));
-            if (payload.name) {
-              setConciergeName(payload.name);
-              localStorage.setItem("concierge_name", payload.name);
-              return;
-            }
-          }
-        } catch (decodeError) {
-          console.warn("Não foi possível decodificar token:", decodeError);
-        }
-      }
-      
-      // Fallback: tentar pegar do localStorage
-      const storedName = localStorage.getItem("concierge_name");
-      if (storedName) {
-        setConciergeName(storedName);
-      }
-    };
-
-    loadConciergeName();
-  }, []);
 
   const handleBackToLogin = async () => {
     await logout();
     navigate("/concierge/login");
   };
+
+  // Dados do usuário (prioriza dados do contexto, fallback para mock)
+  const userDisplayName = user?.name || "Porteiro";
+  const userDisplayEmail = user?.email || "";
 
   return (
     <Sidebar collapsible="icon">
@@ -98,16 +73,8 @@ export function AppSidebarConcierge() {
             )}
           </div>
         </div>
-        {!collapsed && (
-          <div className="p-4 pb-3">
-            <div className="flex items-center gap-2 text-sm text-sidebar-foreground/70">
-              <User className="w-3 h-3" />
-              <span className="truncate">{conciergeName}</span>
-            </div>
-          </div>
-        )}
 
-        <SidebarGroup>
+        <SidebarGroup className="flex-1 flex items-center">
           <SidebarGroupContent>
             <SidebarMenu>
               {menuItems.map((item) => (
@@ -125,15 +92,55 @@ export function AppSidebarConcierge() {
         </SidebarGroup>
       </SidebarContent>
 
-      <SidebarFooter className="p-4 border-t border-sidebar-border">
-        <Button
-          variant="ghost"
-          className="w-full justify-start gap-2"
-          onClick={handleBackToLogin}
-        >
-          <LogOut className="h-5 w-5" />
-          {!collapsed && <span>Voltar</span>}
-        </Button>
+      <SidebarFooter className="border-t border-sidebar-border p-2">
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="ghost"
+              className="w-full justify-start h-auto p-2 hover:bg-sidebar-accent"
+            >
+              <div className="flex items-center gap-2 w-full min-w-0">
+                <User className="h-5 w-5 shrink-0 text-sidebar-foreground" />
+                {!collapsed && (
+                  <>
+                    <div className="flex-1 min-w-0 text-left flex flex-col">
+                      <span className="text-sm font-medium text-sidebar-foreground truncate">
+                        {userDisplayName}
+                      </span>
+                      {userDisplayEmail && (
+                        <span className="text-xs text-sidebar-foreground/70 truncate">
+                          {userDisplayEmail}
+                        </span>
+                      )}
+                    </div>
+                    <ChevronDown className="h-4 w-4 text-sidebar-foreground/50 shrink-0" />
+                  </>
+                )}
+              </div>
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent
+            side={collapsed ? "right" : "top"}
+            align={collapsed ? "start" : "end"}
+            className="w-56"
+          >
+            <DropdownMenuLabel className="font-normal">
+              <div className="flex flex-col space-y-1">
+                <p className="text-sm font-medium leading-none">{userDisplayName}</p>
+                {userDisplayEmail && (
+                  <p className="text-xs leading-none text-muted-foreground">
+                    {userDisplayEmail}
+                  </p>
+                )}
+              </div>
+            </DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={handleBackToLogin} className="text-destructive focus:text-destructive">
+              <LogOut className="mr-2 h-4 w-4" />
+              <span>Voltar</span>
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </SidebarFooter>
     </Sidebar>
   );
