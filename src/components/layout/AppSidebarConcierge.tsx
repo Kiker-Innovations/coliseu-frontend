@@ -48,6 +48,41 @@ export function AppSidebarConcierge() {
 
   const isActive = (path: string) => location.pathname === path;
 
+  useEffect(() => {
+    const loadConciergeName = () => {
+      // Extract name from token (rota /concierges/me não existe mais)
+      const token = localStorage.getItem("coliseu_access_token") || 
+                    sessionStorage.getItem("coliseu_access_token") ||
+                    localStorage.getItem("concierge_token") || 
+                    sessionStorage.getItem("concierge_token") ||
+                    localStorage.getItem("coliseu_access_token") ||
+                    sessionStorage.getItem("coliseu_access_token");
+      
+      if (token) {
+        try {
+          const tokenParts = token.split('.');
+          if (tokenParts.length === 3) {
+            const payload = JSON.parse(atob(tokenParts[1]));
+            if (payload.name) {
+              setConciergeName(payload.name);
+              localStorage.setItem("concierge_name", payload.name);
+              return;
+            }
+          }
+        } catch (decodeError) {
+        }
+      }
+      
+      // Fallback: tentar pegar do localStorage
+      const storedName = localStorage.getItem("concierge_name");
+      if (storedName) {
+        setConciergeName(storedName);
+      }
+    };
+
+    loadConciergeName();
+  }, []);
+
   const handleBackToLogin = async () => {
     await logout();
     navigate("/concierge/login");

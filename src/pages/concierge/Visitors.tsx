@@ -147,10 +147,6 @@ export default function ConciergeVisitors() {
               buildingId = payload.buildingId || payload.building_id || "";
             }
           } catch (e) {
-            console.warn(
-              "Não foi possível decodificar token para obter buildingId:",
-              e
-            );
           }
         }
 
@@ -307,10 +303,6 @@ export default function ConciergeVisitors() {
               buildingId = payload.buildingId || payload.building_id || "";
             }
           } catch (e) {
-            console.warn(
-              "Não foi possível decodificar token para obter buildingId:",
-              e
-            );
           }
         }
 
@@ -332,7 +324,6 @@ export default function ConciergeVisitors() {
         setTotalPages(pages);
         setCurrentPage(1);
       } catch (error: any) {
-        console.warn("Erro ao recarregar visitantes:", error);
         // Se a API falhar, apenas usar filtro local nos dados existentes
       }
     };
@@ -441,7 +432,6 @@ export default function ConciergeVisitors() {
         setVisitsTotal(response.data.total || 0);
         setVisitsPage(page);
       } else {
-        console.warn("Resposta sem data:", response);
         setVisits([]);
       }
     } catch (error: any) {
@@ -546,7 +536,6 @@ export default function ConciergeVisitors() {
         loadVisitorVisits(visitor._id);
       }
     } catch (error: any) {
-      console.warn("Erro ao buscar detalhes do visitante:", error);
       // Em caso de erro, usar os dados que já temos
       setSelectedVisitor(visitor);
       loadVisitorVisits(visitor._id);
@@ -622,7 +611,6 @@ export default function ConciergeVisitors() {
         photoUrl: visitorData.photoUrl,
       });
     } catch (error: any) {
-      console.warn("Erro ao buscar detalhes do visitante:", error);
       setEditingVisitor(visitor);
       
       // Preencher formulário mesmo em caso de erro
@@ -1410,7 +1398,6 @@ export default function ConciergeVisitors() {
                       onError={() => {
                         setPhotoError(selectedVisitor.photoUrl || null);
                         setImageLoading(prev => ({ ...prev, [selectedVisitor._id]: false }));
-                        console.warn("Erro ao carregar foto:", selectedVisitor.photoUrl);
                       }}
                       onLoad={() => {
                         setPhotoError(null);

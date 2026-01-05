@@ -115,7 +115,6 @@ class ApiClient {
 		if (token) {
 			headers.set("Authorization", `Bearer ${token}`);
 		} else {
-			console.warn("No authentication token found. Request may fail if authentication is required.");
 		}
 
 		return headers;

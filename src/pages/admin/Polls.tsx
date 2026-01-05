@@ -91,7 +91,6 @@ export default function Polls() {
             setBuildingId(adminResponse.data.buildingId);
           }
         } catch (error: any) {
-          console.warn("Não foi possível buscar o perfil do admin:", error);
           // Tentar decodificar o token JWT como fallback
           try {
             const tokenParts = token.split(".");
@@ -102,7 +101,6 @@ export default function Polls() {
               }
             }
           } catch (decodeError) {
-            console.warn("Não foi possível decodificar o token:", decodeError);
           }
         }
       } catch (error: any) {
@@ -116,7 +114,6 @@ export default function Polls() {
   useEffect(() => {
     const loadData = async () => {
       if (!buildingId || buildingId.trim() === "") {
-        console.warn("buildingId não disponível, aguardando...");
         setIsLoading(false);
         return;
       }

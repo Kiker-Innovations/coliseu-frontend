@@ -76,7 +76,6 @@ export default function Poll() {
             }
           }
         } catch (decodeError) {
-          console.warn("Não foi possível decodificar o token:", decodeError);
         }
       } catch (error: any) {
         console.error("Erro ao carregar dados do resident:", error);
@@ -89,7 +88,6 @@ export default function Poll() {
   useEffect(() => {
     const loadData = async () => {
       if (!buildingId || buildingId.trim() === "") {
-        console.warn("buildingId não disponível, aguardando...");
         setIsLoading(false);
         return;
       }
@@ -136,7 +134,6 @@ export default function Poll() {
                   error.statusCode === 404
                 ) {
                 } else {
-                  console.warn(`Erro ao buscar voto da poll ${pollId}:`, error);
                 }
               }
               return null;

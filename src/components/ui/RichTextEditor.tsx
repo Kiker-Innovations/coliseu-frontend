@@ -9,11 +9,9 @@ const loadReactQuill = async () => {
 		try {
 			await import(/* @vite-ignore */ "react-quill/dist/quill.snow.css");
 		} catch (cssError) {
-			console.warn("CSS do react-quill não pôde ser carregado");
 		}
 		return reactQuillModule.default;
 	} catch (error) {
-		console.warn("react-quill não está instalado. Execute: npm install react-quill");
 		return null;
 	}
 };

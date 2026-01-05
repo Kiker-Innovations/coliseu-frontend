@@ -176,7 +176,6 @@ export default function CondominiumInfo() {
           return payload.buildingId || payload.building_id || "";
         }
       } catch (e) {
-        console.warn("Não foi possível decodificar token:", e);
       }
     }
     return "";
@@ -1954,7 +1953,6 @@ export default function CondominiumInfo() {
                         onError={() => {
                           setPhotoError(selectedResident.photoUrl || null);
                           setImageLoading(prev => ({ ...prev, [selectedResident._id]: false }));
-                          console.warn("Erro ao carregar foto:", selectedResident.photoUrl);
                         }}
                         onLoad={() => {
                           setPhotoError(null);

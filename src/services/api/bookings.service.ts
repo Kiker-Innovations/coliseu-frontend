@@ -184,7 +184,6 @@ class BookingsService {
 	private readonly basePath = `/${API_CONFIG.version}/bookings`;
 
 	async createBooking(data: CreateBookingRequest): Promise<ApiResponse<Booking>> {
-		console.warn("bookingsService.createBooking is deprecated. Use amenityBookingsService.createBooking instead.");
 		// Convert legacy format to new format
 		const newData: CreateAmenityBookingRequest = {
 			amenityId: data.amenityId,
@@ -196,7 +195,6 @@ class BookingsService {
 	}
 
 	async getBookings(params?: GetBookingsParams): Promise<ApiResponse<BookingsListResponse>> {
-		console.warn("bookingsService.getBookings is deprecated. Use amenityBookingsService.getBookings instead.");
 		const newParams: GetAmenityBookingsParams = {
 			page: params?.page,
 			limit: params?.limit,
@@ -221,7 +219,6 @@ class BookingsService {
 	}
 
 	async getBookingById(id: string): Promise<ApiResponse<Booking>> {
-		console.warn("bookingsService.getBookingById is deprecated. Use amenityBookingsService.getBookingById instead.");
 		return amenityBookingsService.getBookingById(id);
 	}
 
@@ -229,7 +226,6 @@ class BookingsService {
 		amenityId: string,
 		date: string,
 	): Promise<ApiResponse<{ slots: AvailableTimeSlot[] }>> {
-		console.warn("bookingsService.getAvailableTimeSlots is deprecated.");
 		// This endpoint might not exist in the new API
 		return apiClient.get<{ slots: AvailableTimeSlot[] }>(
 			`/${API_CONFIG.version}/amenities/${amenityId}/available-slots`,
@@ -243,22 +239,18 @@ class BookingsService {
 		id: string,
 		data: any,
 	): Promise<ApiResponse<Booking>> {
-		console.warn("bookingsService.updateBooking is deprecated.");
 		return apiClient.put<Booking>(`${this.basePath}/${id}`, data);
 	}
 
 	async confirmBooking(id: string): Promise<ApiResponse<Booking>> {
-		console.warn("bookingsService.confirmBooking is deprecated. Use amenityBookingsService.cancelBooking for cancel, confirm might not be available.");
 		return apiClient.post<Booking>(`${this.basePath}/${id}/confirm`, {});
 	}
 
 	async cancelBooking(id: string): Promise<ApiResponse<Booking>> {
-		console.warn("bookingsService.cancelBooking is deprecated. Use amenityBookingsService.cancelBooking instead.");
 		return amenityBookingsService.cancelBooking(id);
 	}
 
 	async deleteBooking(id: string): Promise<ApiResponse<void>> {
-		console.warn("bookingsService.deleteBooking is deprecated.");
 		return apiClient.delete<void>(`${this.basePath}/${id}`);
 	}
 }

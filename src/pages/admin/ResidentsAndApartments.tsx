@@ -105,7 +105,6 @@ export default function ResidentsAndApartments() {
           return payload.buildingId || payload.building_id || "";
         }
       } catch (e) {
-        console.warn("Não foi possível decodificar token:", e);
       }
     }
     return "";
@@ -156,7 +155,6 @@ export default function ResidentsAndApartments() {
           setResidentsTotal(total);
           setResidentsTotalPages(pages);
         } catch (error: any) {
-          console.warn("Erro ao buscar condôminos na API, usando dados locais:", error);
           // Fallback: usar dados locais se API não disponível
           setResidents([]);
           setResidentsTotal(0);
@@ -175,7 +173,6 @@ export default function ResidentsAndApartments() {
           setResidentsTotal(residentsData.length);
           setResidentsTotalPages(1);
         } catch (error: any) {
-          console.warn("Erro ao carregar condôminos, usando array vazio:", error);
           setResidents([]);
           setResidentsTotal(0);
           setResidentsTotalPages(1);
@@ -295,7 +292,6 @@ export default function ResidentsAndApartments() {
           setSelectedApartment(apt);
         }
       } catch (error) {
-        console.warn("Erro ao buscar apartamento:", error);
       }
     }
     
@@ -316,7 +312,6 @@ export default function ResidentsAndApartments() {
         // Não vamos definir selectedResident aqui, apenas mostrar no modal
       }
     } catch (error) {
-      console.warn("Erro ao buscar condôminos:", error);
     }
     
     setIsLoadingDetails(false);
