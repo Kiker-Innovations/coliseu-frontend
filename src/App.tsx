@@ -73,7 +73,7 @@ const App = () => (
       <BrowserRouter>
         <AuthProvider>
           <Routes>
-            <Route path="/" element={<Navigate to="/login" replace />} />
+            <Route path="/" element={<Login />} />
 
             {/* Resident Routes */}
             <Route path="/login" element={<Login />} />

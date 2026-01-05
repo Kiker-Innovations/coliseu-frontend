@@ -93,7 +93,9 @@ export default function AdminLogin() {
         data.rememberMe
       );
       toast.success("Login de administrador realizado com sucesso!");
-      // Navigation is handled by AuthContext
+      setTimeout(() => {
+        window.location.href = "/admin/dashboard";
+      }, 200);
     } catch (error: any) {
       toast.error(error.message || "Erro ao fazer login");
     }

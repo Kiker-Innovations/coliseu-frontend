@@ -55,7 +55,7 @@ export default function ResetPassword() {
 
       // Redirect to update password page with email
       setTimeout(() => {
-        navigate(`/update-password?email=${encodeURIComponent(data.email)}`);
+        window.location.href = `/update-password?email=${encodeURIComponent(data.email)}`;
       }, 2000);
     } catch (error) {
       if (error instanceof ApiClientError) {

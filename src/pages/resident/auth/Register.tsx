@@ -155,7 +155,9 @@ export default function Register() {
       }
 
       toast.success(response.message || "Conta criada com sucesso!");
-      navigate("/login");
+      setTimeout(() => {
+        window.location.href = "/login";
+      }, 200);
     } catch (error) {
       if (error instanceof ApiClientError) {
         toast.error(error.response.message || "Erro ao criar conta");
