@@ -41,10 +41,6 @@ interface RichTextEditorProps {
 }
 
 export function RichTextEditor({ value, onChange, placeholder }: RichTextEditorProps) {
-	console.log("🔍 RichTextEditor - renderizado com value:", value);
-	console.log("🔍 RichTextEditor - tipo de value:", typeof value);
-	console.log("🔍 RichTextEditor - length de value:", value?.length);
-	
 	const [isClient, setIsClient] = useState(false);
 	const [QuillComponent, setQuillComponent] = useState<any>(null);
 	const [isLoading, setIsLoading] = useState(true);

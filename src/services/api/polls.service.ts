@@ -245,8 +245,6 @@ class PollsService {
 			}
 		}
 
-		console.log("getPolls - Query params:", queryParams);
-		
 		const response = await apiClient.get<any[]>(this.basePath, {
 			params: queryParams,
 		});

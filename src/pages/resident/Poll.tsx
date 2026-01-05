@@ -97,19 +97,15 @@ export default function Poll() {
       try {
         setIsLoading(true);
 
-        console.log("Loading polls for buildingId:", buildingId);
-
         // Load active polls (only ATIVO)
         const activeParams = { 
           buildingId: buildingId.trim(),
           status: ["ATIVO"]
         };
 
-        console.log("Active polls params:", activeParams);
 
         try {
           const activeResponse = await pollsService.getPolls(activeParams);
-          console.log("Active polls response:", activeResponse);
           if (activeResponse.success && activeResponse.data) {
             const polls = Array.isArray(activeResponse.data)
               ? activeResponse.data
@@ -139,7 +135,6 @@ export default function Poll() {
                   error instanceof ApiClientError &&
                   error.statusCode === 404
                 ) {
-                  console.log(`Usuário ainda não votou na poll ${pollId}`);
                 } else {
                   console.warn(`Erro ao buscar voto da poll ${pollId}:`, error);
                 }
@@ -176,7 +171,6 @@ export default function Poll() {
               activeError.statusCode === 400 ||
               activeError.statusCode === 404
             ) {
-              console.log("Nenhuma enquete ativa encontrada");
               setActivePolls([]);
             } else if (activeError.statusCode === 500) {
               console.error(
@@ -201,11 +195,9 @@ export default function Poll() {
           status: ["FINALIZADO"]
         };
 
-        console.log("Finished polls params:", finishedParams);
 
         try {
           const finishedResponse = await pollsService.getPolls(finishedParams);
-          console.log("Finished polls response:", finishedResponse);
           if (finishedResponse.success && finishedResponse.data) {
             setClosedPolls(
               Array.isArray(finishedResponse.data) ? finishedResponse.data : []
@@ -220,7 +212,6 @@ export default function Poll() {
               finishedError.statusCode === 400 ||
               finishedError.statusCode === 404
             ) {
-              console.log("Nenhuma enquete finalizada encontrada");
               setClosedPolls([]);
             } else {
               setClosedPolls([]);
@@ -511,10 +502,6 @@ export default function Poll() {
         return;
       }
 
-      console.log("Enviando voto:", { pollId, optionId });
-      console.log("Token disponível:", !!token);
-      console.log("Backend extrairá userId do token JWT");
-
       // O backend extrai o userId do token JWT, então não precisamos enviar residentId no body
       // Se optionId for null, não devemos enviar voto (isso não deve acontecer aqui, mas mantemos a validação)
       if (optionId === null) {
@@ -527,8 +514,6 @@ export default function Poll() {
         pollId: pollId,
         optionId: optionId,
       };
-
-      console.log("Payload do voto:", votePayload);
 
       const response = await pollsService.votePoll(votePayload);
 
@@ -610,9 +595,7 @@ export default function Poll() {
                   error instanceof ApiClientError &&
                   error.statusCode === 404
                 ) {
-                  console.log(`Usuário ainda não votou na poll ${pollId}`);
                 } else {
-                  console.warn(`Erro ao buscar voto da poll ${pollId}:`, error);
                 }
               }
               return null;
@@ -1031,14 +1014,7 @@ export default function Poll() {
                                             error instanceof ApiClientError &&
                                             error.statusCode === 404
                                           ) {
-                                            console.log(
-                                              `Usuário não votou na poll ${pId}`
-                                            );
                                           } else {
-                                            console.warn(
-                                              `Erro ao buscar voto da poll ${pId}:`,
-                                              error
-                                            );
                                           }
                                         }
                                         return null;

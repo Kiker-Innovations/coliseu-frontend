@@ -555,12 +555,8 @@ export default function Bookings() {
 
 	const loadAmenities = useCallback(async () => {
 		try {
-			console.log("Carregando comodidades ativas para residente");
 			// Retorna todas as comodidades ativas (COMODIDADE e AREA_COMUM)
 			const amenitiesList = await amenitiesService.getActiveCommoditiesForResident();
-
-			console.log("Comodidades ativas recebidas (total):", amenitiesList.length);
-			console.log("Comodidades ativas recebidas (detalhes):", amenitiesList);
 
 			// Ordenar: primeiro COMODIDADE, depois AREA_COMUM
 			const sortedAmenities = [...amenitiesList].sort((a, b) => {
@@ -586,7 +582,6 @@ export default function Bookings() {
 			};
 
 			const response = await amenityBookingsService.getBookings(params);
-			console.log("Resposta completa de bookings:", response);
 
 			if (response.success && response.data) {
 				// A API retorna { bookings: [], total: number, page: number, limit: number }
@@ -600,10 +595,8 @@ export default function Bookings() {
 					return dateB - dateA;
 				});
 
-				console.log("Todos os bookings do resident:", sortedBookings);
 				setBookings(sortedBookings);
 			} else {
-				console.warn("Resposta sem sucesso ou sem data:", response);
 				setBookings([]);
 			}
 		} catch (error: any) {

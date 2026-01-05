@@ -430,15 +430,12 @@ export default function ConciergeVisitors() {
   const loadVisitorVisits = async (visitorId: string, page: number = 1) => {
     try {
       setIsLoadingVisits(true);
-      console.log("Carregando visitas para visitante:", visitorId);
       const response = await visitsService.getVisitsByVisitorId(visitorId, {
         page,
         limit: 5,
       });
-      console.log("Resposta da API de visitas:", response);
       if (response.data) {
         const visitsData = response.data.data || [];
-        console.log("Visitas carregadas:", visitsData);
         setVisits(visitsData);
         setVisitsTotalPages(response.data.totalPages || 1);
         setVisitsTotal(response.data.total || 0);
@@ -1116,11 +1113,9 @@ export default function ConciergeVisitors() {
                       e.preventDefault();
                       visitorForm.handleSubmit(
                         (data) => {
-                          console.log("Form data:", data);
                           handleAddVisitor(data);
                         },
                         (errors) => {
-                          console.error("Form validation errors:", errors);
                           toast.error("Por favor, corrija os erros no formulário");
                         }
                       )();
@@ -1804,7 +1799,6 @@ export default function ConciergeVisitors() {
                 e.preventDefault();
                 editVisitorForm.handleSubmit(
                   (data) => {
-                    console.log("Form data:", data);
                     handleUpdateVisitor(data);
                   },
                   (errors) => {

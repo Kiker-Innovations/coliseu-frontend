@@ -173,12 +173,6 @@ class ApiClient {
 
 		// Log request details for debugging
 		const token = this.getAuthToken();
-		console.log("Executing request:", {
-			url,
-			method: config.method || "GET",
-			hasToken: !!token,
-			headers: config.headers ? Object.fromEntries(new Headers(config.headers).entries()) : undefined,
-		});
 
 		try {
 			const response = await fetch(url, {
@@ -216,10 +210,6 @@ class ApiClient {
 
 		// Log headers for debugging (without exposing full token)
 		const authHeader = headers.get("Authorization");
-		console.log("Request headers:", {
-			"Content-Type": headers.get("Content-Type"),
-			"Authorization": authHeader ? `${authHeader.substring(0, 20)}...` : "NOT SET",
-		});
 
 		return this.executeRequest<T>(url, {
 			...fetchConfig,
