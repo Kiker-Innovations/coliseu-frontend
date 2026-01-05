@@ -30,19 +30,26 @@ import { ApiClientError } from "@/services/api/client";
 
 export default function Login() {
   const navigate = useNavigate();
-  const { loginResident, isAuthenticated, userType } = useAuth();
+  const {
+    loginResident,
+    isAuthenticated,
+    userType,
+    isLoading: isAuthLoading,
+  } = useAuth();
   const [isPageReady, setIsPageReady] = useState(false);
   const [buildings, setBuildings] = useState<Building[]>([]);
   const [isLoadingBuildings, setIsLoadingBuildings] = useState(true);
 
+  // Redirect if already authenticated (wait for auth to finish loading first)
   useEffect(() => {
-    const initialize = async () => {
-      // Redirect if already authenticated
-      if (isAuthenticated && userType === "resident") {
-        navigate("/dashboard");
-      }
+    if (!isAuthLoading && isAuthenticated && userType === "resident") {
+      navigate("/dashboard", { replace: true });
+    }
+  }, [isAuthLoading, isAuthenticated, userType, navigate]);
 
-      // Load buildings
+  // Load buildings
+  useEffect(() => {
+    const loadBuildings = async () => {
       try {
         const buildingsList = await buildingsService.getBuildings();
         setBuildings(buildingsList);
@@ -51,12 +58,11 @@ export default function Login() {
         console.error("Failed to load buildings:", error);
       } finally {
         setIsLoadingBuildings(false);
+        setIsPageReady(true);
       }
-
-      setIsPageReady(true);
     };
-    initialize();
-  }, [isAuthenticated, userType, navigate]);
+    loadBuildings();
+  }, []);
 
   const {
     register,
@@ -88,12 +94,10 @@ export default function Login() {
         data.rememberMe
       );
       toast.success("Login realizado com sucesso!");
-      setTimeout(() => {
-        window.location.reload();
-      }, 1000);
+      // Navigation is handled by AuthContext
     } catch (error: any) {
       let errorMessage = "Erro ao fazer login";
-      
+
       if (error instanceof ApiClientError) {
         errorMessage = error.response?.message || error.message || errorMessage;
       } else if (error?.message) {
@@ -101,7 +105,7 @@ export default function Login() {
       } else if (error?.response?.data?.message) {
         errorMessage = error.response.data.message;
       }
-      
+
       // Verificar se é o erro de aguardando aprovação, confirmação de email ou rejeitado
       const lowerMessage = errorMessage.toLowerCase();
       if (
@@ -119,18 +123,27 @@ export default function Login() {
         const accessToken = crypto.randomUUID();
         // Armazenar token temporário (válido por 5 minutos)
         sessionStorage.setItem(`status_access_${data.email}`, accessToken);
-        sessionStorage.setItem(`status_access_time_${data.email}`, Date.now().toString());
-        
+        sessionStorage.setItem(
+          `status_access_time_${data.email}`,
+          Date.now().toString()
+        );
+
         // Redirecionar para a tela de status apenas com o email (token fica no sessionStorage)
         navigate(`/status?email=${encodeURIComponent(data.email)}`);
         return;
       }
-      
+
       toast.error(errorMessage);
     }
   };
 
-  if (!isPageReady) {
+  // Show loading while auth is checking or page is not ready
+  if (isAuthLoading || !isPageReady) {
+    return <LoginSkeleton />;
+  }
+
+  // Don't render login page if already authenticated
+  if (isAuthenticated && userType === "resident") {
     return <LoginSkeleton />;
   }
 

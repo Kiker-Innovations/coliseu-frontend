@@ -40,20 +40,16 @@ export default function ConciergeLogin() {
   const [isLoadingBuildings, setIsLoadingBuildings] = useState(true);
   const [isPageReady, setIsPageReady] = useState(false);
 
+  // Redirect if already authenticated (wait for auth to finish loading first)
   useEffect(() => {
-    const initialize = async () => {
-      // Wait for auth to finish loading
-      if (isAuthLoading) {
-        return;
-      }
+    if (!isAuthLoading && isAuthenticated && userType === "concierge") {
+      navigate("/concierge/dashboard", { replace: true });
+    }
+  }, [isAuthLoading, isAuthenticated, userType, navigate]);
 
-      // If already authenticated as concierge, logout first to allow access to login page
-      if (isAuthenticated && userType === "concierge") {
-        // Don't redirect - allow access to login page directly
-        // User can log in again if needed
-      }
-
-      // Load buildings
+  // Load buildings
+  useEffect(() => {
+    const loadBuildings = async () => {
       try {
         const buildingsList = await buildingsService.getBuildings();
         setBuildings(buildingsList);
@@ -65,8 +61,8 @@ export default function ConciergeLogin() {
         setIsPageReady(true);
       }
     };
-    initialize();
-  }, [isAuthenticated, userType, isAuthLoading]);
+    loadBuildings();
+  }, []);
 
   const {
     register,
@@ -102,9 +98,7 @@ export default function ConciergeLogin() {
       localStorage.setItem("concierge_building_id", data.buildingId);
 
       toast.success("Login realizado com sucesso!");
-
-      // Redirect to dashboard after successful login
-      navigate("/concierge/dashboard");
+      // Navigation is handled by AuthContext
     } catch (error: any) {
       toast.error(error.message || "Erro ao fazer login");
     }
@@ -119,6 +113,22 @@ export default function ConciergeLogin() {
             <div className="flex flex-col items-center justify-center space-y-4">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
               <p className="text-sm text-muted-foreground">Carregando...</p>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  // Don't render login page if already authenticated
+  if (isAuthenticated && userType === "concierge") {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 via-background to-accent/5 p-4">
+        <Card className="w-full max-w-md border-2 border-primary/20 shadow-xl">
+          <CardContent className="p-8">
+            <div className="flex flex-col items-center justify-center space-y-4">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+              <p className="text-sm text-muted-foreground">Redirecionando...</p>
             </div>
           </CardContent>
         </Card>

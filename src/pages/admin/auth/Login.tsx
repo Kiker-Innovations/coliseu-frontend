@@ -29,19 +29,26 @@ import {
 
 export default function AdminLogin() {
   const navigate = useNavigate();
-  const { loginAdmin, isAuthenticated, userType } = useAuth();
+  const {
+    loginAdmin,
+    isAuthenticated,
+    userType,
+    isLoading: isAuthLoading,
+  } = useAuth();
   const [isPageReady, setIsPageReady] = useState(false);
   const [buildings, setBuildings] = useState<Building[]>([]);
   const [isLoadingBuildings, setIsLoadingBuildings] = useState(true);
 
+  // Redirect if already authenticated (wait for auth to finish loading first)
   useEffect(() => {
-    const initialize = async () => {
-      // Redirect if already authenticated
-      if (isAuthenticated && userType === "admin") {
-        navigate("/admin/dashboard");
-      }
+    if (!isAuthLoading && isAuthenticated && userType === "admin") {
+      navigate("/admin/dashboard", { replace: true });
+    }
+  }, [isAuthLoading, isAuthenticated, userType, navigate]);
 
-      // Load buildings
+  // Load buildings
+  useEffect(() => {
+    const loadBuildings = async () => {
       try {
         const buildingsList = await buildingsService.getBuildings();
         setBuildings(buildingsList);
@@ -50,12 +57,11 @@ export default function AdminLogin() {
         console.error("Failed to load buildings:", error);
       } finally {
         setIsLoadingBuildings(false);
+        setIsPageReady(true);
       }
-
-      setIsPageReady(true);
     };
-    initialize();
-  }, [isAuthenticated, userType, navigate]);
+    loadBuildings();
+  }, []);
 
   const {
     register,
@@ -87,15 +93,19 @@ export default function AdminLogin() {
         data.rememberMe
       );
       toast.success("Login de administrador realizado com sucesso!");
-      setTimeout(() => {
-        window.location.reload();
-      }, 1000);
+      // Navigation is handled by AuthContext
     } catch (error: any) {
       toast.error(error.message || "Erro ao fazer login");
     }
   };
 
-  if (!isPageReady) {
+  // Show loading while auth is checking or page is not ready
+  if (isAuthLoading || !isPageReady) {
+    return <LoginSkeleton />;
+  }
+
+  // Don't render login page if already authenticated
+  if (isAuthenticated && userType === "admin") {
     return <LoginSkeleton />;
   }
 

@@ -13,16 +13,22 @@ import {
 } from "@/schemas/resident/auth/reset-password.schema";
 import ResetPasswordSkeleton from "@/skeleton/resident/auth/ResetPasswordSkeleton";
 import { useState, useEffect } from "react";
+import { useAuth } from "@/hooks/use-auth";
 
 export default function ResetPassword() {
   const navigate = useNavigate();
+  const { isAuthenticated, userType, isLoading: isAuthLoading } = useAuth();
   const [isPageReady, setIsPageReady] = useState(false);
 
+  // Redirect if already authenticated
   useEffect(() => {
-    const initialize = async () => {
-      setIsPageReady(true);
-    };
-    initialize();
+    if (!isAuthLoading && isAuthenticated && userType === "resident") {
+      navigate("/dashboard", { replace: true });
+    }
+  }, [isAuthLoading, isAuthenticated, userType, navigate]);
+
+  useEffect(() => {
+    setIsPageReady(true);
   }, []);
 
   const {
@@ -64,7 +70,13 @@ export default function ResetPassword() {
     }
   };
 
-  if (!isPageReady) {
+  // Show loading while auth is checking or page is not ready
+  if (isAuthLoading || !isPageReady) {
+    return <ResetPasswordSkeleton />;
+  }
+
+  // Don't render page if already authenticated
+  if (isAuthenticated && userType === "resident") {
     return <ResetPasswordSkeleton />;
   }
 
