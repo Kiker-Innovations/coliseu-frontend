@@ -94,7 +94,9 @@ export default function Login() {
         data.rememberMe
       );
       toast.success("Login realizado com sucesso!");
-      // Navigation is handled by AuthContext
+      setTimeout(() => {
+        window.location.href = "/dashboard";
+      }, 200);
     } catch (error: any) {
       let errorMessage = "Erro ao fazer login";
 

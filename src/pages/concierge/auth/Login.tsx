@@ -98,7 +98,9 @@ export default function ConciergeLogin() {
       localStorage.setItem("concierge_building_id", data.buildingId);
 
       toast.success("Login realizado com sucesso!");
-      // Navigation is handled by AuthContext
+      setTimeout(() => {
+        window.location.href = "/concierge/dashboard";
+      }, 200);
     } catch (error: any) {
       toast.error(error.message || "Erro ao fazer login");
     }

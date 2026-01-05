@@ -56,9 +56,7 @@ export default function ConciergeResetPassword() {
 
       // Redirect to update password page with email
       setTimeout(() => {
-        navigate(
-          `/concierge/update-password?email=${encodeURIComponent(data.email)}`
-        );
+        window.location.href = `/concierge/update-password?email=${encodeURIComponent(data.email)}`;
       }, 2000);
     } catch (error) {
       if (error instanceof ApiClientError) {
