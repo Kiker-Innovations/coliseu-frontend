@@ -14,16 +14,22 @@ import {
 import { Shield } from "lucide-react";
 import ResetPasswordSkeleton from "@/skeleton/concierge/ResetPasswordSkeleton";
 import { useState, useEffect } from "react";
+import { useAuth } from "@/hooks/use-auth";
 
 export default function ConciergeResetPassword() {
   const navigate = useNavigate();
+  const { isAuthenticated, userType, isLoading: isAuthLoading } = useAuth();
   const [isPageReady, setIsPageReady] = useState(false);
 
+  // Redirect if already authenticated
   useEffect(() => {
-    const initialize = async () => {
-      setIsPageReady(true);
-    };
-    initialize();
+    if (!isAuthLoading && isAuthenticated && userType === "concierge") {
+      navigate("/concierge/dashboard", { replace: true });
+    }
+  }, [isAuthLoading, isAuthenticated, userType, navigate]);
+
+  useEffect(() => {
+    setIsPageReady(true);
   }, []);
 
   const {
@@ -67,7 +73,13 @@ export default function ConciergeResetPassword() {
     }
   };
 
-  if (!isPageReady) {
+  // Show loading while auth is checking or page is not ready
+  if (isAuthLoading || !isPageReady) {
+    return <ResetPasswordSkeleton />;
+  }
+
+  // Don't render page if already authenticated
+  if (isAuthenticated && userType === "concierge") {
     return <ResetPasswordSkeleton />;
   }
 

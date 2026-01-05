@@ -29,9 +29,11 @@ import {
   type Building,
 } from "@/services/api/buildings.service";
 import { apartmentsService, type Apartment } from "@/services/api";
+import { useAuth } from "@/hooks/use-auth";
 
 export default function Register() {
   const navigate = useNavigate();
+  const { isAuthenticated, userType, isLoading: isAuthLoading } = useAuth();
   const [isPageReady, setIsPageReady] = useState(false);
   const [showCamera, setShowCamera] = useState(false);
   const [capturedPhoto, setCapturedPhoto] = useState<File | null>(null);
@@ -40,8 +42,16 @@ export default function Register() {
   const [apartments, setApartments] = useState<Apartment[]>([]);
   const [isLoadingApartments, setIsLoadingApartments] = useState(false);
 
+  // Redirect if already authenticated
   useEffect(() => {
-    const initialize = async () => {
+    if (!isAuthLoading && isAuthenticated && userType === "resident") {
+      navigate("/dashboard", { replace: true });
+    }
+  }, [isAuthLoading, isAuthenticated, userType, navigate]);
+
+  // Load buildings
+  useEffect(() => {
+    const loadBuildings = async () => {
       try {
         const buildingsList = await buildingsService.getBuildings();
         setBuildings(buildingsList);
@@ -50,11 +60,10 @@ export default function Register() {
         console.error("Failed to load buildings:", error);
       } finally {
         setIsLoadingBuildings(false);
+        setIsPageReady(true);
       }
-
-      setIsPageReady(true);
     };
-    initialize();
+    loadBuildings();
   }, []);
 
   const {
@@ -158,7 +167,13 @@ export default function Register() {
     }
   };
 
-  if (!isPageReady) {
+  // Show loading while auth is checking or page is not ready
+  if (isAuthLoading || !isPageReady) {
+    return <RegisterSkeleton />;
+  }
+
+  // Don't render register page if already authenticated
+  if (isAuthenticated && userType === "resident") {
     return <RegisterSkeleton />;
   }
 
