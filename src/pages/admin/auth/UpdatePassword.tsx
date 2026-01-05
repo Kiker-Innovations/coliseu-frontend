@@ -54,6 +54,7 @@ export default function AdminUpdatePassword() {
       // Redirect to login after 3 seconds
       setTimeout(() => {
         navigate("/admin/login");
+        window.location.href = "/admin/login";
       }, 3000);
     } catch (error) {
       if (error instanceof ApiClientError) {

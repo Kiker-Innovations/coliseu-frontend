@@ -43,6 +43,7 @@ export default function AdminLogin() {
   useEffect(() => {
     if (!isAuthLoading && isAuthenticated && userType === "admin") {
       navigate("/admin/dashboard", { replace: true });
+      window.location.href = "/admin/dashboard";
     }
   }, [isAuthLoading, isAuthenticated, userType, navigate]);
 
