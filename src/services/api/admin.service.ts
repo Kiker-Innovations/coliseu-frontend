@@ -542,52 +542,6 @@ class AdminService {
 		}>(`${this.basePath}/residents/${id}/activate`, {});
 	}
 
-	/**
-	 * Get resident by ID with all details
-	 * GET /v1/admins/residents/:id
-	 */
-	async getResidentById(id: string): Promise<ApiResponse<{
-		_id: string;
-		name: string;
-		email: string;
-		phone: string;
-		buildingId: string;
-		apartmentId: string;
-		status: string;
-		photoUrl: string | null;
-		residentCode: string;
-		createdAt: string;
-		updatedAt: string;
-		apartment: {
-			_id: string;
-			number: string;
-			block: string;
-			floor: number;
-			status: string;
-		} | null;
-	}>> {
-		return apiClient.get<{
-			_id: string;
-			name: string;
-			email: string;
-			phone: string;
-			buildingId: string;
-			apartmentId: string;
-			status: string;
-			photoUrl: string | null;
-			residentCode: string;
-			createdAt: string;
-			updatedAt: string;
-			apartment: {
-				_id: string;
-				number: string;
-				block: string;
-				floor: number;
-				status: string;
-			} | null;
-		}>(`${this.basePath}/residents/${id}`);
-	}
-
 	// TODO: Add more admin endpoints as needed:
 	// - Financial management
 	// - Fines management
