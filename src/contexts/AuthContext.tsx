@@ -84,7 +84,6 @@ function AuthProvider({ children }: AuthProviderProps) {
   useEffect(() => {
     if (pendingNavigation && user && userType) {
       navigate(pendingNavigation, { replace: true });
-      window.location.href = pendingNavigation;
       setPendingNavigation(null);
     }
   }, [pendingNavigation, user, userType, navigate]);
@@ -149,7 +148,6 @@ function AuthProvider({ children }: AuthProviderProps) {
     setUserType(null);
     const loginPath = authService.getLoginPath(userType);
     navigate(loginPath, { replace: true });
-    window.location.href = loginPath;
   }, [navigate, userType]);
 
   /**

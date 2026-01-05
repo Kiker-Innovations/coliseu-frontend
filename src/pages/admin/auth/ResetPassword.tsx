@@ -25,7 +25,6 @@ export default function AdminResetPassword() {
   useEffect(() => {
     if (!isAuthLoading && isAuthenticated && userType === "admin") {
       navigate("/admin/dashboard", { replace: true });
-      window.location.href = "/admin/dashboard";
     }
   }, [isAuthLoading, isAuthenticated, userType, navigate]);
 
@@ -57,9 +56,7 @@ export default function AdminResetPassword() {
 
       // Redirect to update password page with email
       setTimeout(() => {
-        window.location.href = `/admin/update-password?email=${encodeURIComponent(
-          data.email
-        )}`;
+        window.location.href = `/admin/update-password?email=${encodeURIComponent(data.email)}`;
       }, 2000);
     } catch (error) {
       if (error instanceof ApiClientError) {

@@ -54,7 +54,6 @@ export default function UpdatePassword() {
       // Redirect to login after 3 seconds
       setTimeout(() => {
         navigate("/login");
-        window.location.href = "/login";
       }, 3000);
     } catch (error) {
       if (error instanceof ApiClientError) {

@@ -4,12 +4,7 @@
  */
 
 import React, { useState, useEffect } from "react";
-import {
-  Navigate,
-  Outlet,
-  useNavigate,
-  useSearchParams,
-} from "react-router-dom";
+import { Navigate, Outlet, useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/hooks/use-auth";
 import type { UserType } from "@/services/auth.service";
 
@@ -114,11 +109,7 @@ function getRedirectPath(userType: UserType | null): string {
  * Protected Route for Status Timeline
  * Requires a valid token in sessionStorage (set during login attempt)
  */
-export function ProtectedStatusRoute({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export function ProtectedStatusRoute({ children }: { children: React.ReactNode }) {
   const [isAuthorized, setIsAuthorized] = useState(false);
   const [isValidating, setIsValidating] = useState(true);
   const navigate = useNavigate();
@@ -129,7 +120,6 @@ export function ProtectedStatusRoute({
     const validateAccess = () => {
       if (!email) {
         navigate("/login", { replace: true });
-        window.location.href = "/login";
         return;
       }
 
@@ -139,7 +129,6 @@ export function ProtectedStatusRoute({
 
       if (!storedToken) {
         navigate("/login", { replace: true });
-        window.location.href = "/login";
         return;
       }
 
@@ -153,7 +142,6 @@ export function ProtectedStatusRoute({
           sessionStorage.removeItem(`status_access_${email}`);
           sessionStorage.removeItem(`status_access_time_${email}`);
           navigate("/login", { replace: true });
-          window.location.href = "/login";
           return;
         }
       }
@@ -172,7 +160,9 @@ export function ProtectedStatusRoute({
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto" />
-          <p className="mt-4 text-muted-foreground">Verificando acesso...</p>
+          <p className="mt-4 text-muted-foreground">
+            Verificando acesso...
+          </p>
         </div>
       </div>
     );

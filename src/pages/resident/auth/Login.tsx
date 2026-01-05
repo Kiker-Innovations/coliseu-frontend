@@ -44,7 +44,6 @@ export default function Login() {
   useEffect(() => {
     if (!isAuthLoading && isAuthenticated && userType === "resident") {
       navigate("/dashboard", { replace: true });
-      window.location.href = "/dashboard";
     }
   }, [isAuthLoading, isAuthenticated, userType, navigate]);
 
