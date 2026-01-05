@@ -156,8 +156,6 @@ class VisitsService {
       url.searchParams.append("limit", String(params.limit));
     }
 
-    console.log("Buscando visitas - URL:", url.toString());
-
     const response = await fetch(url.toString(), {
       method: "GET",
       headers: {
@@ -165,8 +163,6 @@ class VisitsService {
         "Content-Type": "application/json",
       },
     });
-
-    console.log("Resposta HTTP:", response.status);
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({
@@ -178,7 +174,6 @@ class VisitsService {
     }
 
     const data = await response.json();
-    console.log("Dados da API:", data);
     return data;
   }
 

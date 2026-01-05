@@ -140,7 +140,6 @@ export default function ConciergePackages() {
         sessionStorage.getItem("concierge_token");
 
       if (!token) {
-        console.warn("Token não encontrado no localStorage");
         return;
       }
 
@@ -160,7 +159,6 @@ export default function ConciergePackages() {
           }
         }
       } catch (decodeError) {
-        console.warn("Não foi possível decodificar o token:", decodeError);
       }
 
       // Não usa mais a rota /concierges/me - todos os dados vêm do token
@@ -191,10 +189,6 @@ export default function ConciergePackages() {
               buildingId = payload.buildingId || payload.building_id || "";
             }
           } catch (e) {
-            console.warn(
-              "Não foi possível decodificar token para obter buildingId:",
-              e
-            );
           }
         }
 
@@ -496,23 +490,11 @@ export default function ConciergePackages() {
         receiverDate: receiverDate,
       };
 
-      // Log para debug
-      console.log("Payload antes de enviar:", JSON.stringify(payload, null, 2));
-      console.log("Tipos dos campos:", {
-        ownerName: typeof payload.ownerName,
-        apartmentId: typeof payload.apartmentId,
-        description: typeof payload.description,
-        courierName: typeof payload.courierName,
-        receiverDate: typeof payload.receiverDate,
-      });
-
       // Validar campos obrigatórios
       if (!payload.apartmentId || !payload.receiverDate) {
         toast.error("Apartamento, data de chegada são obrigatórios.");
         return;
       }
-
-      console.log("Enviando payload:", payload);
 
       await packageService.createPackage(payload);
 

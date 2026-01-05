@@ -9,11 +9,9 @@ const loadReactQuill = async () => {
 		try {
 			await import(/* @vite-ignore */ "react-quill/dist/quill.snow.css");
 		} catch (cssError) {
-			console.warn("CSS do react-quill não pôde ser carregado");
 		}
 		return reactQuillModule.default;
 	} catch (error) {
-		console.warn("react-quill não está instalado. Execute: npm install react-quill");
 		return null;
 	}
 };
@@ -41,10 +39,6 @@ interface RichTextEditorProps {
 }
 
 export function RichTextEditor({ value, onChange, placeholder }: RichTextEditorProps) {
-	console.log("🔍 RichTextEditor - renderizado com value:", value);
-	console.log("🔍 RichTextEditor - tipo de value:", typeof value);
-	console.log("🔍 RichTextEditor - length de value:", value?.length);
-	
 	const [isClient, setIsClient] = useState(false);
 	const [QuillComponent, setQuillComponent] = useState<any>(null);
 	const [isLoading, setIsLoading] = useState(true);

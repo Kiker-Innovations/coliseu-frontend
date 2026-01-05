@@ -145,8 +145,6 @@ export default function Register() {
         );
       }
 
-      console.log(response);
-
       toast.success(response.message || "Conta criada com sucesso!");
       navigate("/login");
     } catch (error) {

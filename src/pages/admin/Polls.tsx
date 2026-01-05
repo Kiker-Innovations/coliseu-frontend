@@ -91,7 +91,6 @@ export default function Polls() {
             setBuildingId(adminResponse.data.buildingId);
           }
         } catch (error: any) {
-          console.warn("Não foi possível buscar o perfil do admin:", error);
           // Tentar decodificar o token JWT como fallback
           try {
             const tokenParts = token.split(".");
@@ -102,7 +101,6 @@ export default function Polls() {
               }
             }
           } catch (decodeError) {
-            console.warn("Não foi possível decodificar o token:", decodeError);
           }
         }
       } catch (error: any) {
@@ -116,7 +114,6 @@ export default function Polls() {
   useEffect(() => {
     const loadData = async () => {
       if (!buildingId || buildingId.trim() === "") {
-        console.warn("buildingId não disponível, aguardando...");
         setIsLoading(false);
         return;
       }
@@ -124,18 +121,15 @@ export default function Polls() {
       try {
         setIsLoading(true);
 
-        console.log("Loading polls for buildingId:", buildingId);
-
         // Load active polls (ATIVO and PROGRAMADO)
         const activeParams = { 
           buildingId: buildingId.trim(),
           status: ["ATIVO", "PROGRAMADO"]
         };
 
-        console.log("Active polls params:", activeParams);
         try {
           const activeResponse = await pollsService.getPolls(activeParams);
-          console.log("Active polls response:", activeResponse);
+
           if (activeResponse.success && activeResponse.data) {
             setActivePolls(
               Array.isArray(activeResponse.data) ? activeResponse.data : []
@@ -150,7 +144,6 @@ export default function Polls() {
               activeError.statusCode === 400 ||
               activeError.statusCode === 404
             ) {
-              console.log("Nenhuma enquete ativa encontrada");
               setActivePolls([]);
             } else if (activeError.statusCode === 500) {
               console.error(
@@ -175,10 +168,9 @@ export default function Polls() {
           status: ["FINALIZADO", "CANCELADO"]
         };
 
-        console.log("Finished polls params:", finishedParams);
         try {
           const finishedResponse = await pollsService.getPolls(finishedParams);
-          console.log("Finished polls response:", finishedResponse);
+
           if (finishedResponse.success && finishedResponse.data) {
             setClosedPolls(
               Array.isArray(finishedResponse.data) ? finishedResponse.data : []
@@ -196,7 +188,6 @@ export default function Polls() {
               finishedError.statusCode === 400 ||
               finishedError.statusCode === 404
             ) {
-              console.log("Nenhuma enquete finalizada encontrada");
               setClosedPolls([]);
             } else if (finishedError.statusCode === 500) {
               console.error(
@@ -282,10 +273,6 @@ export default function Polls() {
   };
 
   const onSubmit = async (data: PollSchema) => {
-    console.log("Form submitted with data:", data);
-    console.log("BuildingId:", buildingId);
-    console.log("Poll options:", pollOptions);
-
     try {
       if (!buildingId) {
         toast.error("BuildingId não encontrado. Faça login novamente.");
@@ -336,11 +323,7 @@ export default function Polls() {
         endDate: endDate,
       };
 
-      console.log("Creating poll with data:", pollRequest);
-
-      console.log("Sending request to API...");
       const response = await pollsService.createPoll(pollRequest);
-      console.log("API Response:", response);
 
       if (response.success) {
         toast.success("Enquete agendada com sucesso!");

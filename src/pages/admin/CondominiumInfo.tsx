@@ -176,7 +176,6 @@ export default function CondominiumInfo() {
           return payload.buildingId || payload.building_id || "";
         }
       } catch (e) {
-        console.warn("Não foi possível decodificar token:", e);
       }
     }
     return "";
@@ -280,18 +279,10 @@ export default function CondominiumInfo() {
           status: statusFilter as "A_CONFIRMACAO_EMAIL" | "A_VALIDACAO" | "REJEITADO" | "ATIVO" | "INATIVO" | undefined,
         });
 
-        console.log("Resposta completa da API:", response);
-        console.log("response.data:", response.data);
-        console.log("response.data?.data:", response.data?.data);
-
         // A resposta pode vir em response.data.data ou response.data dependendo da estrutura
         const residentsData = response.data?.data || [];
         const total = response.data?.total || 0;
         const pages = response.data?.totalPages || 1;
-
-        console.log("Residentes carregados:", residentsData);
-        console.log("Total de residentes:", total);
-        console.log("Número de residentes no array:", residentsData.length);
 
         setResidentsList(residentsData);
         setTotalResidentsList(total);
@@ -1962,7 +1953,6 @@ export default function CondominiumInfo() {
                         onError={() => {
                           setPhotoError(selectedResident.photoUrl || null);
                           setImageLoading(prev => ({ ...prev, [selectedResident._id]: false }));
-                          console.warn("Erro ao carregar foto:", selectedResident.photoUrl);
                         }}
                         onLoad={() => {
                           setPhotoError(null);

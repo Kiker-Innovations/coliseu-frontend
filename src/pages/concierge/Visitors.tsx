@@ -147,10 +147,6 @@ export default function ConciergeVisitors() {
               buildingId = payload.buildingId || payload.building_id || "";
             }
           } catch (e) {
-            console.warn(
-              "Não foi possível decodificar token para obter buildingId:",
-              e
-            );
           }
         }
 
@@ -307,10 +303,6 @@ export default function ConciergeVisitors() {
               buildingId = payload.buildingId || payload.building_id || "";
             }
           } catch (e) {
-            console.warn(
-              "Não foi possível decodificar token para obter buildingId:",
-              e
-            );
           }
         }
 
@@ -332,7 +324,6 @@ export default function ConciergeVisitors() {
         setTotalPages(pages);
         setCurrentPage(1);
       } catch (error: any) {
-        console.warn("Erro ao recarregar visitantes:", error);
         // Se a API falhar, apenas usar filtro local nos dados existentes
       }
     };
@@ -430,21 +421,17 @@ export default function ConciergeVisitors() {
   const loadVisitorVisits = async (visitorId: string, page: number = 1) => {
     try {
       setIsLoadingVisits(true);
-      console.log("Carregando visitas para visitante:", visitorId);
       const response = await visitsService.getVisitsByVisitorId(visitorId, {
         page,
         limit: 5,
       });
-      console.log("Resposta da API de visitas:", response);
       if (response.data) {
         const visitsData = response.data.data || [];
-        console.log("Visitas carregadas:", visitsData);
         setVisits(visitsData);
         setVisitsTotalPages(response.data.totalPages || 1);
         setVisitsTotal(response.data.total || 0);
         setVisitsPage(page);
       } else {
-        console.warn("Resposta sem data:", response);
         setVisits([]);
       }
     } catch (error: any) {
@@ -549,7 +536,6 @@ export default function ConciergeVisitors() {
         loadVisitorVisits(visitor._id);
       }
     } catch (error: any) {
-      console.warn("Erro ao buscar detalhes do visitante:", error);
       // Em caso de erro, usar os dados que já temos
       setSelectedVisitor(visitor);
       loadVisitorVisits(visitor._id);
@@ -625,7 +611,6 @@ export default function ConciergeVisitors() {
         photoUrl: visitorData.photoUrl,
       });
     } catch (error: any) {
-      console.warn("Erro ao buscar detalhes do visitante:", error);
       setEditingVisitor(visitor);
       
       // Preencher formulário mesmo em caso de erro
@@ -1116,11 +1101,9 @@ export default function ConciergeVisitors() {
                       e.preventDefault();
                       visitorForm.handleSubmit(
                         (data) => {
-                          console.log("Form data:", data);
                           handleAddVisitor(data);
                         },
                         (errors) => {
-                          console.error("Form validation errors:", errors);
                           toast.error("Por favor, corrija os erros no formulário");
                         }
                       )();
@@ -1415,7 +1398,6 @@ export default function ConciergeVisitors() {
                       onError={() => {
                         setPhotoError(selectedVisitor.photoUrl || null);
                         setImageLoading(prev => ({ ...prev, [selectedVisitor._id]: false }));
-                        console.warn("Erro ao carregar foto:", selectedVisitor.photoUrl);
                       }}
                       onLoad={() => {
                         setPhotoError(null);
@@ -1804,7 +1786,6 @@ export default function ConciergeVisitors() {
                 e.preventDefault();
                 editVisitorForm.handleSubmit(
                   (data) => {
-                    console.log("Form data:", data);
                     handleUpdateVisitor(data);
                   },
                   (errors) => {
