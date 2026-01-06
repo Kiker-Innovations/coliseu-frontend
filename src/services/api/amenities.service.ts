@@ -21,8 +21,7 @@ export interface Amenity {
 	nonComplianceFine?: number;
 	maxResidents?: number;
 	usageRules?: string; // HTML content
-	bookingType?: "DIARIO" | "POR_HORAS";
-	maxHours?: number;
+	bookingType?: "DIARIO";
 	status?: "ATIVO" | "INATIVO";
 	createdAt?: string;
 	updatedAt?: string;
@@ -81,8 +80,7 @@ class AmenitiesService {
 		nonComplianceFine?: number;
 		maxResidents?: number;
 		usageRules?: string;
-		bookingType?: "DIARIO" | "POR_HORAS";
-		maxHours?: number;
+		bookingType?: "DIARIO";
 		status?: "ATIVO" | "INATIVO";
 	}): Promise<ApiResponse<Amenity>> {
 		return apiClient.post<Amenity>(this.basePath, data);
@@ -103,8 +101,7 @@ class AmenitiesService {
 			nonComplianceFine?: number;
 			maxResidents?: number;
 			usageRules?: string;
-			bookingType?: "DIARIO" | "POR_HORAS";
-			maxHours?: number;
+			bookingType?: "DIARIO";
 			status?: "ATIVO" | "INATIVO";
 		},
 	): Promise<ApiResponse<Amenity>> {

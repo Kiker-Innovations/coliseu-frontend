@@ -192,8 +192,6 @@ class AdminService {
 		name: string;
 		buildingId: string;
 		role?: string;
-		phone?: string;
-		photoUrl?: string | null;
 	}>> {
 		return apiClient.get<{
 			_id: string;
@@ -202,8 +200,6 @@ class AdminService {
 			name: string;
 			buildingId: string;
 			role?: string;
-			phone?: string;
-			photoUrl?: string | null;
 		}>(`${this.basePath}/me`);
 	}
 
@@ -260,8 +256,6 @@ class AdminService {
 		_id?: string;
 		email: string;
 		name: string;
-		phone?: string;
-		photoUrl?: string | null;
 		buildingId: string;
 	}>> {
 		return apiClient.get<{
@@ -269,8 +263,6 @@ class AdminService {
 			_id?: string;
 			email: string;
 			name: string;
-			phone?: string;
-			photoUrl?: string | null;
 			buildingId: string;
 		}>(`${this.basePath}/me`);
 	}
@@ -282,15 +274,11 @@ class AdminService {
 	async updateProfile(data: {
 		name?: string;
 		email?: string;
-		phone?: string;
-		photoUrl?: string;
 		buildingId?: string;
 	}): Promise<ApiResponse<{
 		id: string;
 		email: string;
 		name: string;
-		phone?: string;
-		photoUrl?: string | null;
 		status?: string;
 		createdAt?: string;
 		updatedAt?: string;
@@ -309,8 +297,6 @@ class AdminService {
 			id: string;
 			email: string;
 			name: string;
-			phone?: string;
-			photoUrl?: string | null;
 			status?: string;
 			createdAt?: string;
 			updatedAt?: string;
@@ -318,46 +304,6 @@ class AdminService {
 			...data,
 			buildingId: buildingId || data.buildingId,
 		});
-	}
-
-	/**
-	 * Get presigned URL for photo upload
-	 * POST /v1/admins/{id}/photo/presigned-url
-	 */
-	async getPhotoPresignedUrl(data: {
-		fileName: string;
-		fileSize: number;
-		contentType: string;
-	}): Promise<ApiResponse<{
-		presignedUrl: string;
-		photoUrl: string;
-	}>> {
-		const userId = this.getUserIdFromToken();
-		if (!userId) {
-			throw new Error("Não foi possível obter o ID do usuário do token");
-		}
-
-		return apiClient.post<{
-			presignedUrl: string;
-			photoUrl: string;
-		}>(`${this.basePath}/${userId}/photo/presigned-url`, data);
-	}
-
-	/**
-	 * Upload admin photo to presigned URL
-	 */
-	async uploadPhoto(presignedUrl: string, photo: File): Promise<void> {
-		const response = await fetch(presignedUrl, {
-			method: "PUT",
-			body: photo,
-			headers: {
-				"Content-Type": photo.type,
-			},
-		});
-
-		if (!response.ok) {
-			throw new Error("Falha ao fazer upload da foto");
-		}
 	}
 
 	/**

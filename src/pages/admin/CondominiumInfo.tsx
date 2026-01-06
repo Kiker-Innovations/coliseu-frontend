@@ -595,7 +595,6 @@ export default function CondominiumInfo() {
       fineValue: undefined,
       maxResidents: undefined,
       bookingType: undefined,
-      maxHours: undefined,
       status: "ATIVO",
     },
   });
@@ -635,7 +634,6 @@ export default function CondominiumInfo() {
         }
         if (data.maxResidents !== undefined) updateData.maxResidents = data.maxResidents;
         if (data.bookingType) updateData.bookingType = data.bookingType;
-        if (data.maxHours !== undefined) updateData.maxHours = data.maxHours;
         if (data.status) updateData.status = data.status;
         
         try {
@@ -723,7 +721,6 @@ export default function CondominiumInfo() {
         }
         if (data.maxResidents !== undefined) createData.maxResidents = data.maxResidents;
         if (data.bookingType) createData.bookingType = data.bookingType;
-        if (data.maxHours !== undefined) createData.maxHours = data.maxHours;
         
         try {
           const response = await amenitiesService.createAmenity(createData);
@@ -785,7 +782,6 @@ export default function CondominiumInfo() {
       fineValue: area.fineValue ?? undefined,
       maxResidents: area.maxResidents ?? undefined,
       bookingType: area.bookingType ?? undefined,
-      maxHours: area.maxHours ?? undefined,
       status: area.status || "ATIVO",
     });
     setIsAreaDialogOpen(true);
@@ -1216,11 +1212,7 @@ export default function CondominiumInfo() {
                           <Select
                             value={areaForm.watch("bookingType") || ""}
                             onValueChange={(value) => {
-                              areaForm.setValue("bookingType", value as "DIARIO" | "POR_HORAS" | undefined);
-                              // Limpar maxHours se mudar para DIARIO
-                              if (value === "DIARIO") {
-                                areaForm.setValue("maxHours", undefined);
-                              }
+                              areaForm.setValue("bookingType", value as "DIARIO" | undefined);
                             }}
                           >
                             <SelectTrigger>
@@ -1228,7 +1220,6 @@ export default function CondominiumInfo() {
                             </SelectTrigger>
                             <SelectContent>
                               <SelectItem value="DIARIO">Diário</SelectItem>
-                              <SelectItem value="POR_HORAS">Por Horas</SelectItem>
                             </SelectContent>
                           </Select>
                           {areaForm.formState.errors.bookingType && (
@@ -1238,38 +1229,6 @@ export default function CondominiumInfo() {
                           )}
                         </div>
                       </div>
-
-                      {areaForm.watch("bookingType") === "POR_HORAS" && (
-                        <div className="space-y-2">
-                          <Label htmlFor="maxHours">
-                            Limite de Horas por Reserva (Opcional)
-                          </Label>
-                          <Input
-                            id="maxHours"
-                            type="number"
-                            min="1"
-                            placeholder="Ex: 4"
-                            {...areaForm.register("maxHours", {
-                              valueAsNumber: true,
-                              setValueAs: (v) => {
-                                if (v === "" || v === null || v === undefined || v === 0) {
-                                  return undefined;
-                                }
-                                const num = Number(v);
-                                return isNaN(num) || num <= 0 ? undefined : num;
-                              },
-                            })}
-                          />
-                          <p className="text-xs text-muted-foreground">
-                            Defina o número máximo de horas que podem ser agendadas por vez
-                          </p>
-                          {areaForm.formState.errors.maxHours && (
-                            <p className="text-sm text-destructive">
-                              {areaForm.formState.errors.maxHours.message}
-                            </p>
-                          )}
-                        </div>
-                      )}
 
                       <div className="space-y-2">
                         <Label htmlFor="usageRules">
@@ -1358,12 +1317,7 @@ export default function CondominiumInfo() {
                               </Badge>
                               {area.bookingType && (
                                 <Badge variant="secondary" className="text-xs">
-                                  {area.bookingType === "DIARIO" ? "Reserva Diária" : "Reserva por Horas"}
-                                </Badge>
-                              )}
-                              {area.bookingType === "POR_HORAS" && area.maxHours && (
-                                <Badge variant="outline" className="text-xs">
-                                  Máx. {area.maxHours}h
+                                  Reserva Diária
                                 </Badge>
                               )}
                               <Badge

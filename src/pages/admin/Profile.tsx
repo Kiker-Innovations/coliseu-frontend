@@ -6,21 +6,16 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { MaskedInput } from "@/components/ui/masked-input";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { User, Mail, Phone, Save, ArrowLeft, Camera, X, Eye, EyeOff } from "lucide-react";
+import { User, Mail, Save, ArrowLeft, Eye, EyeOff } from "lucide-react";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/use-auth";
 import { adminService } from "@/services/api";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { CameraCapture } from "@/components/ui/camera-capture";
 
 // Schema de validação para dados do perfil
 const profileSchema = z.object({
   name: z.string().min(2, "Nome deve ter pelo menos 2 caracteres"),
   email: z.string().email("Email inválido"),
-  phone: z.string().optional(),
 });
 
 // Schema de validação para mudança de senha
@@ -65,13 +60,8 @@ export default function AdminProfile() {
     id?: string;
     name: string;
     email: string;
-    phone?: string;
-    photoUrl?: string | null;
     buildingId?: string;
   } | null>(null);
-  const [selectedPhoto, setSelectedPhoto] = useState<File | null>(null);
-  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
-  const [isCameraOpen, setIsCameraOpen] = useState(false);
   const [isUpdateAvailable, setIsUpdateAvailable] = useState(true);
 
   const {
@@ -80,17 +70,13 @@ export default function AdminProfile() {
     formState: { errors },
     reset,
     setValue,
-    watch,
   } = useForm<ProfileFormData>({
     resolver: zodResolver(profileSchema),
     defaultValues: {
       name: "",
       email: "",
-      phone: "",
     },
   });
-
-  const phoneValue = watch("phone");
 
   const {
     register: registerPassword,
@@ -111,121 +97,40 @@ export default function AdminProfile() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isSavingPassword, setIsSavingPassword] = useState(false);
 
-  // Função para obter phone do token JWT
-  const getPhoneFromToken = (): string => {
-    const token =
-      localStorage.getItem("coliseu_access_token") ||
-      sessionStorage.getItem("coliseu_access_token");
-
-    if (token) {
-      try {
-        const tokenParts = token.split(".");
-        if (tokenParts.length === 3) {
-          const payload = JSON.parse(atob(tokenParts[1]));
-          const phone = payload.phone || payload.Phone || "";
-          console.log("Telefone do token (Admin):", phone, "Payload completo:", payload);
-          return phone;
-        }
-      } catch (e) {
-        console.error("Erro ao decodificar token:", e);
-      }
-    }
-    console.log("Token não encontrado ou inválido (Admin)");
-    return "";
-  };
-
-  // Função para obter photoUrl do token JWT
-  const getPhotoUrlFromToken = (): string | null => {
-    const token =
-      localStorage.getItem("coliseu_access_token") ||
-      sessionStorage.getItem("coliseu_access_token");
-
-    if (token) {
-      try {
-        const tokenParts = token.split(".");
-        if (tokenParts.length === 3) {
-          const payload = JSON.parse(atob(tokenParts[1]));
-          const photoUrl = payload.photoUrl || payload.PhotoUrl || null;
-          console.log("PhotoUrl do token (Admin):", photoUrl);
-          return photoUrl;
-        }
-      } catch (e) {
-        console.error("Erro ao decodificar token:", e);
-      }
-    }
-    return null;
-  };
-
   // Carregar dados do perfil
   useEffect(() => {
     const loadProfile = async () => {
       try {
         setIsLoading(true);
-        const phoneFromToken = getPhoneFromToken(); // Sempre pegar do token como fallback
-        const photoUrlFromToken = getPhotoUrlFromToken(); // Pegar photoUrl do token
-        console.log("Telefone obtido do token no início (Admin):", phoneFromToken);
-        console.log("PhotoUrl obtido do token no início (Admin):", photoUrlFromToken);
-        
         const response = await adminService.getProfile();
         if (response.success && response.data) {
-          // Usar phone da API, se não houver, usar do token
-          const phone = response.data.phone || phoneFromToken || "";
-          // Usar photoUrl da API, se não houver, usar do token
-          const photoUrl = response.data.photoUrl || photoUrlFromToken || null;
-          console.log("Telefone da API (Admin):", response.data.phone, "Telefone final:", phone);
-          console.log("PhotoUrl da API (Admin):", response.data.photoUrl, "PhotoUrl final:", photoUrl);
-          
           const data = {
             id: (response.data as any).id || (response.data as any)._id,
             name: response.data.name,
             email: response.data.email,
-            phone: phone,
-            photoUrl: photoUrl,
             buildingId: response.data.buildingId,
           };
           setProfileData(data);
-          const formattedPhone = formatPhoneForDisplay(data.phone);
-          console.log("Telefone formatado para exibição (Admin):", formattedPhone);
-          // Usar setValue para garantir que o valor seja definido
           setValue("name", data.name);
           setValue("email", data.email);
-          setValue("phone", formattedPhone);
           reset({
             name: data.name,
             email: data.email,
-            phone: formattedPhone,
           });
-          if (data.photoUrl) {
-            setPhotoPreview(data.photoUrl);
-          }
         }
       } catch (error: any) {
         // Se não houver endpoint, usar dados do token
-        const phoneFromToken = getPhoneFromToken();
-        const photoUrlFromToken = getPhotoUrlFromToken();
-        console.log("Erro ao carregar perfil, telefone do token (Admin):", phoneFromToken);
-        console.log("Erro ao carregar perfil, photoUrl do token (Admin):", photoUrlFromToken);
         const fallbackData = {
           name: user?.name || "",
           email: user?.email || "",
-          phone: phoneFromToken || "",
-          photoUrl: photoUrlFromToken || null,
         };
         setProfileData(fallbackData);
-        const formattedPhone = formatPhoneForDisplay(fallbackData.phone);
-        console.log("Telefone formatado (fallback Admin):", formattedPhone);
-        // Usar setValue para garantir que o valor seja definido
         setValue("name", fallbackData.name);
         setValue("email", fallbackData.email);
-        setValue("phone", formattedPhone);
         reset({
           name: fallbackData.name,
           email: fallbackData.email,
-          phone: formattedPhone,
         });
-        if (fallbackData.photoUrl) {
-          setPhotoPreview(fallbackData.photoUrl);
-        }
         console.warn("Erro ao carregar perfil, usando dados do token:", error);
       } finally {
         setIsLoading(false);
@@ -233,138 +138,31 @@ export default function AdminProfile() {
     };
 
     loadProfile();
-  }, [user, reset]);
-
-  const handlePhotoCapture = (file: File) => {
-    setSelectedPhoto(file);
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      setPhotoPreview(reader.result as string);
-    };
-    reader.readAsDataURL(file);
-    setIsCameraOpen(false);
-  };
-
-  const removePhoto = () => {
-    setSelectedPhoto(null);
-    setPhotoPreview(profileData?.photoUrl || null);
-  };
-
-  const formatPhoneForDisplay = (phone: string | undefined): string => {
-    if (!phone || phone.trim() === "") {
-      console.log("formatPhoneForDisplay (Admin): telefone vazio ou undefined");
-      return "";
-    }
-    // Remove tudo exceto números
-    const cleaned = phone.replace(/\D/g, "");
-    console.log("formatPhoneForDisplay (Admin): telefone original:", phone, "limpo:", cleaned);
-    
-    // Se já tem o formato +5513996668888 ou similar, formata para exibição
-    if (cleaned.startsWith("55") && cleaned.length >= 12) {
-      const ddd = cleaned.slice(2, 4);
-      const firstPart = cleaned.slice(4, 9);
-      const secondPart = cleaned.slice(9, 13);
-      const formatted = `+55 ${ddd} ${firstPart}-${secondPart}`;
-      console.log("formatPhoneForDisplay (Admin): formatado com +55:", formatted);
-      return formatted;
-    }
-    // Se não começa com 55 mas tem pelo menos 11 dígitos, assume que é um número brasileiro
-    if (cleaned.length >= 11) {
-      const ddd = cleaned.slice(0, 2);
-      const firstPart = cleaned.slice(2, 7);
-      const secondPart = cleaned.slice(7, 11);
-      const formatted = `+55 ${ddd} ${firstPart}-${secondPart}`;
-      console.log("formatPhoneForDisplay (Admin): formatado sem +55:", formatted);
-      return formatted;
-    }
-    // Se tem menos de 11 dígitos mas não está vazio, tenta formatar mesmo assim
-    if (cleaned.length > 0) {
-      console.log("formatPhoneForDisplay (Admin): telefone com menos de 11 dígitos, retornando original:", phone);
-      return phone;
-    }
-    console.log("formatPhoneForDisplay (Admin): não conseguiu formatar, retornando vazio");
-    return phone; // Retorna como está se não conseguir formatar
-  };
-
-  // Função para formatar telefone para o formato esperado (+5513996668888)
-  const formatPhoneForSave = (phone: string | undefined): string | undefined => {
-    if (!phone) return undefined;
-    // Remove tudo exceto números e +
-    const cleaned = phone.replace(/\D/g, "");
-    // Se não começa com 55, adiciona
-    if (cleaned.length > 0 && !cleaned.startsWith("55")) {
-      return `+55${cleaned}`;
-    }
-    // Se já começa com 55, adiciona o +
-    if (cleaned.startsWith("55")) {
-      return `+${cleaned}`;
-    }
-    return cleaned ? `+55${cleaned}` : undefined;
-  };
+  }, [user, reset, setValue]);
 
   const onSubmit = async (data: ProfileFormData) => {
     try {
       setIsSaving(true);
 
-      // Upload da foto se houver nova foto selecionada
-      let uploadedPhotoUrl: string | undefined;
-      if (selectedPhoto) {
-        try {
-          const presignedResponse = await adminService.getPhotoPresignedUrl({
-            fileName: selectedPhoto.name,
-            fileSize: selectedPhoto.size,
-            contentType: selectedPhoto.type,
-          });
-
-          if (presignedResponse.success && presignedResponse.data) {
-            await adminService.uploadPhoto(
-              presignedResponse.data.presignedUrl,
-              selectedPhoto
-            );
-            // Atualizar preview com a nova URL
-            if (presignedResponse.data.photoUrl) {
-              uploadedPhotoUrl = presignedResponse.data.photoUrl;
-              setPhotoPreview(presignedResponse.data.photoUrl);
-            }
-          }
-        } catch (photoError: any) {
-          console.error("Erro ao fazer upload da foto:", photoError);
-          if (photoError.statusCode === 404) {
-            toast.error("Funcionalidade de upload de foto ainda não está disponível no backend.");
-          } else {
-            toast.error("Erro ao fazer upload da foto. O perfil será atualizado sem a foto.");
-          }
-        }
-      }
-
       // Atualizar perfil
       try {
-        const formattedPhone = formatPhoneForSave(data.phone);
         const updateResponse = await adminService.updateProfile({
           name: data.name,
           email: data.email,
-          phone: formattedPhone,
-          photoUrl: uploadedPhotoUrl,
           buildingId: profileData?.buildingId,
         });
 
         if (updateResponse.success && updateResponse.data) {
-          const updatedPhone = updateResponse.data.phone || formattedPhone || "";
           setProfileData({
             id: updateResponse.data.id || profileData?.id,
             name: updateResponse.data.name,
             email: updateResponse.data.email,
-            phone: updatedPhone,
-            photoUrl: updateResponse.data.photoUrl || photoPreview || null,
             buildingId: profileData?.buildingId,
           });
-          // Atualizar o formulário com o telefone formatado
           reset({
             name: updateResponse.data.name,
             email: updateResponse.data.email,
-            phone: formatPhoneForDisplay(updatedPhone),
           });
-          setSelectedPhoto(null);
           await validateSession(); // Atualizar contexto de autenticação
           toast.success("Perfil atualizado com sucesso!");
         }
@@ -446,47 +244,15 @@ export default function AdminProfile() {
           <CardHeader>
             <div className="flex flex-col items-center gap-4">
               <div className="relative">
-                <Avatar className="h-24 w-24">
-                  {photoPreview ? (
-                    <AvatarImage src={photoPreview} alt={profileData?.name} />
-                  ) : null}
-                  <AvatarFallback className="bg-primary text-primary-foreground text-2xl">
-                    {profileData?.name
-                      ?.split(" ")
-                      .map((n) => n[0])
-                      .join("")
-                      .toUpperCase()
-                      .slice(0, 2) || <User className="h-12 w-12" />}
-                  </AvatarFallback>
-                </Avatar>
-                <button
-                  onClick={() => setIsCameraOpen(true)}
-                  className="absolute bottom-0 right-0 p-2 bg-primary text-primary-foreground rounded-full cursor-pointer hover:bg-primary/90 transition-colors"
-                  title="Tirar foto"
-                >
-                  <Camera className="h-4 w-4" />
-                </button>
-                {selectedPhoto && (
-                  <button
-                    onClick={removePhoto}
-                    className="absolute top-0 right-0 p-1 bg-destructive text-destructive-foreground rounded-full hover:bg-destructive/90 transition-colors"
-                    title="Remover foto"
-                  >
-                    <X className="h-3 w-3" />
-                  </button>
-                )}
+                <div className="h-24 w-24 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-2xl font-semibold">
+                  {profileData?.name
+                    ?.split(" ")
+                    .map((n) => n[0])
+                    .join("")
+                    .toUpperCase()
+                    .slice(0, 2) || <User className="h-12 w-12" />}
+                </div>
               </div>
-              <Dialog open={isCameraOpen} onOpenChange={setIsCameraOpen}>
-                <DialogContent className="max-w-2xl">
-                  <DialogHeader>
-                    <DialogTitle>Tirar Foto</DialogTitle>
-                  </DialogHeader>
-                  <CameraCapture
-                    onCapture={handlePhotoCapture}
-                    onCancel={() => setIsCameraOpen(false)}
-                  />
-                </DialogContent>
-              </Dialog>
               <div className="text-center">
                 <CardTitle className="text-xl">{profileData?.name || "Administrador"}</CardTitle>
               </div>
@@ -498,12 +264,6 @@ export default function AdminProfile() {
                 <Mail className="h-4 w-4 shrink-0" />
                 <span className="truncate">{profileData?.email || ""}</span>
               </div>
-              {profileData?.phone && (
-                <div className="flex items-center gap-3 text-sm text-muted-foreground">
-                  <Phone className="h-4 w-4 shrink-0" />
-                  <span>{formatPhoneForDisplay(profileData.phone)}</span>
-                </div>
-              )}
             </div>
           </CardContent>
         </Card>
@@ -545,24 +305,6 @@ export default function AdminProfile() {
                 {errors.email && (
                   <p className="text-sm text-destructive">
                     {errors.email.message}
-                  </p>
-                )}
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="phone">Telefone</Label>
-                <MaskedInput
-                  id="phone"
-                  type="tel"
-                  mask="+55 99 99999-9999"
-                  maskChar={null}
-                  value={phoneValue || ""}
-                  onChange={(e) => setValue("phone", e.target.value)}
-                  className={errors.phone ? "border-destructive" : ""}
-                />
-                {errors.phone && (
-                  <p className="text-sm text-destructive">
-                    {errors.phone.message}
                   </p>
                 )}
               </div>
@@ -718,4 +460,3 @@ export default function AdminProfile() {
     </div>
   );
 }
-
