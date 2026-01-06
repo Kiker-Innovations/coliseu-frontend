@@ -46,20 +46,7 @@ export const amenitySchema = z.object({
 	),
 	maxResidents: z.number().min(1, "Máximo de residents deve ser pelo menos 1").int("Deve ser um número inteiro").optional(),
 	usageRules: z.string().optional(),
-	bookingType: z.enum(["DIARIO", "POR_HORAS"]).optional(),
-	maxHours: z.preprocess(
-		(val) => {
-			if (val === "" || val === null || val === undefined || val === 0) {
-				return undefined;
-			}
-			const num = Number(val);
-			if (isNaN(num) || num <= 0) {
-				return undefined;
-			}
-			return num;
-		},
-		z.number().min(1, "Máximo de horas deve ser pelo menos 1").int("Deve ser um número inteiro").optional()
-	),
+	bookingType: z.enum(["DIARIO"]).optional(),
 	status: z.enum(["ATIVO", "INATIVO"]).default("ATIVO"),
 });
 

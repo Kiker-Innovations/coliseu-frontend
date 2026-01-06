@@ -63,8 +63,6 @@ import { useAuth } from "@/hooks/use-auth";
 const bookingSchema = z.object({
 	amenityId: z.string().uuid("Selecione uma comodidade"),
 	date: z.string().min(1, "Data é obrigatória"),
-	startTime: z.string().optional(),
-	endTime: z.string().optional(),
 	endDate: z.string().min(1, "Data de término é obrigatória"),
 	numberOfResidents: z
 		.number()
@@ -219,32 +217,15 @@ function BookingDetails({
 				<p className="font-medium">{formatDate(booking.startDate)}</p>
 			</div>
 
-			{booking.startTime && booking.endTime ? (
-				<>
-					<div>
-						<Label className="text-muted-foreground">Horário</Label>
-						<p className="font-medium">{booking.startTime} - {booking.endTime}</p>
-					</div>
-					{booking.numberOfHours && (
-						<div>
-							<Label className="text-muted-foreground">Duração</Label>
-							<p className="font-medium">{booking.numberOfHours} hora(s)</p>
-						</div>
-					)}
-				</>
-			) : (
-				<>
-					<div>
-						<Label className="text-muted-foreground">Data de Término</Label>
-						<p className="font-medium">{formatDate(booking.endDate)}</p>
-					</div>
-					{booking.numberOfDays && (
-						<div>
-							<Label className="text-muted-foreground">Duração</Label>
-							<p className="font-medium">{booking.numberOfDays} dia(s)</p>
-						</div>
-					)}
-				</>
+			<div>
+				<Label className="text-muted-foreground">Data de Término</Label>
+				<p className="font-medium">{formatDate(booking.endDate)}</p>
+			</div>
+			{booking.numberOfDays && (
+				<div>
+					<Label className="text-muted-foreground">Duração</Label>
+					<p className="font-medium">{booking.numberOfDays} dia(s)</p>
+				</div>
 			)}
 
 			{booking.totalValue > 0 && (
@@ -447,11 +428,6 @@ function BookingRow({
 		}
 	};
 
-	const formatTimeRange = (startTime?: string, endTime?: string): string => {
-		if (!startTime || !endTime) return "-";
-		return `${startTime} - ${endTime}`;
-	};
-
 	return (
 		<TableRow
 			className="cursor-pointer"
@@ -523,10 +499,6 @@ export default function Bookings() {
 	const [bookings, setBookings] = useState<AmenityBooking[]>([]);
 	const [selectedAmenity, setSelectedAmenity] = useState<Amenity | null>(null);
 	const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
-	const [selectedStartTime, setSelectedStartTime] = useState<string>("");
-	const [selectedEndTime, setSelectedEndTime] = useState<string>("");
-	const [availableSlots, setAvailableSlots] = useState<string[]>([]);
-	const [isLoadingSlots, setIsLoadingSlots] = useState(false);
 	const [isBookingDialogOpen, setIsBookingDialogOpen] = useState(false);
 	const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
 	const [viewingBooking, setViewingBooking] = useState<AmenityBooking | null>(null);
@@ -537,7 +509,7 @@ export default function Bookings() {
 	const [qrBookingToShow, setQrBookingToShow] = useState<AmenityBooking | null>(null);
 	const [isAmenityDetailsDialogOpen, setIsAmenityDetailsDialogOpen] = useState(false);
 	const [amenityToView, setAmenityToView] = useState<Amenity | null>(null);
-	const [bookingStep, setBookingStep] = useState(1); // 1: Data, 2: Horário, 3: Confirmar, 4: Instruções
+	const [bookingStep, setBookingStep] = useState(1); // 1: Data, 2: Confirmar, 3: Instruções
 	const [acceptedTerms, setAcceptedTerms] = useState(false);
 
 	const bookingForm = useForm<BookingFormData>({
@@ -545,8 +517,6 @@ export default function Bookings() {
 		defaultValues: {
 			amenityId: "",
 			date: "",
-			startTime: "",
-			endTime: "",
 			numberOfResidents: 1,
 			observation: "",
 			acceptedTerms: false,
@@ -635,55 +605,23 @@ export default function Bookings() {
 		setBookingStep(1);
 		setAcceptedTerms(false);
 		setSelectedDate(undefined);
-		setSelectedStartTime("");
-		setSelectedEndTime("");
-		setAvailableSlots([]);
 		bookingForm.reset({
 			amenityId: amenity._id,
 			date: "",
-			startTime: "",
-			endTime: "",
 			numberOfResidents: 1,
 			observation: "",
 			acceptedTerms: false,
 		});
 	};
 
-	const handleDateChange = async (date: Date | undefined) => {
+	const handleDateChange = (date: Date | undefined) => {
 		setSelectedDate(date);
 		if (date) {
 			const dateStr = format(date, "yyyy-MM-dd");
 			bookingForm.setValue("date", dateStr);
-
-			// Se for POR_HORAS, buscar horários disponíveis
-			if (selectedAmenity?.bookingType === "POR_HORAS") {
-				setIsLoadingSlots(true);
-				try {
-					const response = await amenityBookingsService.getAvailableTimeSlots(
-						selectedAmenity._id,
-						date,
-					);
-					if (response.success && response.data) {
-						setAvailableSlots(response.data.availableSlots || []);
-					}
-				} catch (error: any) {
-					console.error("Erro ao buscar horários disponíveis:", error);
-					toast.error("Erro ao buscar horários disponíveis");
-				} finally {
-					setIsLoadingSlots(false);
-				}
-			}
-		} else {
-			setAvailableSlots([]);
 		}
 	};
 
-	// Para DIARIO, pular etapa 2 automaticamente
-	useEffect(() => {
-		if (bookingStep === 2 && selectedAmenity?.bookingType === "DIARIO") {
-			setBookingStep(3);
-		}
-	}, [bookingStep, selectedAmenity?.bookingType]);
 
 	const handleBookingSubmit = async (data: BookingFormData) => {
 		try {
@@ -693,50 +631,20 @@ export default function Bookings() {
 				return;
 			}
 
-			// Validação específica para POR_HORAS
-			if (selectedAmenity?.bookingType === "POR_HORAS") {
-				if (!data.startTime || !data.endTime) {
-					toast.error("Selecione horário de início e término");
-					if (!data.startTime) {
-						bookingForm.setError("startTime", { message: "Horário de início é obrigatório" });
-					}
-					if (!data.endTime) {
-						bookingForm.setError("endTime", { message: "Horário de término é obrigatório" });
-					}
-					return;
-				}
-
-				// Validar que endTime é depois de startTime
-				const start = data.startTime.split(":").map(Number);
-				const end = data.endTime.split(":").map(Number);
-				const startMinutes = start[0] * 60 + start[1];
-				const endMinutes = end[0] * 60 + end[1];
-				if (endMinutes <= startMinutes) {
-					toast.error("Horário de término deve ser posterior ao horário de início");
-					bookingForm.setError("endTime", { message: "Horário de término deve ser posterior ao horário de início" });
-					return;
-				}
+			// DIARIO - endDate é obrigatório
+			if (!data.endDate) {
+				toast.error("Data de término é obrigatória");
+				bookingForm.setError("endDate", { message: "Data de término é obrigatória" });
+				return;
 			}
 
-			// Preparar dados baseado no tipo de reserva
+			// Preparar dados para reserva DIARIO
 			const bookingData: CreateAmenityBookingRequest = {
 				amenityId: data.amenityId,
 				startDate: selectedDate.toISOString(),
+				endDate: new Date(data.endDate).toISOString(),
 				observation: data.observation || undefined,
 			};
-
-			if (selectedAmenity?.bookingType === "POR_HORAS") {
-				bookingData.startTime = data.startTime!;
-				bookingData.endTime = data.endTime!;
-			} else {
-				// DIARIO - endDate é obrigatório
-				if (!data.endDate) {
-					toast.error("Data de término é obrigatória");
-					bookingForm.setError("endDate", { message: "Data de término é obrigatória" });
-					return;
-				}
-				bookingData.endDate = new Date(data.endDate).toISOString();
-			}
 
 			const response = await amenityBookingsService.createBooking(bookingData);
 
@@ -748,9 +656,6 @@ export default function Bookings() {
 				setAcceptedTerms(false);
 				bookingForm.reset();
 				setSelectedDate(undefined);
-				setSelectedStartTime("");
-				setSelectedEndTime("");
-				setAvailableSlots([]);
 
 				// Mudar para aba de reservas
 				setActiveTab("bookings");
@@ -858,10 +763,6 @@ export default function Bookings() {
 		}
 	};
 
-	const formatTimeRange = (startTime?: string, endTime?: string): string => {
-		if (!startTime || !endTime) return "-";
-		return `${startTime} - ${endTime}`;
-	};
 
 	if (isLoading) {
 		return (
@@ -905,8 +806,8 @@ export default function Bookings() {
 					) : (
 						<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
 							{amenities.map((amenity) => {
-								// AREA_COMUM não permite reserva, apenas COMODIDADE com bookingType pode reservar
-								const canBook = amenity.type === "COMODIDADE" && amenity.bookingType && (amenity.bookingType === "DIARIO" || amenity.bookingType === "POR_HORAS");
+								// AREA_COMUM não permite reserva, apenas COMODIDADE com bookingType DIARIO pode reservar
+								const canBook = amenity.type === "COMODIDADE" && amenity.bookingType === "DIARIO";
 								return (
 									<Card
 										key={amenity._id}
@@ -931,14 +832,7 @@ export default function Bookings() {
 												)}
 												{amenity.bookingType && (
 													<Badge variant="outline" className="text-xs">
-														{amenity.bookingType === "DIARIO"
-															? "Reserva Diária"
-															: "Reserva por Horas"}
-													</Badge>
-												)}
-												{amenity.bookingType === "POR_HORAS" && amenity.maxHours && (
-													<Badge variant="outline" className="text-xs">
-														Máx. {amenity.maxHours}h
+														Reserva Diária
 													</Badge>
 												)}
 											</div>
@@ -957,12 +851,7 @@ export default function Bookings() {
 															minimumFractionDigits: 2,
 															maximumFractionDigits: 2,
 														})}
-														{amenity.bookingType === "POR_HORAS" && (
-															<span className="text-sm font-normal text-muted-foreground">/hora</span>
-														)}
-														{amenity.bookingType === "DIARIO" && (
-															<span className="text-sm font-normal text-muted-foreground">/dia</span>
-														)}
+														<span className="text-sm font-normal text-muted-foreground">/dia</span>
 													</p>
 												</div>
 											) : (
@@ -1064,8 +953,6 @@ export default function Bookings() {
 						bookingForm.reset();
 						setSelectedAmenity(null);
 						setSelectedDate(undefined);
-						setSelectedStartTime("");
-						setSelectedEndTime("");
 						setBookingStep(1);
 						setAcceptedTerms(false);
 					}
@@ -1165,9 +1052,6 @@ export default function Bookings() {
 										onClick={() => {
 											if (selectedDate) {
 												setBookingStep(2);
-												if (selectedAmenity?.bookingType === "POR_HORAS") {
-													handleDateChange(selectedDate);
-												}
 											} else {
 												toast.error("Selecione uma data para continuar");
 											}
@@ -1179,90 +1063,8 @@ export default function Bookings() {
 							</div>
 						)}
 
-						{/* Etapa 2: Escolher Horário */}
-						{bookingStep === 2 && selectedAmenity?.bookingType === "POR_HORAS" && (
-							<div className="space-y-4">
-								<div className="space-y-2">
-									<Label>Escolha o horário</Label>
-									{isLoadingSlots ? (
-										<div className="flex items-center justify-center py-4">
-											<div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
-										</div>
-									) : availableSlots.length > 0 ? (
-										<div className="grid grid-cols-4 gap-2 max-h-64 overflow-y-auto p-2 border rounded-md">
-											{availableSlots
-												.filter((slot) => {
-													// Filtrar apenas horários inteiros (minutos = 00)
-													const [, minutes] = slot.split(":").map(Number);
-													return minutes === 0;
-												})
-												.map((slot) => {
-													// Calcular horário de término baseado em maxHours
-													const [hour] = slot.split(":").map(Number);
-													const endHour = hour + (selectedAmenity.maxHours || 1);
-													const endTime = endHour < 24 ? `${endHour.toString().padStart(2, "0")}:00` : null;
-													
-													return (
-														<Button
-															key={slot}
-															type="button"
-															variant={
-																selectedStartTime === slot ? "default" : "outline"
-															}
-															size="sm"
-															onClick={() => {
-																if (endTime) {
-																	setSelectedStartTime(slot);
-																	setSelectedEndTime(endTime);
-																	bookingForm.setValue("startTime", slot);
-																	bookingForm.setValue("endTime", endTime);
-																}
-															}}
-														>
-															{slot} - {endTime}
-														</Button>
-													);
-												})}
-										</div>
-									) : (
-										<p className="text-sm text-muted-foreground text-center py-4">
-											Nenhum horário disponível para esta data
-										</p>
-									)}
-								</div>
-								{selectedStartTime && selectedEndTime && (
-									<div className="p-3 bg-muted rounded-md">
-										<p className="text-sm">
-											<strong>Horário selecionado:</strong> {selectedStartTime} às {selectedEndTime}
-										</p>
-									</div>
-								)}
-								<div className="flex justify-between">
-									<Button
-										type="button"
-										variant="outline"
-										onClick={() => setBookingStep(1)}
-									>
-										Voltar
-									</Button>
-									<Button
-										type="button"
-										onClick={() => {
-											if (selectedStartTime && selectedEndTime) {
-												setBookingStep(3);
-											} else {
-												toast.error("Selecione um horário para continuar");
-											}
-										}}
-									>
-										Próximo
-									</Button>
-								</div>
-							</div>
-						)}
-
-						{/* Etapa 3: Confirmar */}
-						{bookingStep === 3 && (
+						{/* Etapa 2: Confirmar */}
+						{bookingStep === 2 && (
 							<div className="space-y-4">
 								<div className="space-y-3 p-4 border rounded-md">
 									<div>
@@ -1275,31 +1077,21 @@ export default function Bookings() {
 											{selectedDate ? format(selectedDate, "PPP", { locale: ptBR }) : "-"}
 										</p>
 									</div>
-									{selectedAmenity?.bookingType === "POR_HORAS" && (
-										<div>
-											<Label className="text-muted-foreground">Horário</Label>
-											<p className="font-medium">
-												{selectedStartTime} - {selectedEndTime}
+									<div className="space-y-2">
+										<Label htmlFor="endDate">Data de Término</Label>
+										<Input
+											id="endDate"
+											type="date"
+											min={selectedDate ? format(selectedDate, "yyyy-MM-dd") : undefined}
+											required
+											{...bookingForm.register("endDate")}
+										/>
+										{bookingForm.formState.errors.endDate && (
+											<p className="text-sm text-destructive">
+												{bookingForm.formState.errors.endDate.message}
 											</p>
-										</div>
-									)}
-									{selectedAmenity?.bookingType === "DIARIO" && (
-										<div className="space-y-2">
-											<Label htmlFor="endDate">Data de Término</Label>
-											<Input
-												id="endDate"
-												type="date"
-												min={selectedDate ? format(selectedDate, "yyyy-MM-dd") : undefined}
-												required
-												{...bookingForm.register("endDate")}
-											/>
-											{bookingForm.formState.errors.endDate && (
-												<p className="text-sm text-destructive">
-													{bookingForm.formState.errors.endDate.message}
-												</p>
-											)}
-										</div>
-									)}
+										)}
+									</div>
 									<div className="space-y-2">
 										<Label htmlFor="observation">Observação (opcional)</Label>
 										<Textarea
@@ -1314,31 +1106,23 @@ export default function Bookings() {
 									<Button
 										type="button"
 										variant="outline"
-										onClick={() => {
-											if (selectedAmenity?.bookingType === "POR_HORAS") {
-												setBookingStep(2);
-											} else {
-												setBookingStep(1);
-											}
-										}}
+										onClick={() => setBookingStep(1)}
 									>
 										Voltar
 									</Button>
 									<Button
 										type="button"
 										onClick={() => {
-											// Validar endDate para DIARIO
-											if (selectedAmenity?.bookingType === "DIARIO") {
-												const endDate = bookingForm.watch("endDate");
-												if (!endDate) {
-													toast.error("Data de término é obrigatória");
-													bookingForm.setError("endDate", { message: "Data de término é obrigatória" });
-													return;
-												}
+											// Validar endDate
+											const endDate = bookingForm.watch("endDate");
+											if (!endDate) {
+												toast.error("Data de término é obrigatória");
+												bookingForm.setError("endDate", { message: "Data de término é obrigatória" });
+												return;
 											}
 											
 											if (selectedAmenity?.usageRules) {
-												setBookingStep(4);
+												setBookingStep(3);
 											} else {
 												// Se não tem usageRules, criar direto
 												bookingForm.setValue("acceptedTerms", true);
@@ -1352,8 +1136,8 @@ export default function Bookings() {
 							</div>
 						)}
 
-						{/* Etapa 4: Instruções de Uso */}
-						{bookingStep === 4 && (
+						{/* Etapa 3: Instruções de Uso */}
+						{bookingStep === 3 && (
 							<div className="space-y-4">
 								<div className="space-y-2">
 									<Label>Instruções de Uso da Reserva</Label>
@@ -1588,8 +1372,6 @@ export default function Bookings() {
 									<p className="text-sm font-medium mt-1">
 										{amenityToView.bookingType === "DIARIO"
 											? "Reserva Diária"
-											: amenityToView.bookingType === "POR_HORAS"
-											? "Reserva por Horas"
 											: "Não definido"}
 									</p>
 								</div>
@@ -1598,14 +1380,6 @@ export default function Bookings() {
 										<Label className="text-muted-foreground">Máximo de Residentes</Label>
 										<p className="text-sm font-medium mt-1">
 											{amenityToView.maxResidents}
-										</p>
-									</div>
-								)}
-								{amenityToView.bookingType === "POR_HORAS" && amenityToView.maxHours && (
-									<div>
-										<Label className="text-muted-foreground">Máximo de Horas</Label>
-										<p className="text-sm font-medium mt-1">
-											{amenityToView.maxHours} hora(s)
 										</p>
 									</div>
 								)}
@@ -1619,12 +1393,7 @@ export default function Bookings() {
 											minimumFractionDigits: 2,
 											maximumFractionDigits: 2,
 										})}
-										{amenityToView.bookingType === "POR_HORAS" && (
-											<span className="text-sm font-normal text-muted-foreground">/hora</span>
-										)}
-										{amenityToView.bookingType === "DIARIO" && (
-											<span className="text-sm font-normal text-muted-foreground">/dia</span>
-										)}
+										<span className="text-sm font-normal text-muted-foreground">/dia</span>
 									</p>
 								</div>
 							)}
