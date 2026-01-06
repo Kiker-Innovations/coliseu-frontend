@@ -75,6 +75,7 @@ yarn dev
 - ✅ Dashboard do condomínio
 - ✅ Gerenciamento de documentos
 - ✅ Sistema de votação
+- ✅ Controle de visitantes e encomendas
 - ✅ Acompanhamento de progresso
 - ✅ Sugestões e enquetes
 - ✅ Interface responsiva
