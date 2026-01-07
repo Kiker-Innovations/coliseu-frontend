@@ -12,11 +12,7 @@ export const visitorSchema = z.object({
 		.regex(/^[\d\s\(\)\-]+$/, "Telefone inválido")
 		.optional()
 		.or(z.literal("")),
-	email: z
-		.string()
-		.email("Email inválido")
-		.optional()
-		.or(z.literal("")),
+	email: z.string().email("Email inválido").optional().or(z.literal("")),
 	vehicleType: z.string().optional().or(z.literal("")),
 	vehiclePlate: z
 		.string()
@@ -37,4 +33,3 @@ export type VisitorSchema = z.infer<typeof visitorSchema>;
 export const visitorEditSchema = visitorSchema.omit({ photo: true });
 
 export type VisitorEditSchema = z.infer<typeof visitorEditSchema>;
-

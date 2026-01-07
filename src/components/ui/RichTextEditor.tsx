@@ -8,8 +8,7 @@ const loadReactQuill = async () => {
 		const reactQuillModule = await import(/* @vite-ignore */ "react-quill");
 		try {
 			await import(/* @vite-ignore */ "react-quill/dist/quill.snow.css");
-		} catch (cssError) {
-		}
+		} catch (cssError) {}
 		return reactQuillModule.default;
 	} catch (error) {
 		return null;
@@ -17,7 +16,11 @@ const loadReactQuill = async () => {
 };
 
 // Componente fallback
-const FallbackEditor = ({ value, onChange, placeholder }: { value: string; onChange: (value: string) => void; placeholder?: string }) => (
+const FallbackEditor = ({
+	value,
+	onChange,
+	placeholder,
+}: { value: string; onChange: (value: string) => void; placeholder?: string }) => (
 	<div className="space-y-2">
 		<Textarea
 			value={value}
@@ -100,7 +103,7 @@ export function RichTextEditor({ value, onChange, placeholder }: RichTextEditorP
 				["clean"],
 			],
 		}),
-		[]
+		[],
 	);
 
 	const formats = [
@@ -173,4 +176,3 @@ export function RichTextEditor({ value, onChange, placeholder }: RichTextEditorP
 		</div>
 	);
 }
-

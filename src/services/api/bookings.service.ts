@@ -89,9 +89,7 @@ class AmenityBookingsService {
 	 * Create a new amenity booking
 	 * POST /v1/amenity-bookings
 	 */
-	async createBooking(
-		data: CreateAmenityBookingRequest,
-	): Promise<ApiResponse<AmenityBooking>> {
+	async createBooking(data: CreateAmenityBookingRequest): Promise<ApiResponse<AmenityBooking>> {
 		return apiClient.post<AmenityBooking>(this.basePath, data);
 	}
 
@@ -126,10 +124,12 @@ class AmenityBookingsService {
 	 * GET /v1/amenity-bookings/admin/building
 	 * Returns all bookings for the building, excluding FINALIZADO and CANCELADO
 	 */
-	async getBookingsByBuilding(): Promise<ApiResponse<{
-		bookings: AmenityBooking[];
-		total: number;
-	}>> {
+	async getBookingsByBuilding(): Promise<
+		ApiResponse<{
+			bookings: AmenityBooking[];
+			total: number;
+		}>
+	> {
 		return apiClient.get<{
 			bookings: AmenityBooking[];
 			total: number;
@@ -195,10 +195,7 @@ class BookingsService {
 		return amenityBookingsService.getBookingById(id);
 	}
 
-	async updateBooking(
-		id: string,
-		data: any,
-	): Promise<ApiResponse<Booking>> {
+	async updateBooking(id: string, data: any): Promise<ApiResponse<Booking>> {
 		return apiClient.put<Booking>(`${this.basePath}/${id}`, data);
 	}
 

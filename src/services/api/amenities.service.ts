@@ -151,4 +151,3 @@ class AmenitiesService {
 
 // Export singleton instance
 export const amenitiesService = new AmenitiesService();
-

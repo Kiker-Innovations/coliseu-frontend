@@ -136,7 +136,8 @@ class AuthService {
 	 * Get current auth token
 	 */
 	getToken(): string | null {
-		const token = localStorage.getItem(STORAGE_KEYS.TOKEN) || sessionStorage.getItem(STORAGE_KEYS.TOKEN);
+		const token =
+			localStorage.getItem(STORAGE_KEYS.TOKEN) || sessionStorage.getItem(STORAGE_KEYS.TOKEN);
 		// Ensure token is also set in apiClient if it exists
 		if (token) {
 			apiClient.setAuthToken(token);
