@@ -252,3 +252,17 @@ export type {
 	CreateNotificationInfractionRequest,
 	GetInfractionsParams,
 } from "./infractions.service";
+
+// Useful Contacts service
+export {
+	getUsefulContacts,
+	getUsefulContactById,
+	createUsefulContact,
+	updateUsefulContact,
+	deleteUsefulContact,
+} from "./usefulContact.service";
+export type {
+	UsefulContact,
+	CreateUsefulContactRequest,
+	UpdateUsefulContactRequest,
+} from "./usefulContact.service";

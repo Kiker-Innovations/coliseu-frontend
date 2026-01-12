@@ -2,7 +2,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useState, useEffect } from "react";
-import { Home, Mail, Lock, ShieldCheck } from "lucide-react";
+import { Home, Mail, Lock, ShieldCheck, Eye, EyeOff } from "lucide-react";
 import { residentsService, ApiClientError } from "@/services/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,6 +19,8 @@ export default function UpdatePassword() {
 	const [searchParams] = useSearchParams();
 	const [isPageReady, setIsPageReady] = useState(false);
 	const emailFromUrl = searchParams.get("email") || "";
+	const [showNewPassword, setShowNewPassword] = useState(false);
+	const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
 	useEffect(() => {
 		const initialize = async () => {
@@ -164,11 +166,18 @@ export default function UpdatePassword() {
 								<Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
 								<Input
 									id="newPassword"
-									type="password"
+									type={showNewPassword ? "text" : "password"}
 									{...register("newPassword")}
-									className="h-12 pl-10"
+									className="h-12 pl-10 pr-10"
 									placeholder="Digite sua nova senha"
 								/>
+								<button
+									type="button"
+									onClick={() => setShowNewPassword(!showNewPassword)}
+									className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+								>
+									{showNewPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+								</button>
 							</div>
 							{errors.newPassword && (
 								<p className="text-sm text-destructive">{errors.newPassword.message}</p>
@@ -181,11 +190,18 @@ export default function UpdatePassword() {
 								<Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
 								<Input
 									id="confirmPassword"
-									type="password"
+									type={showConfirmPassword ? "text" : "password"}
 									{...register("confirmPassword")}
-									className="h-12 pl-10"
+									className="h-12 pl-10 pr-10"
 									placeholder="Confirme sua nova senha"
 								/>
+								<button
+									type="button"
+									onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+									className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+								>
+									{showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+								</button>
 							</div>
 							{errors.confirmPassword && (
 								<p className="text-sm text-destructive">{errors.confirmPassword.message}</p>

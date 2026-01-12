@@ -19,6 +19,7 @@ import { loginSchema, type LoginSchema } from "@/schemas/admin/auth/login.schema
 import { Shield } from "lucide-react";
 import LoginSkeleton from "@/skeleton/admin/auth/LoginSkeleton";
 import { useState, useEffect } from "react";
+import { Eye, EyeOff } from "lucide-react";
 import { buildingsService, type Building } from "@/services/api/buildings.service";
 
 export default function AdminLogin() {
@@ -27,6 +28,7 @@ export default function AdminLogin() {
 	const [isPageReady, setIsPageReady] = useState(false);
 	const [buildings, setBuildings] = useState<Building[]>([]);
 	const [isLoadingBuildings, setIsLoadingBuildings] = useState(true);
+	const [showPassword, setShowPassword] = useState(false);
 
 	// Redirect if already authenticated (wait for auth to finish loading first)
 	useEffect(() => {
@@ -184,7 +186,21 @@ export default function AdminLogin() {
 									Esqueceu sua senha? Clique aqui
 								</Link>
 							</div>
-							<Input id="password" type="password" {...register("password")} className="h-12" />
+							<div className="relative">
+								<Input
+									id="password"
+									type={showPassword ? "text" : "password"}
+									{...register("password")}
+									className="h-12 pr-10"
+								/>
+								<button
+									type="button"
+									onClick={() => setShowPassword(!showPassword)}
+									className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+								>
+									{showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+								</button>
+							</div>
 							{errors.password && (
 								<p className="text-sm text-destructive">{errors.password.message}</p>
 							)}

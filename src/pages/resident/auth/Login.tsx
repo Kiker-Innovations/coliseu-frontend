@@ -18,7 +18,7 @@ import coliseuIcon from "@/assets/coliseu-icon.png";
 import { loginSchema, type LoginSchema } from "@/schemas/resident/auth/login.schema";
 import LoginSkeleton from "@/skeleton/resident/auth/LoginSkeleton";
 import { useState, useEffect } from "react";
-import { Home } from "lucide-react";
+import { Home, Eye, EyeOff } from "lucide-react";
 import { buildingsService, type Building } from "@/services/api/buildings.service";
 import { ApiClientError } from "@/services/api/client";
 
@@ -28,6 +28,7 @@ export default function Login() {
 	const [isPageReady, setIsPageReady] = useState(false);
 	const [buildings, setBuildings] = useState<Building[]>([]);
 	const [isLoadingBuildings, setIsLoadingBuildings] = useState(true);
+	const [showPassword, setShowPassword] = useState(false);
 
 	// Redirect if already authenticated (wait for auth to finish loading first)
 	useEffect(() => {
@@ -213,7 +214,21 @@ export default function Login() {
 									Esqueceu sua senha? Clique aqui
 								</Link>
 							</div>
-							<Input id="password" type="password" {...register("password")} className="h-12" />
+							<div className="relative">
+								<Input
+									id="password"
+									type={showPassword ? "text" : "password"}
+									{...register("password")}
+									className="h-12 pr-10"
+								/>
+								<button
+									type="button"
+									onClick={() => setShowPassword(!showPassword)}
+									className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+								>
+									{showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+								</button>
+							</div>
 							{errors.password && (
 								<p className="text-sm text-destructive">{errors.password.message}</p>
 							)}

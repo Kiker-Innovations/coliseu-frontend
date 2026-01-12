@@ -33,6 +33,7 @@ import Packages from "./pages/resident/Packages";
 import Bookings from "./pages/resident/Bookings";
 import Notices from "./pages/resident/Notices";
 import Profile from "./pages/resident/Profile";
+import Help from "./pages/resident/Help";
 import NotFound from "./pages/NotFound";
 
 // Admin pages
@@ -53,6 +54,7 @@ import AdminConciergeView from "./pages/admin/ConciergeView";
 import AdminProjects from "./pages/admin/Projects";
 import AdminDocuments from "./pages/admin/Documents";
 import AdminProfile from "./pages/admin/Profile";
+import AdminHelp from "./pages/admin/Help";
 
 // Concierge pages
 import ConciergeLogin from "./pages/concierge/auth/Login";
@@ -63,6 +65,8 @@ import ConciergeDashboard from "./pages/concierge/Dashboard";
 import ConciergePackages from "./pages/concierge/Packages";
 import ConciergeFines from "./pages/concierge/Fines";
 import ConciergeVisitors from "./pages/concierge/Visitors";
+import ConciergeHelp from "./pages/concierge/Help";
+import ConciergeContacts from "./pages/concierge/Contacts";
 
 const queryClient = new QueryClient();
 
@@ -179,6 +183,14 @@ const App = () => (
 									element={
 										<ProtectedPageRoute>
 											<Profile />
+										</ProtectedPageRoute>
+									}
+								/>
+								<Route
+									path="/help"
+									element={
+										<ProtectedPageRoute>
+											<Help />
 										</ProtectedPageRoute>
 									}
 								/>
@@ -299,6 +311,14 @@ const App = () => (
 										</ProtectedPageRoute>
 									}
 								/>
+								<Route
+									path="/admin/help"
+									element={
+										<ProtectedPageRoute>
+											<AdminHelp />
+										</ProtectedPageRoute>
+									}
+								/>
 							</Route>
 						</Route>
 
@@ -344,6 +364,22 @@ const App = () => (
 									element={
 										<ProtectedPageRoute>
 											<ConciergeVisitors />
+										</ProtectedPageRoute>
+									}
+								/>
+								<Route
+									path="/concierge/contacts"
+									element={
+										<ProtectedPageRoute>
+											<ConciergeContacts />
+										</ProtectedPageRoute>
+									}
+								/>
+								<Route
+									path="/concierge/help"
+									element={
+										<ProtectedPageRoute>
+											<ConciergeHelp />
 										</ProtectedPageRoute>
 									}
 								/>
