@@ -206,8 +206,11 @@ export default function ConciergeVisitors() {
 			vehicleType: "",
 			vehiclePlate: "",
 			types: [],
+			companyName: "",
 			photo: undefined,
 			note: "",
+			visitApartmentId: "",
+			visitNote: "",
 		},
 	});
 
@@ -221,6 +224,7 @@ export default function ConciergeVisitors() {
 			vehicleType: "",
 			vehiclePlate: "",
 			types: [],
+			companyName: "",
 			note: "",
 		},
 	});
@@ -347,6 +351,7 @@ export default function ConciergeVisitors() {
 				vehicleType: data.vehicleType?.trim() ? data.vehicleType.trim().toUpperCase() : undefined,
 				vehiclePlate: data.vehiclePlate?.trim() || undefined,
 				types: typesUpperCase,
+				companyName: data.companyName?.trim() || undefined,
 				note: data.note?.trim() || undefined,
 			};
 
@@ -359,7 +364,39 @@ export default function ConciergeVisitors() {
 					await visitorService.uploadPhoto(response.data.presignedUrl, capturedPhoto);
 				}
 
-				toast.success("Visitante cadastrado com sucesso!");
+				// Se houver dados de visita preenchidos, criar a visita automaticamente
+				const hasVisitData = data.visitApartmentId?.trim() || data.visitNote?.trim();
+				if (hasVisitData && response.data?._id) {
+					try {
+						const visitPayload: { visitorId: string; apartmentId?: string; note?: string } = {
+							visitorId: response.data._id,
+						};
+
+						if (data.visitApartmentId?.trim()) {
+							visitPayload.apartmentId = data.visitApartmentId.trim();
+						}
+
+						if (data.visitNote?.trim()) {
+							visitPayload.note = data.visitNote.trim();
+						}
+
+						await visitsService.createVisit(visitPayload);
+						toast.success("Visitante e primeira visita cadastrados com sucesso!");
+					} catch (visitError: any) {
+						// Se a criação da visita falhar, ainda mostramos sucesso para o visitante
+						console.error("Erro ao cadastrar visita:", visitError);
+						if (visitError instanceof ApiClientError) {
+							toast.warning(
+								`Visitante cadastrado com sucesso, mas houve um erro ao registrar a visita: ${visitError.response.message || "Erro desconhecido"}`,
+							);
+						} else {
+							toast.warning("Visitante cadastrado com sucesso, mas houve um erro ao registrar a visita.");
+						}
+					}
+				} else {
+					toast.success("Visitante cadastrado com sucesso!");
+				}
+
 				visitorForm.reset();
 				setCapturedPhoto(null);
 				setPhotoPreview(null);
@@ -547,10 +584,12 @@ export default function ConciergeVisitors() {
 		if (checked) {
 			visitorForm.setValue("types", [...currentTypes, type]);
 		} else {
-			visitorForm.setValue(
-				"types",
-				currentTypes.filter((t) => t !== type),
-			);
+			const newTypes = currentTypes.filter((t) => t !== type);
+			visitorForm.setValue("types", newTypes);
+			// Limpar campo de empresa se não for mais prestador
+			if (type === "prestador_servico" && !newTypes.includes("prestador_servico")) {
+				visitorForm.setValue("companyName", "");
+			}
 		}
 	};
 
@@ -585,6 +624,7 @@ export default function ConciergeVisitors() {
 					: "none",
 				vehiclePlate: visitorData.vehiclePlate || "",
 				types: typesForForm,
+				companyName: visitorData.companyName || "",
 				note: visitorData.note || "",
 			};
 			editVisitorForm.reset(formData);
@@ -614,6 +654,7 @@ export default function ConciergeVisitors() {
 					: "none",
 				vehiclePlate: visitor.vehiclePlate || "",
 				types: typesForForm,
+				companyName: visitor.companyName || "",
 				note: visitor.note || "",
 			};
 			editVisitorForm.reset(formData);
@@ -634,10 +675,12 @@ export default function ConciergeVisitors() {
 		if (checked) {
 			editVisitorForm.setValue("types", [...currentTypes, type]);
 		} else {
-			editVisitorForm.setValue(
-				"types",
-				currentTypes.filter((t) => t !== type),
-			);
+			const newTypes = currentTypes.filter((t) => t !== type);
+			editVisitorForm.setValue("types", newTypes);
+			// Limpar campo de empresa se não for mais prestador
+			if (type === "prestador_servico" && !newTypes.includes("prestador_servico")) {
+				editVisitorForm.setValue("companyName", "");
+			}
 		}
 	};
 
@@ -650,6 +693,7 @@ export default function ConciergeVisitors() {
 		"vehicleType",
 		"vehiclePlate",
 		"types",
+		"companyName",
 		"note",
 	]);
 
@@ -682,6 +726,7 @@ export default function ConciergeVisitors() {
 			normalize(currentData.vehiclePlate) !== normalize(initialEditData.vehiclePlate) ||
 			JSON.stringify((currentData.types || []).sort()) !==
 				JSON.stringify((initialEditData.types || []).sort()) ||
+			normalize(currentData.companyName) !== normalize(initialEditData.companyName || "") ||
 			normalize(currentData.note) !== normalize(initialEditData.note);
 
 		return hasFormChanges;
@@ -705,6 +750,7 @@ export default function ConciergeVisitors() {
 				vehicleType: data.vehicleType?.trim() ? data.vehicleType.trim().toUpperCase() : undefined,
 				vehiclePlate: data.vehiclePlate?.trim() || undefined,
 				types: typesUpperCase,
+				companyName: data.companyName?.trim() || undefined,
 				note: data.note?.trim() || undefined,
 				active: editingVisitor.active !== false, // Manter status atual ou true por padrão
 			};
@@ -1201,6 +1247,26 @@ export default function ConciergeVisitors() {
 											)}
 										</div>
 
+										{/* Campo de empresa - aparece apenas se for prestador */}
+										{visitorForm.watch("types")?.includes("prestador_servico") && (
+											<div className="space-y-2">
+												<Label htmlFor="companyName">Nome da Empresa (Opcional)</Label>
+												<Input
+													id="companyName"
+													placeholder="Ex: Empresa ABC Ltda"
+													{...visitorForm.register("companyName")}
+												/>
+												{visitorForm.formState.errors.companyName && (
+													<p className="text-sm text-destructive">
+														{visitorForm.formState.errors.companyName.message}
+													</p>
+												)}
+												<p className="text-xs text-muted-foreground">
+													Informe o nome da empresa caso o visitante seja um prestador de serviços
+												</p>
+											</div>
+										)}
+
 										<div className="space-y-2">
 											<Label htmlFor="photo">Foto *</Label>
 											{showCamera ? (
@@ -1257,6 +1323,112 @@ export default function ConciergeVisitors() {
 													{visitorForm.formState.errors.note.message}
 												</p>
 											)}
+										</div>
+
+										{/* Campos opcionais para cadastrar primeira visita */}
+										<div className="border-t pt-4 mt-4 space-y-4">
+											<div className="space-y-2">
+												<Label className="text-base font-semibold">Cadastrar Primeira Visita (Opcional)</Label>
+												<p className="text-sm text-muted-foreground">
+													Preencha os campos abaixo se desejar cadastrar a primeira visita junto com o visitante
+												</p>
+											</div>
+
+											<div className="space-y-2">
+												<Label htmlFor="visit-apartment">Apartamento da Visita (Opcional)</Label>
+												<Popover>
+													<PopoverTrigger asChild>
+														<Button
+															type="button"
+															variant="outline"
+															role="combobox"
+															className="w-full justify-between"
+														>
+															{visitorForm.watch("visitApartmentId")
+																? (() => {
+																		const selectedApt = apartments.find(
+																			(apt) => apt._id === visitorForm.watch("visitApartmentId"),
+																		);
+																		return selectedApt
+																			? `${selectedApt.block ? `Bloco ${selectedApt.block} - ` : ""}Apartamento ${selectedApt.number}`
+																			: "Selecione";
+																	})()
+																: "Selecione o apartamento"}
+															<ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+														</Button>
+													</PopoverTrigger>
+													<PopoverContent
+														className="w-[var(--radix-popover-trigger-width)] p-0"
+														align="start"
+													>
+														<Command>
+															<CommandInput placeholder="Buscar apartamento..." />
+															<CommandList>
+																<CommandEmpty>Nenhum apartamento encontrado.</CommandEmpty>
+																<CommandGroup>
+																	<CommandItem
+																		value="__none__"
+																		onSelect={() => visitorForm.setValue("visitApartmentId", "")}
+																	>
+																		<Check
+																			className={cn(
+																				"mr-2 h-4 w-4",
+																				!visitorForm.watch("visitApartmentId") ? "opacity-100" : "opacity-0",
+																			)}
+																		/>
+																		Nenhum
+																	</CommandItem>
+																	{apartments
+																		.sort((a, b) => {
+																			if (a.block && b.block && a.block !== b.block) {
+																				return a.block.localeCompare(b.block);
+																			}
+																			return a.number.localeCompare(b.number, undefined, {
+																				numeric: true,
+																				sensitivity: "base",
+																			});
+																		})
+																		.map((apt) => {
+																			const aptLabel = `${apt.block ? `Bloco ${apt.block} - ` : ""}Apartamento ${apt.number}${apt.floor ? ` (${apt.floor}º andar)` : ""}`;
+																			return (
+																				<CommandItem
+																					key={apt._id}
+																					value={`${apt.number} ${apt.block || ""} ${apt.floor || ""}`}
+																					onSelect={() => visitorForm.setValue("visitApartmentId", apt._id)}
+																				>
+																					<Check
+																						className={cn(
+																							"mr-2 h-4 w-4",
+																							visitorForm.watch("visitApartmentId") === apt._id
+																								? "opacity-100"
+																								: "opacity-0",
+																						)}
+																					/>
+																					{aptLabel}
+																				</CommandItem>
+																			);
+																		})}
+																</CommandGroup>
+															</CommandList>
+														</Command>
+													</PopoverContent>
+												</Popover>
+											</div>
+
+											<div className="space-y-2">
+												<Label htmlFor="visit-note">Anotação da Visita (Opcional)</Label>
+												<Textarea
+													id="visit-note"
+													placeholder="Ex: Visita para piscina, entrega de documento, manutenção..."
+													rows={4}
+													{...visitorForm.register("visitNote")}
+												/>
+												{visitorForm.formState.errors.visitNote && (
+													<p className="text-sm text-destructive">
+														{visitorForm.formState.errors.visitNote.message}
+													</p>
+												)}
+											</div>
 										</div>
 
 										<div className="flex gap-4 pt-4">
@@ -1430,6 +1602,13 @@ export default function ConciergeVisitors() {
 																))}
 														</div>
 													</div>
+
+													{selectedVisitor.companyName && (
+														<div>
+															<Label className="text-muted-foreground">Empresa</Label>
+															<p className="font-medium">{selectedVisitor.companyName}</p>
+														</div>
+													)}
 
 													{selectedVisitor.vehicleType && (
 														<div>
@@ -1895,6 +2074,26 @@ export default function ConciergeVisitors() {
 										</p>
 									)}
 								</div>
+
+								{/* Campo de empresa - aparece apenas se for prestador */}
+								{editVisitorForm.watch("types")?.includes("prestador_servico") && (
+									<div className="space-y-2">
+										<Label htmlFor="edit-companyName">Nome da Empresa (Opcional)</Label>
+										<Input
+											id="edit-companyName"
+											placeholder="Ex: Empresa ABC Ltda"
+											{...editVisitorForm.register("companyName")}
+										/>
+										{editVisitorForm.formState.errors.companyName && (
+											<p className="text-sm text-destructive">
+												{editVisitorForm.formState.errors.companyName.message}
+											</p>
+										)}
+										<p className="text-xs text-muted-foreground">
+											Informe o nome da empresa caso o visitante seja um prestador de serviços
+										</p>
+									</div>
+								)}
 
 								<div className="space-y-2">
 									<Label htmlFor="edit-note">Observações (Opcional)</Label>

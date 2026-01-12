@@ -68,7 +68,7 @@ import {
 	type CancelSchema,
 } from "@/schemas/concierge/package.schema";
 import PackagesSkeleton from "@/skeleton/concierge/PackagesSkeleton";
-import { packageService, type PackageStats, type CreatePackageRequest } from "@/services/api";
+import { packageService, type PackageStats, type CreatePackageRequest, ApiClientError } from "@/services/api";
 import { apartmentsService, type Apartment } from "@/services/api";
 
 interface PackageData {
@@ -287,6 +287,7 @@ export default function ConciergePackages() {
 		resolver: zodResolver(deliverySchema),
 		defaultValues: {
 			receivedBy: "",
+			pickupCode: "",
 		},
 	});
 
@@ -588,6 +589,7 @@ export default function ConciergePackages() {
 			// deliveryConciergeId removed - backend extracts from token
 			await packageService.confirmPackageDelivery(selectedPackage.id, {
 				recipientName: data.receivedBy?.trim() || undefined,
+				pickupCode: data.pickupCode.trim().toUpperCase(),
 			});
 
 			toast.success(
@@ -669,7 +671,45 @@ export default function ConciergePackages() {
 			setCancelledPackages(cancelledMapped);
 			setStats(packageStats);
 		} catch (error: any) {
-			toast.error(error.message || "Erro ao marcar encomenda como entregue");
+			if (error instanceof ApiClientError) {
+				// Verifica se há erros de validação específicos
+				const validationErrors = error.response?.errors;
+				if (validationErrors && Array.isArray(validationErrors) && validationErrors.length > 0) {
+					// Encontrar erro relacionado ao código de retirada
+					const pickupCodeError = validationErrors.find(
+						(err: any) =>
+							err.field?.includes("pickupCode") ||
+							err.message?.toLowerCase().includes("pickupcode") ||
+							err.message?.toLowerCase().includes("código"),
+					);
+					if (pickupCodeError) {
+						toast.error(pickupCodeError.message || "Código de retirada fornecido inválido");
+					} else {
+						// Usar a primeira mensagem de erro de validação
+						toast.error(validationErrors[0]?.message || error.response?.message || "Erro de validação");
+					}
+				} else {
+					// Usar mensagem principal do erro
+					const errorMessage = error.response?.message || error.message || "";
+					if (
+						errorMessage.toLowerCase().includes("código") ||
+						errorMessage.toLowerCase().includes("código de retirada") ||
+						errorMessage.toLowerCase().includes("pickupcode") ||
+						errorMessage.toLowerCase().includes("invalid request")
+					) {
+						// Se a mensagem menciona código ou é genérica, melhorar
+						if (errorMessage.toLowerCase().includes("invalid request")) {
+							toast.error("Código de retirada fornecido inválido. Verifique o código e tente novamente.");
+						} else {
+							toast.error(errorMessage);
+						}
+					} else {
+						toast.error(errorMessage || "Erro ao marcar encomenda como entregue");
+					}
+				}
+			} else {
+				toast.error(error.message || "Erro ao marcar encomenda como entregue");
+			}
 		}
 	};
 
@@ -1643,6 +1683,31 @@ export default function ConciergePackages() {
 								onSubmit={deliveryForm.handleSubmit(handleMarkAsDelivered)}
 								className="space-y-4"
 							>
+								<div className="space-y-2">
+									<Label htmlFor="pickupCode">
+										Código de Retirada <span className="text-destructive">*</span>
+									</Label>
+									<Input
+										id="pickupCode"
+										placeholder="Digite o código de retirada (6 caracteres)"
+										maxLength={6}
+										className="text-center text-lg tracking-widest font-mono uppercase"
+										{...deliveryForm.register("pickupCode", {
+											onChange: (e) => {
+												e.target.value = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
+											},
+										})}
+									/>
+									{deliveryForm.formState.errors.pickupCode && (
+										<p className="text-sm text-destructive">
+											{deliveryForm.formState.errors.pickupCode.message}
+										</p>
+									)}
+									<p className="text-xs text-muted-foreground">
+										O código deve ser fornecido pelo residente para confirmar a entrega.
+									</p>
+								</div>
+
 								<div className="space-y-2">
 									<Label htmlFor="receivedBy">Quem recebeu?</Label>
 									<Input

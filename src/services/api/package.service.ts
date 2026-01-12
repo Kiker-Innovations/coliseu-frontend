@@ -83,6 +83,7 @@ export interface Package {
  */
 export interface ConfirmDeliveryRequest {
 	recipientName?: string;
+	pickupCode: string;
 	// deliveryConciergeId removed - backend extracts from token
 }
 
@@ -135,6 +136,7 @@ export interface ResidentPackage {
 	receiverDate: string;
 	deliveryDate?: string;
 	status: string;
+	pickupCode: string;
 	cancelReason?: string;
 	canceledBy?: string;
 	cancelledAt?: string;

@@ -18,6 +18,7 @@ export interface CreateVisitorRequest {
 	vehicleType?: string;
 	vehiclePlate?: string;
 	types: ("CONVIDADO" | "PRESTADOR")[]; // Tipos em maiúsculas conforme API
+	companyName?: string; // Nome da empresa (para prestadores)
 	note?: string;
 	// conciergeId removed - backend extracts from token
 	// photo removed - será enviado via presignedUrl separadamente
@@ -35,6 +36,7 @@ export interface UpdateVisitorRequest {
 	vehicleType?: string;
 	vehiclePlate?: string;
 	types?: ("CONVIDADO" | "PRESTADOR")[];
+	companyName?: string; // Nome da empresa (para prestadores)
 	note?: string;
 	active?: boolean;
 	// apartmentId removed - apartment is now linked to visit, not visitor
@@ -66,6 +68,7 @@ export interface Visitor {
 	apartmentId?: string;
 	apartmentNumber?: string; // Número do apartamento retornado pela API
 	types: ("CONVIDADO" | "PRESTADOR" | "convidado" | "prestador_servico")[]; // Aceita ambos os formatos
+	companyName?: string; // Nome da empresa (para prestadores)
 	photoUrl?: string;
 	note?: string;
 	registeredBy?: string;

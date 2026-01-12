@@ -18,6 +18,12 @@ export const deliverySchema = z.object({
 	receivedBy: z
 		.union([z.literal(""), z.string().trim().min(3, "Nome deve ter no mínimo 3 caracteres")])
 		.optional(),
+	pickupCode: z
+		.string({ required_error: "O código de retirada é obrigatório. Solicite o código ao residente." })
+		.min(6, "O código de retirada deve ter exatamente 6 caracteres")
+		.max(6, "O código de retirada deve ter exatamente 6 caracteres")
+		.trim()
+		.regex(/^[A-Z0-9]{6}$/, "O código deve conter apenas letras maiúsculas e números (exemplo: ABC123)"),
 });
 
 export const cancelSchema = z.object({

@@ -319,6 +319,7 @@ export default function Packages() {
 														<TableHead>Proprietário</TableHead>
 														<TableHead>Descrição</TableHead>
 														<TableHead>Data de Chegada</TableHead>
+														<TableHead>Código de Retirada</TableHead>
 														<TableHead className="w-[100px] text-right">Ações</TableHead>
 													</TableRow>
 												</TableHeader>
@@ -347,6 +348,13 @@ export default function Packages() {
 																<div className="font-medium">
 																	{formatShortDate(pkg.receiverDate)}
 																</div>
+															</TableCell>
+															<TableCell>
+																{pkg.pickupCode && (
+																	<div className="inline-block px-2 py-1 bg-primary/10 border border-primary/30 rounded text-primary font-mono text-sm font-semibold">
+																		{pkg.pickupCode}
+																	</div>
+																)}
 															</TableCell>
 															<TableCell className="text-right">
 																<div
@@ -731,6 +739,19 @@ export default function Packages() {
 											<div className="flex items-center gap-2">
 												<User className="w-4 h-4 text-muted-foreground" />
 												<p className="font-medium">{viewingPackage.deliveryBy}</p>
+											</div>
+										</div>
+									)}
+
+									{/* Código de Retirada - Apenas para encomendas pendentes */}
+									{viewingPackage.status === "PENDENTE" && viewingPackage.pickupCode && (
+										<div className="border-t pt-4 mt-4">
+											<Label className="text-muted-foreground">Código de Retirada</Label>
+											<div className="mt-2 p-4 bg-primary/10 border-2 border-primary/30 rounded-lg text-center">
+												<p className="text-xs text-muted-foreground mb-2">Apresente este código na portaria para retirar sua encomenda</p>
+												<p className="text-3xl font-bold text-primary tracking-wider font-mono">
+													{viewingPackage.pickupCode}
+												</p>
 											</div>
 										</div>
 									)}
