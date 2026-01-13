@@ -32,12 +32,12 @@ class ApiClient {
 	constructor() {
 		this.baseURL = API_CONFIG.baseURL;
 		this.timeout = API_CONFIG.timeout;
-		
+
 		// Initialize token from storage on construction
 		// This ensures the token is available even if setAuthToken wasn't called
 		this.initializeTokenFromStorage();
 	}
-	
+
 	/**
 	 * Initialize token from storage
 	 * Ensures token is available even if setAuthToken wasn't called explicitly
@@ -56,17 +56,17 @@ class ApiClient {
 	 */
 	private getAuthToken(): string | null {
 		// Try multiple sources to ensure we get the token
-		const token = 
+		const token =
 			this.token || // First check in-memory token
 			localStorage.getItem(AUTH_STORAGE_KEYS.accessToken) ||
 			sessionStorage.getItem(AUTH_STORAGE_KEYS.accessToken) ||
 			null;
-		
+
 		// If token found but not in memory, update it
 		if (token && !this.token) {
 			this.token = token;
 		}
-		
+
 		return token;
 	}
 
@@ -74,7 +74,10 @@ class ApiClient {
 	 * Build complete URL with query parameters
 	 * Supports arrays for multiple values with the same key (e.g., status=ATIVO&status=PROGRAMADO)
 	 */
-	private buildURL(endpoint: string, params?: Record<string, string | number | boolean | string[] | number[]>): string {
+	private buildURL(
+		endpoint: string,
+		params?: Record<string, string | number | boolean | string[] | number[]>,
+	): string {
 		// Se o endpoint já tem query string, não processar params e retornar direto
 		if (endpoint.includes("?")) {
 			return `${this.baseURL}${endpoint}`;
@@ -321,7 +324,7 @@ class ApiClient {
 	clearAuthToken(): void {
 		// Clear in-memory token
 		this.token = null;
-		
+
 		// Clear from both storages for consistency
 		localStorage.removeItem(AUTH_STORAGE_KEYS.accessToken);
 		localStorage.removeItem(AUTH_STORAGE_KEYS.refreshToken);

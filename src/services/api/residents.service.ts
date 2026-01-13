@@ -180,25 +180,27 @@ class ResidentsService {
 	 * Get resident profile
 	 * GET /v1/residents/me
 	 */
-	async getProfile(): Promise<ApiResponse<{
-		id?: string;
-		_id?: string;
-		email: string;
-		name: string;
-		phone?: string;
-		photoUrl?: string | null;
-		apartmentNumber?: string;
-		buildingName?: string;
-		buildingId?: string;
-		apartmentId?: string;
-		apartment?: {
-			number?: string;
-			block?: string;
-			floor?: number;
-		};
-		apartmentBlock?: string;
-		apartmentFloor?: number;
-	}>> {
+	async getProfile(): Promise<
+		ApiResponse<{
+			id?: string;
+			_id?: string;
+			email: string;
+			name: string;
+			phone?: string;
+			photoUrl?: string | null;
+			apartmentNumber?: string;
+			buildingName?: string;
+			buildingId?: string;
+			apartmentId?: string;
+			apartment?: {
+				number?: string;
+				block?: string;
+				floor?: number;
+			};
+			apartmentBlock?: string;
+			apartmentFloor?: number;
+		}>
+	> {
 		return apiClient.get<{
 			id?: string;
 			_id?: string;
@@ -231,16 +233,18 @@ class ResidentsService {
 		photoUrl?: string;
 		buildingId?: string;
 		apartmentId?: string;
-	}): Promise<ApiResponse<{
-		id: string;
-		email: string;
-		name: string;
-		phone?: string;
-		photoUrl?: string | null;
-		status?: string;
-		createdAt?: string;
-		updatedAt?: string;
-	}>> {
+	}): Promise<
+		ApiResponse<{
+			id: string;
+			email: string;
+			name: string;
+			phone?: string;
+			photoUrl?: string | null;
+			status?: string;
+			createdAt?: string;
+			updatedAt?: string;
+		}>
+	> {
 		const userId = this.getUserIdFromToken();
 		if (!userId) {
 			throw new Error("Não foi possível obter o ID do usuário do token");
@@ -267,13 +271,15 @@ class ResidentsService {
 		fileSize?: number;
 		contentType?: string;
 		fileExtension?: string;
-	}): Promise<ApiResponse<{
-		presignedUrl: string;
-		photoUrl: string;
-		s3Key?: string;
-		instructions?: string;
-		expiresIn?: string;
-	}>> {
+	}): Promise<
+		ApiResponse<{
+			presignedUrl: string;
+			photoUrl: string;
+			s3Key?: string;
+			instructions?: string;
+			expiresIn?: string;
+		}>
+	> {
 		const userId = this.getUserIdFromToken();
 		if (!userId) {
 			throw new Error("Não foi possível obter o ID do usuário do token");

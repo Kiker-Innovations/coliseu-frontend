@@ -36,6 +36,14 @@
 		}
 	},
 	"files": {
-		"ignore": ["node_modules/", "coverage/", "dist/", "package-lock.json", "README.md", "LICENS"]
+		"ignore": [
+			"node_modules/",
+			"coverage/",
+			"dist/",
+			"package-lock.json",
+			"README.md",
+			"LICENS",
+			"tsconfig*.json"
+		]
 	}
 }

@@ -185,14 +185,16 @@ class AdminService {
 	 * Get current admin profile
 	 * GET /v1/admins/me
 	 */
-	async getCurrentAdmin(): Promise<ApiResponse<{
-		_id: string;
-		id: string;
-		email: string;
-		name: string;
-		buildingId: string;
-		role?: string;
-	}>> {
+	async getCurrentAdmin(): Promise<
+		ApiResponse<{
+			_id: string;
+			id: string;
+			email: string;
+			name: string;
+			buildingId: string;
+			role?: string;
+		}>
+	> {
 		return apiClient.get<{
 			_id: string;
 			id: string;
@@ -216,7 +218,14 @@ class AdminService {
 				const tokenParts = token.split(".");
 				if (tokenParts.length === 3) {
 					const payload = JSON.parse(atob(tokenParts[1]));
-					return payload.id || payload._id || payload.userId || payload.user_id || payload.adminId || null;
+					return (
+						payload.id ||
+						payload._id ||
+						payload.userId ||
+						payload.user_id ||
+						payload.adminId ||
+						null
+					);
 				}
 			} catch (e) {
 				console.error("Erro ao decodificar token:", e);
@@ -251,13 +260,15 @@ class AdminService {
 	 * Get admin profile
 	 * GET /v1/admins/me
 	 */
-	async getProfile(): Promise<ApiResponse<{
-		id?: string;
-		_id?: string;
-		email: string;
-		name: string;
-		buildingId: string;
-	}>> {
+	async getProfile(): Promise<
+		ApiResponse<{
+			id?: string;
+			_id?: string;
+			email: string;
+			name: string;
+			buildingId: string;
+		}>
+	> {
 		return apiClient.get<{
 			id?: string;
 			_id?: string;
@@ -275,14 +286,16 @@ class AdminService {
 		name?: string;
 		email?: string;
 		buildingId?: string;
-	}): Promise<ApiResponse<{
-		id: string;
-		email: string;
-		name: string;
-		status?: string;
-		createdAt?: string;
-		updatedAt?: string;
-	}>> {
+	}): Promise<
+		ApiResponse<{
+			id: string;
+			email: string;
+			name: string;
+			status?: string;
+			createdAt?: string;
+			updatedAt?: string;
+		}>
+	> {
 		const userId = this.getUserIdFromToken();
 		if (!userId) {
 			throw new Error("Não foi possível obter o ID do usuário do token");
@@ -316,19 +329,21 @@ class AdminService {
 		search?: string;
 		filterBy?: "name" | "phone" | "email" | "apartment";
 		status?: "A_CONFIRMACAO_EMAIL" | "A_VALIDACAO" | "REJEITADO" | "ATIVO" | "INATIVO";
-	}): Promise<ApiResponse<{
-		data: Array<{
-			_id: string;
-			name: string;
-			email: string;
-			phone?: string;
-			apartmentId?: string;
-			apartmentNumber?: string;
-			status: string;
-		}>;
-		total: number;
-		totalPages: number;
-	}>> {
+	}): Promise<
+		ApiResponse<{
+			data: Array<{
+				_id: string;
+				name: string;
+				email: string;
+				phone?: string;
+				apartmentId?: string;
+				apartmentNumber?: string;
+				status: string;
+			}>;
+			total: number;
+			totalPages: number;
+		}>
+	> {
 		return apiClient.get<{
 			data: Array<{
 				_id: string;
@@ -348,26 +363,28 @@ class AdminService {
 	 * Get resident by ID with all details
 	 * GET /v1/admins/residents/:id
 	 */
-	async getResidentById(id: string): Promise<ApiResponse<{
-		_id: string;
-		name: string;
-		email: string;
-		phone: string;
-		buildingId: string;
-		apartmentId: string;
-		status: string;
-		photoUrl: string | null;
-		residentCode: string;
-		createdAt: string;
-		updatedAt: string;
-		apartment: {
+	async getResidentById(id: string): Promise<
+		ApiResponse<{
 			_id: string;
-			number: string;
-			block: string;
-			floor: number;
+			name: string;
+			email: string;
+			phone: string;
+			buildingId: string;
+			apartmentId: string;
 			status: string;
-		} | null;
-	}>> {
+			photoUrl: string | null;
+			residentCode: string;
+			createdAt: string;
+			updatedAt: string;
+			apartment: {
+				_id: string;
+				number: string;
+				block: string;
+				floor: number;
+				status: string;
+			} | null;
+		}>
+	> {
 		return apiClient.get<{
 			_id: string;
 			name: string;
@@ -402,12 +419,14 @@ class AdminService {
 	 * Approve resident (change status from A_VALIDACAO to ATIVO)
 	 * POST /v1/admins/residents/:id/approve
 	 */
-	async approveResident(id: string): Promise<ApiResponse<{
-		_id: string;
-		name: string;
-		email: string;
-		status: string;
-	}>> {
+	async approveResident(id: string): Promise<
+		ApiResponse<{
+			_id: string;
+			name: string;
+			email: string;
+			status: string;
+		}>
+	> {
 		return apiClient.post<{
 			_id: string;
 			name: string;
@@ -424,14 +443,16 @@ class AdminService {
 		id: string,
 		rejectType: string,
 		rejectNote?: string,
-	): Promise<ApiResponse<{
-		_id: string;
-		name: string;
-		email: string;
-		status: string;
-		rejectType: string;
-		rejectNote?: string;
-	}>> {
+	): Promise<
+		ApiResponse<{
+			_id: string;
+			name: string;
+			email: string;
+			status: string;
+			rejectType: string;
+			rejectNote?: string;
+		}>
+	> {
 		return apiClient.post<{
 			_id: string;
 			name: string;
@@ -453,12 +474,14 @@ class AdminService {
 		id: string,
 		inactiveType: string,
 		inactiveNote?: string,
-	): Promise<ApiResponse<{
-		_id: string;
-		name: string;
-		email: string;
-		status: string;
-	}>> {
+	): Promise<
+		ApiResponse<{
+			_id: string;
+			name: string;
+			email: string;
+			status: string;
+		}>
+	> {
 		return apiClient.post<{
 			_id: string;
 			name: string;
@@ -474,12 +497,14 @@ class AdminService {
 	 * Activate resident (change status from INATIVO to ATIVO)
 	 * POST /v1/admins/residents/:id/activate
 	 */
-	async activateResident(id: string): Promise<ApiResponse<{
-		_id: string;
-		name: string;
-		email: string;
-		status: string;
-	}>> {
+	async activateResident(id: string): Promise<
+		ApiResponse<{
+			_id: string;
+			name: string;
+			email: string;
+			status: string;
+		}>
+	> {
 		return apiClient.post<{
 			_id: string;
 			name: string;

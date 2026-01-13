@@ -34,17 +34,18 @@ class ApartmentsService {
 	 */
 	async getApartmentsByBuildingId(buildingId: string): Promise<Apartment[]> {
 		// Ensure concierge token is set in apiClient (if available)
-		const token = localStorage.getItem("coliseu_access_token") || 
-		              sessionStorage.getItem("coliseu_access_token") ||
-		              localStorage.getItem("concierge_token") || 
-		              sessionStorage.getItem("concierge_token") ||
-		              localStorage.getItem("coliseu_access_token") ||
-		              sessionStorage.getItem("coliseu_access_token");
-		
+		const token =
+			localStorage.getItem("coliseu_access_token") ||
+			sessionStorage.getItem("coliseu_access_token") ||
+			localStorage.getItem("concierge_token") ||
+			sessionStorage.getItem("concierge_token") ||
+			localStorage.getItem("coliseu_access_token") ||
+			sessionStorage.getItem("coliseu_access_token");
+
 		if (token) {
 			apiClient.setAuthToken(token);
 		}
-		
+
 		const response = await apiClient.get<Apartment[]>(this.basePath, {
 			params: {
 				buildingId,
@@ -111,4 +112,3 @@ class ApartmentsService {
 
 // Export singleton instance
 export const apartmentsService = new ApartmentsService();
-

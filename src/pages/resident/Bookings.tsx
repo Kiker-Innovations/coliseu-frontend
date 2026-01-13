@@ -109,19 +109,19 @@ function BookingDetails({
 
 			// Primeiro, tenta encontrar no array de amenities
 			let amenity = amenities.find((a) => a._id === booking.amenityId);
-			
+
 			// Se não encontrou, tenta no cache
 			if (!amenity) {
 				amenity = amenityCache.get(booking.amenityId);
 			}
-			
+
 			// Se encontrou, atualiza o nome e os dados
 			if (amenity) {
 				setAmenityName(amenity.name);
 				setAmenityData(amenity);
 				return;
 			}
-			
+
 			// Se ainda não encontrou, busca da API
 			try {
 				const fetchedAmenity = await amenitiesService.getAmenityById(booking.amenityId);
@@ -147,7 +147,7 @@ function BookingDetails({
 
 	const formatDateTime = (dateString: string): string => {
 		if (!dateString) return "-";
-		
+
 		try {
 			const date = new Date(dateString);
 			if (isNaN(date.getTime())) {
@@ -169,7 +169,7 @@ function BookingDetails({
 
 	const formatDate = (dateString: string): string => {
 		if (!dateString) return "-";
-		
+
 		try {
 			const date = new Date(dateString);
 			if (isNaN(date.getTime())) {
@@ -189,7 +189,7 @@ function BookingDetails({
 
 	const formatTime = (dateString: string): string => {
 		if (!dateString) return "-";
-		
+
 		try {
 			const date = new Date(dateString);
 			if (isNaN(date.getTime())) {
@@ -232,7 +232,8 @@ function BookingDetails({
 				<div>
 					<Label className="text-muted-foreground">Valor Total</Label>
 					<p className="font-medium">
-						R$ {booking.totalValue.toLocaleString("pt-BR", {
+						R${" "}
+						{booking.totalValue.toLocaleString("pt-BR", {
 							minimumFractionDigits: 2,
 							maximumFractionDigits: 2,
 						})}
@@ -242,9 +243,7 @@ function BookingDetails({
 
 			<div>
 				<Label className="text-muted-foreground">Status</Label>
-				<div className="mt-1">
-					{getStatusBadge(booking.status)}
-				</div>
+				<div className="mt-1">{getStatusBadge(booking.status)}</div>
 			</div>
 
 			{booking.observation && (
@@ -260,7 +259,8 @@ function BookingDetails({
 						<div className="pt-4 border-t">
 							<Label className="text-muted-foreground">Multa por Atraso</Label>
 							<p className="text-sm font-medium text-destructive mt-1">
-								R$ {amenityData.fineValue.toLocaleString("pt-BR", {
+								R${" "}
+								{amenityData.fineValue.toLocaleString("pt-BR", {
 									minimumFractionDigits: 2,
 									maximumFractionDigits: 2,
 								})}
@@ -272,7 +272,8 @@ function BookingDetails({
 						<div className="pt-4 border-t">
 							<Label className="text-muted-foreground">Multa por Descumprimento de Normas</Label>
 							<p className="text-sm font-medium text-destructive mt-1">
-								R$ {amenityData.nonComplianceFine.toLocaleString("pt-BR", {
+								R${" "}
+								{amenityData.nonComplianceFine.toLocaleString("pt-BR", {
 									minimumFractionDigits: 2,
 									maximumFractionDigits: 2,
 								})}
@@ -283,7 +284,7 @@ function BookingDetails({
 					{amenityData.usageRules && (
 						<div className="pt-4 border-t">
 							<Label className="text-muted-foreground">Normas de Uso</Label>
-							<div 
+							<div
 								className="text-sm mt-1 prose prose-sm max-w-none"
 								dangerouslySetInnerHTML={{ __html: amenityData.usageRules }}
 							/>
@@ -307,8 +308,7 @@ function BookingDetails({
 			)}
 
 			<div className="flex gap-2 pt-4 border-t">
-				{booking.status !== "CANCELADO" && 
-				 booking.status !== "FINALIZADO" && (
+				{booking.status !== "CANCELADO" && booking.status !== "FINALIZADO" && (
 					<Button
 						variant="destructive"
 						type="button"
@@ -354,18 +354,18 @@ function BookingRow({
 
 			// Primeiro, tenta encontrar no array de amenities
 			let amenity = amenities.find((a) => a._id === booking.amenityId);
-			
+
 			// Se não encontrou, tenta no cache
 			if (!amenity) {
 				amenity = amenityCache.get(booking.amenityId);
 			}
-			
+
 			// Se encontrou, atualiza o nome
 			if (amenity) {
 				setAmenityName(amenity.name);
 				return;
 			}
-			
+
 			// Se ainda não encontrou, busca da API
 			try {
 				const fetchedAmenity = await amenitiesService.getAmenityById(booking.amenityId);
@@ -387,7 +387,7 @@ function BookingRow({
 
 	const formatDate = (dateString: string): string => {
 		if (!dateString) return "-";
-		
+
 		try {
 			// Se já está no formato YYYY-MM-DD, converte diretamente
 			if (dateString.match(/^\d{4}-\d{2}-\d{2}$/)) {
@@ -397,7 +397,7 @@ function BookingRow({
 				}
 				return date.toLocaleDateString("pt-BR");
 			}
-			
+
 			// Tenta converter como Date ISO
 			const date = new Date(dateString);
 			if (isNaN(date.getTime())) {
@@ -412,7 +412,7 @@ function BookingRow({
 
 	const formatTime = (dateString: string): string => {
 		if (!dateString) return "-";
-		
+
 		try {
 			const date = new Date(dateString);
 			if (isNaN(date.getTime())) {
@@ -433,21 +433,15 @@ function BookingRow({
 			className="cursor-pointer"
 			onClick={(e) => {
 				// Não abrir modal se clicar em um botão
-				if ((e.target as HTMLElement).closest('button')) {
+				if ((e.target as HTMLElement).closest("button")) {
 					return;
 				}
 				onViewBooking(booking);
 			}}
 		>
-			<TableCell className="font-medium">
-				{amenityName}
-			</TableCell>
-			<TableCell>
-				{formatDate(booking.startDate)}
-			</TableCell>
-			<TableCell>
-				{booking.endDate ? formatDate(booking.endDate) : "-"}
-			</TableCell>
+			<TableCell className="font-medium">{amenityName}</TableCell>
+			<TableCell>{formatDate(booking.startDate)}</TableCell>
+			<TableCell>{booking.endDate ? formatDate(booking.endDate) : "-"}</TableCell>
 			<TableCell>
 				{booking.totalValue > 0
 					? `R$ ${booking.totalValue.toLocaleString("pt-BR", {
@@ -594,7 +588,7 @@ export default function Bookings() {
 			toast.error("Áreas comuns não permitem reserva");
 			return;
 		}
-		
+
 		if (!amenity.bookingType) {
 			toast.error("Esta comodidade não permite reserva");
 			return;
@@ -621,7 +615,6 @@ export default function Bookings() {
 			bookingForm.setValue("date", dateStr);
 		}
 	};
-
 
 	const handleBookingSubmit = async (data: BookingFormData) => {
 		try {
@@ -729,18 +722,18 @@ export default function Bookings() {
 	const getAmenityName = (amenityId: string): string => {
 		// Primeiro, tenta encontrar no array de amenities
 		let amenity = amenities.find((a) => a._id === amenityId);
-		
+
 		// Se não encontrou, tenta no cache
 		if (!amenity) {
 			amenity = amenityCache.get(amenityId);
 		}
-		
+
 		return amenity?.name || "Comodidade não encontrada";
 	};
 
 	const formatDate = (dateString: string): string => {
 		if (!dateString) return "-";
-		
+
 		try {
 			// Se já está no formato YYYY-MM-DD, converte diretamente
 			if (dateString.match(/^\d{4}-\d{2}-\d{2}$/)) {
@@ -750,7 +743,7 @@ export default function Bookings() {
 				}
 				return date.toLocaleDateString("pt-BR");
 			}
-			
+
 			// Tenta converter como Date ISO
 			const date = new Date(dateString);
 			if (isNaN(date.getTime())) {
@@ -762,7 +755,6 @@ export default function Bookings() {
 			return "-";
 		}
 	};
-
 
 	if (isLoading) {
 		return (
@@ -783,9 +775,7 @@ export default function Bookings() {
 		<div className="space-y-6">
 			<div>
 				<h1 className="text-3xl font-bold">Reservas</h1>
-				<p className="text-muted-foreground">
-					Reserve comodidades do condomínio
-				</p>
+				<p className="text-muted-foreground">Reserve comodidades do condomínio</p>
 			</div>
 
 			<Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
@@ -798,9 +788,7 @@ export default function Bookings() {
 					{amenities.length === 0 ? (
 						<Card>
 							<CardContent className="flex items-center justify-center h-32">
-								<p className="text-muted-foreground">
-									Nenhuma comodidade disponível para reserva
-								</p>
+								<p className="text-muted-foreground">Nenhuma comodidade disponível para reserva</p>
 							</CardContent>
 						</Card>
 					) : (
@@ -812,9 +800,7 @@ export default function Bookings() {
 									<Card
 										key={amenity._id}
 										className={`transition-all h-full flex flex-col ${
-											canBook
-												? "hover:shadow-lg hover:border-primary"
-												: ""
+											canBook ? "hover:shadow-lg hover:border-primary" : ""
 										}`}
 									>
 										<CardHeader className="pb-3">
@@ -847,7 +833,8 @@ export default function Bookings() {
 												<div className="pt-2 border-t">
 													<p className="text-xs text-muted-foreground mb-1">Valor</p>
 													<p className="text-lg font-bold text-primary">
-														R$ {amenity.value.toLocaleString("pt-BR", {
+														R${" "}
+														{amenity.value.toLocaleString("pt-BR", {
 															minimumFractionDigits: 2,
 															maximumFractionDigits: 2,
 														})}
@@ -862,7 +849,10 @@ export default function Bookings() {
 											)}
 
 											{/* Botões de Ação */}
-											<div className="flex gap-2 pt-3 border-t mt-auto" onClick={(e) => e.stopPropagation()}>
+											<div
+												className="flex gap-2 pt-3 border-t mt-auto"
+												onClick={(e) => e.stopPropagation()}
+											>
 												{canBook && (
 													<Button
 														type="button"
@@ -903,9 +893,7 @@ export default function Bookings() {
 					{!bookings || bookings.length === 0 ? (
 						<Card>
 							<CardContent className="flex items-center justify-center h-32">
-								<p className="text-muted-foreground">
-									Nenhuma reserva encontrada
-								</p>
+								<p className="text-muted-foreground">Nenhuma reserva encontrada</p>
 							</CardContent>
 						</Card>
 					) : (
@@ -913,12 +901,12 @@ export default function Bookings() {
 							<Table>
 								<TableHeader>
 									<TableRow>
-									<TableHead>Comodidade</TableHead>
-									<TableHead>Data Início</TableHead>
-									<TableHead>Data Fim</TableHead>
-									<TableHead>Valor</TableHead>
-									<TableHead>Status</TableHead>
-									<TableHead>Ações</TableHead>
+										<TableHead>Comodidade</TableHead>
+										<TableHead>Data Início</TableHead>
+										<TableHead>Data Fim</TableHead>
+										<TableHead>Valor</TableHead>
+										<TableHead>Status</TableHead>
+										<TableHead>Ações</TableHead>
 									</TableRow>
 								</TableHeader>
 								<TableBody>
@@ -960,9 +948,7 @@ export default function Bookings() {
 			>
 				<DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
 					<DialogHeader>
-						<DialogTitle>
-							Agendar {selectedAmenity?.name || "Comodidade"}
-						</DialogTitle>
+						<DialogTitle>Agendar {selectedAmenity?.name || "Comodidade"}</DialogTitle>
 						<DialogDescription>
 							{bookingStep === 1 && "Escolha o dia da reserva"}
 							{bookingStep === 2 && "Escolha o horário da reserva"}
@@ -987,9 +973,7 @@ export default function Bookings() {
 									</div>
 									{step < 4 && (
 										<div
-											className={`w-16 h-1 mx-2 ${
-												bookingStep > step ? "bg-primary" : "bg-muted"
-											}`}
+											className={`w-16 h-1 mx-2 ${bookingStep > step ? "bg-primary" : "bg-muted"}`}
 										/>
 									)}
 								</div>
@@ -997,10 +981,7 @@ export default function Bookings() {
 						))}
 					</div>
 
-					<form
-						onSubmit={bookingForm.handleSubmit(handleBookingSubmit)}
-						className="space-y-4"
-					>
+					<form onSubmit={bookingForm.handleSubmit(handleBookingSubmit)} className="space-y-4">
 						{/* Etapa 1: Escolher Dia */}
 						{bookingStep === 1 && (
 							<div className="space-y-4">
@@ -1036,10 +1017,7 @@ export default function Bookings() {
 											/>
 										</PopoverContent>
 									</Popover>
-									<input
-										type="hidden"
-										{...bookingForm.register("date")}
-									/>
+									<input type="hidden" {...bookingForm.register("date")} />
 									{bookingForm.formState.errors.date && (
 										<p className="text-sm text-destructive">
 											{bookingForm.formState.errors.date.message}
@@ -1103,11 +1081,7 @@ export default function Bookings() {
 									</div>
 								</div>
 								<div className="flex justify-between">
-									<Button
-										type="button"
-										variant="outline"
-										onClick={() => setBookingStep(1)}
-									>
+									<Button type="button" variant="outline" onClick={() => setBookingStep(1)}>
 										Voltar
 									</Button>
 									<Button
@@ -1117,10 +1091,12 @@ export default function Bookings() {
 											const endDate = bookingForm.watch("endDate");
 											if (!endDate) {
 												toast.error("Data de término é obrigatória");
-												bookingForm.setError("endDate", { message: "Data de término é obrigatória" });
+												bookingForm.setError("endDate", {
+													message: "Data de término é obrigatória",
+												});
 												return;
 											}
-											
+
 											if (selectedAmenity?.usageRules) {
 												setBookingStep(3);
 											} else {
@@ -1162,10 +1138,7 @@ export default function Bookings() {
 											bookingForm.setValue("acceptedTerms", isChecked);
 										}}
 									/>
-									<Label
-										htmlFor="acceptedTerms"
-										className="text-sm font-normal cursor-pointer"
-									>
+									<Label htmlFor="acceptedTerms" className="text-sm font-normal cursor-pointer">
 										Li e concordo com as instruções de uso
 									</Label>
 								</div>
@@ -1175,20 +1148,14 @@ export default function Bookings() {
 									</p>
 								)}
 								<div className="flex justify-between">
-									<Button
-										type="button"
-										variant="outline"
-										onClick={() => setBookingStep(3)}
-									>
+									<Button type="button" variant="outline" onClick={() => setBookingStep(3)}>
 										Voltar
 									</Button>
 									<Button
 										type="submit"
 										disabled={!acceptedTerms || bookingForm.formState.isSubmitting}
 									>
-										{bookingForm.formState.isSubmitting
-											? "Criando..."
-											: "Confirmar Reserva"}
+										{bookingForm.formState.isSubmitting ? "Criando..." : "Confirmar Reserva"}
 									</Button>
 								</div>
 							</div>
@@ -1231,8 +1198,8 @@ export default function Bookings() {
 			</Dialog>
 
 			{/* Dialog de QR Code PIX */}
-			<Dialog 
-				open={isQRDialogOpen} 
+			<Dialog
+				open={isQRDialogOpen}
 				onOpenChange={(open) => {
 					setIsQRDialogOpen(open);
 					if (!open) {
@@ -1272,7 +1239,8 @@ export default function Bookings() {
 								<div className="flex justify-between items-center">
 									<span className="text-sm text-muted-foreground">Valor a pagar</span>
 									<span className="text-xl font-bold text-primary">
-										R$ {qrBookingToShow.totalValue.toLocaleString("pt-BR", {
+										R${" "}
+										{qrBookingToShow.totalValue.toLocaleString("pt-BR", {
 											minimumFractionDigits: 2,
 											maximumFractionDigits: 2,
 										})}
@@ -1312,9 +1280,7 @@ export default function Bookings() {
 
 							{/* Instruções */}
 							<div className="space-y-2 p-3 bg-blue-50 dark:bg-blue-950/20 rounded-lg">
-								<p className="text-sm font-medium text-blue-900 dark:text-blue-100">
-									Como pagar:
-								</p>
+								<p className="text-sm font-medium text-blue-900 dark:text-blue-100">Como pagar:</p>
 								<ol className="text-xs text-blue-800 dark:text-blue-200 space-y-1 list-decimal list-inside">
 									<li>Abra o app do seu banco</li>
 									<li>Escolha a opção PIX</li>
@@ -1347,9 +1313,7 @@ export default function Bookings() {
 							<MapPin className="w-5 h-5 text-primary" />
 							{amenityToView?.name || "Detalhes da Comodidade"}
 						</DialogTitle>
-						<DialogDescription>
-							Informações completas sobre a comodidade
-						</DialogDescription>
+						<DialogDescription>Informações completas sobre a comodidade</DialogDescription>
 					</DialogHeader>
 					{amenityToView && (
 						<div className="space-y-4">
@@ -1370,17 +1334,13 @@ export default function Bookings() {
 								<div>
 									<Label className="text-muted-foreground">Tipo de Reserva</Label>
 									<p className="text-sm font-medium mt-1">
-										{amenityToView.bookingType === "DIARIO"
-											? "Reserva Diária"
-											: "Não definido"}
+										{amenityToView.bookingType === "DIARIO" ? "Reserva Diária" : "Não definido"}
 									</p>
 								</div>
 								{amenityToView.maxResidents && (
 									<div>
 										<Label className="text-muted-foreground">Máximo de Residentes</Label>
-										<p className="text-sm font-medium mt-1">
-											{amenityToView.maxResidents}
-										</p>
+										<p className="text-sm font-medium mt-1">{amenityToView.maxResidents}</p>
 									</div>
 								)}
 							</div>
@@ -1389,7 +1349,8 @@ export default function Bookings() {
 								<div className="pt-2 border-t">
 									<Label className="text-muted-foreground">Valor</Label>
 									<p className="text-2xl font-bold text-primary mt-1">
-										R$ {amenityToView.value.toLocaleString("pt-BR", {
+										R${" "}
+										{amenityToView.value.toLocaleString("pt-BR", {
 											minimumFractionDigits: 2,
 											maximumFractionDigits: 2,
 										})}
@@ -1402,7 +1363,8 @@ export default function Bookings() {
 								<div className="pt-2 border-t">
 									<Label className="text-muted-foreground">Multa por Atraso</Label>
 									<p className="text-lg font-medium text-destructive mt-1">
-										R$ {amenityToView.fineValue.toLocaleString("pt-BR", {
+										R${" "}
+										{amenityToView.fineValue.toLocaleString("pt-BR", {
 											minimumFractionDigits: 2,
 											maximumFractionDigits: 2,
 										})}
@@ -1412,9 +1374,12 @@ export default function Bookings() {
 
 							{amenityToView.nonComplianceFine && amenityToView.nonComplianceFine > 0 && (
 								<div className="pt-2 border-t">
-									<Label className="text-muted-foreground">Multa por Descumprimento de Normas</Label>
+									<Label className="text-muted-foreground">
+										Multa por Descumprimento de Normas
+									</Label>
 									<p className="text-lg font-medium text-destructive mt-1">
-										R$ {amenityToView.nonComplianceFine.toLocaleString("pt-BR", {
+										R${" "}
+										{amenityToView.nonComplianceFine.toLocaleString("pt-BR", {
 											minimumFractionDigits: 2,
 											maximumFractionDigits: 2,
 										})}
@@ -1425,7 +1390,7 @@ export default function Bookings() {
 							{amenityToView.usageRules && (
 								<div className="pt-2 border-t">
 									<Label className="text-muted-foreground">Normas de Uso</Label>
-									<div 
+									<div
 										className="text-sm mt-1 prose prose-sm max-w-none"
 										dangerouslySetInnerHTML={{ __html: amenityToView.usageRules }}
 									/>
@@ -1455,5 +1420,3 @@ export default function Bookings() {
 		</div>
 	);
 }
-
-

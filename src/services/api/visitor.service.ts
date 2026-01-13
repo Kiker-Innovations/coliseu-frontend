@@ -18,6 +18,7 @@ export interface CreateVisitorRequest {
 	vehicleType?: string;
 	vehiclePlate?: string;
 	types: ("CONVIDADO" | "PRESTADOR")[]; // Tipos em maiúsculas conforme API
+	companyName?: string; // Nome da empresa (para prestadores)
 	note?: string;
 	// conciergeId removed - backend extracts from token
 	// photo removed - será enviado via presignedUrl separadamente
@@ -35,6 +36,7 @@ export interface UpdateVisitorRequest {
 	vehicleType?: string;
 	vehiclePlate?: string;
 	types?: ("CONVIDADO" | "PRESTADOR")[];
+	companyName?: string; // Nome da empresa (para prestadores)
 	note?: string;
 	active?: boolean;
 	// apartmentId removed - apartment is now linked to visit, not visitor
@@ -66,6 +68,7 @@ export interface Visitor {
 	apartmentId?: string;
 	apartmentNumber?: string; // Número do apartamento retornado pela API
 	types: ("CONVIDADO" | "PRESTADOR" | "convidado" | "prestador_servico")[]; // Aceita ambos os formatos
+	companyName?: string; // Nome da empresa (para prestadores)
 	photoUrl?: string;
 	note?: string;
 	registeredBy?: string;
@@ -98,7 +101,6 @@ export interface GetVisitorsResponse {
 	limit: number;
 	totalPages: number;
 }
-
 
 /**
  * Visitor Service Class
@@ -136,14 +138,14 @@ class VisitorService {
 
 	/**
 	 * Get all visitors with pagination and filters
-	 * 
+	 *
 	 * Endpoint: GET /v1/visitors
 	 * Query Parameters:
 	 *   - page: number (optional) - Page number (default: 1)
 	 *   - limit: number (optional) - Items per page (default: 10, max: 100)
 	 *   - search: string (optional) - Search term
 	 *   - filterBy: "name" | "document" | "apartment" (optional) - Filter type
-	 * 
+	 *
 	 * Response structure:
 	 * {
 	 *   "success": true,
@@ -157,15 +159,13 @@ class VisitorService {
 	 *   }
 	 * }
 	 */
-	async getVisitors(
-		params?: GetVisitorsParams
-	): Promise<ApiResponse<GetVisitorsResponse>> {
+	async getVisitors(params?: GetVisitorsParams): Promise<ApiResponse<GetVisitorsResponse>> {
 		this.ensureToken();
-		
+
 		// Construir query params como Record<string, string> para garantir que sejam strings
 		// O Fastify parseia automaticamente números, então precisamos garantir que sejam strings
 		const queryParams: Record<string, string> = {};
-		
+
 		if (params?.page !== undefined && params?.page !== null) {
 			// Forçar como string adicionando "" para garantir que não seja parseado como número
 			queryParams.page = String(params.page);
@@ -188,7 +188,7 @@ class VisitorService {
 
 		// Construir URL completa com query params como strings
 		const url = new URL(`${API_CONFIG.baseURL}${this.basePath}`);
-		
+
 		// Adicionar parâmetros como strings explicitamente usando URLSearchParams
 		Object.entries(queryParams).forEach(([key, value]) => {
 			url.searchParams.append(key, String(value));
@@ -197,15 +197,15 @@ class VisitorService {
 		const response = await fetch(url.toString(), {
 			method: "GET",
 			headers: {
-				"Authorization": `Bearer ${token}`,
+				Authorization: `Bearer ${token}`,
 				"Content-Type": "application/json",
 			},
 		});
 
 		if (!response.ok) {
-			const errorData = await response.json().catch(() => ({ 
+			const errorData = await response.json().catch(() => ({
 				success: false,
-				message: "Erro desconhecido" 
+				message: "Erro desconhecido",
 			}));
 			throw new ApiClientError(response.status, errorData);
 		}
@@ -219,11 +219,9 @@ class VisitorService {
 	 * Endpoint: POST /v1/visitors
 	 * Returns a presignedUrl for photo upload
 	 */
-	async createVisitor(
-		data: CreateVisitorRequest
-	): Promise<ApiResponse<CreateVisitorResponse>> {
+	async createVisitor(data: CreateVisitorRequest): Promise<ApiResponse<CreateVisitorResponse>> {
 		this.ensureToken(true);
-		
+
 		const token = this.getAuthToken();
 		if (!token) {
 			throw new Error("Token não encontrado. Faça login novamente.");
@@ -234,16 +232,16 @@ class VisitorService {
 		const response = await fetch(url, {
 			method: "POST",
 			headers: {
-				"Authorization": `Bearer ${token}`,
+				Authorization: `Bearer ${token}`,
 				"Content-Type": "application/json",
 			},
 			body: JSON.stringify(data),
 		});
 
 		if (!response.ok) {
-			const errorData = await response.json().catch(() => ({ 
+			const errorData = await response.json().catch(() => ({
 				success: false,
-				message: "Erro desconhecido" 
+				message: "Erro desconhecido",
 			}));
 			throw new ApiClientError(response.status, errorData);
 		}
@@ -273,13 +271,13 @@ class VisitorService {
 	/**
 	 * Get latest visitors (no pagination)
 	 * Endpoint: GET /v1/visitors/recent?limit=...
-	 * 
+	 *
 	 * @param limit - Maximum number of visitors to return
 	 * @returns Array of visitors without pagination metadata
 	 */
 	async getLatestVisitors(limit: number = 10): Promise<ApiResponse<Visitor[]>> {
 		this.ensureToken();
-		
+
 		const token = this.getAuthToken();
 		if (!token) {
 			throw new Error("Token não encontrado. Faça login novamente.");
@@ -291,15 +289,15 @@ class VisitorService {
 		const response = await fetch(url.toString(), {
 			method: "GET",
 			headers: {
-				"Authorization": `Bearer ${token}`,
+				Authorization: `Bearer ${token}`,
 				"Content-Type": "application/json",
 			},
 		});
 
 		if (!response.ok) {
-			const errorData = await response.json().catch(() => ({ 
+			const errorData = await response.json().catch(() => ({
 				success: false,
-				message: "Erro desconhecido" 
+				message: "Erro desconhecido",
 			}));
 			throw new ApiClientError(response.status, errorData);
 		}
@@ -314,7 +312,7 @@ class VisitorService {
 	 */
 	async getVisitorById(id: string): Promise<ApiResponse<Visitor>> {
 		this.ensureToken();
-		
+
 		const token = this.getAuthToken();
 		if (!token) {
 			throw new Error("Token não encontrado. Faça login novamente.");
@@ -325,15 +323,15 @@ class VisitorService {
 		const response = await fetch(url, {
 			method: "GET",
 			headers: {
-				"Authorization": `Bearer ${token}`,
+				Authorization: `Bearer ${token}`,
 				"Content-Type": "application/json",
 			},
 		});
 
 		if (!response.ok) {
-			const errorData = await response.json().catch(() => ({ 
+			const errorData = await response.json().catch(() => ({
 				success: false,
-				message: "Erro desconhecido" 
+				message: "Erro desconhecido",
 			}));
 			throw new ApiClientError(response.status, errorData);
 		}
@@ -346,12 +344,9 @@ class VisitorService {
 	 * Update visitor by ID
 	 * Endpoint: PUT /v1/visitors/:id
 	 */
-	async updateVisitor(
-		id: string,
-		data: UpdateVisitorRequest
-	): Promise<ApiResponse<Visitor>> {
+	async updateVisitor(id: string, data: UpdateVisitorRequest): Promise<ApiResponse<Visitor>> {
 		this.ensureToken(true);
-		
+
 		const token = this.getAuthToken();
 		if (!token) {
 			throw new Error("Token não encontrado. Faça login novamente.");
@@ -362,16 +357,16 @@ class VisitorService {
 		const response = await fetch(url, {
 			method: "PUT",
 			headers: {
-				"Authorization": `Bearer ${token}`,
+				Authorization: `Bearer ${token}`,
 				"Content-Type": "application/json",
 			},
 			body: JSON.stringify(data),
 		});
 
 		if (!response.ok) {
-			const errorData = await response.json().catch(() => ({ 
+			const errorData = await response.json().catch(() => ({
 				success: false,
-				message: "Erro desconhecido" 
+				message: "Erro desconhecido",
 			}));
 			throw new ApiClientError(response.status, errorData);
 		}
@@ -383,4 +378,3 @@ class VisitorService {
 
 // Export singleton instance
 export const visitorService = new VisitorService();
-
