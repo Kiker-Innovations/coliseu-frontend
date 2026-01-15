@@ -210,18 +210,13 @@ export type {
 export { amenitiesService } from "./amenities.service";
 export type { Amenity } from "./amenities.service";
 
-// Amenity Bookings service
-export { amenityBookingsService, bookingsService } from "./bookings.service";
+// Bookings service
+export { bookingsService } from "./bookings.service";
 export type {
-	AmenityBooking,
-	CreateAmenityBookingRequest,
-	GetAmenityBookingsParams,
-	AmenityBookingsListResponse,
 	Booking,
 	CreateBookingRequest,
 	GetBookingsParams,
 	BookingsListResponse,
-	AvailableTimeSlot,
 } from "./bookings.service";
 
 // Notices service
@@ -266,3 +261,7 @@ export type {
 	CreateUsefulContactRequest,
 	UpdateUsefulContactRequest,
 } from "./usefulContact.service";
+
+// Payments service
+export { paymentsService } from "./payments.service";
+export type { Payment } from "./payments.service";

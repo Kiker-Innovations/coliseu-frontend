@@ -23,6 +23,8 @@ import {
 	XCircle,
 	Save,
 	Camera,
+	Eye,
+	EyeOff,
 } from "lucide-react";
 import coliseuIcon from "@/assets/coliseu-icon.png";
 import { toast } from "sonner";
@@ -31,7 +33,7 @@ import { buildingsService, type Building } from "@/services/api/buildings.servic
 import { apartmentsService, type Apartment } from "@/services/api";
 import InputMask from "react-input-mask";
 import { BR } from "country-flag-icons/react/3x2";
-import { residentsService } from "@/services/api";
+import { residentsService, ApiClientError } from "@/services/api";
 
 interface ResidentStatusData {
 	name: string;
@@ -43,6 +45,7 @@ interface ResidentStatusData {
 	rejectNote?: string;
 	buildingId?: string;
 	apartmentId?: string;
+	document?: string;
 }
 
 const rejectTypeLabels: Record<string, string> = {
@@ -88,6 +91,7 @@ export default function StatusTimeline() {
 		password: "",
 		confirmPassword: "",
 		phone: "",
+		document: "",
 		buildingId: "",
 		apartmentId: "",
 	});
@@ -98,6 +102,10 @@ export default function StatusTimeline() {
 	const [isLoadingApartments, setIsLoadingApartments] = useState(false);
 	const [showCamera, setShowCamera] = useState(false);
 	const [capturedPhoto, setCapturedPhoto] = useState<File | null>(null);
+	const [confirmationCode, setConfirmationCode] = useState("");
+	const [isConfirmingCode, setIsConfirmingCode] = useState(false);
+	const [showPassword, setShowPassword] = useState(false);
+	const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
 	useEffect(() => {
 		// Carregar dados quando o componente montar (já validado pelo ProtectedStatusRoute)
@@ -121,6 +129,7 @@ export default function StatusTimeline() {
 						password: "",
 						confirmPassword: "",
 						phone: "",
+						document: response.data.document || "",
 						buildingId: response.data.buildingId || "",
 						apartmentId: response.data.apartmentId || "",
 					});
@@ -180,6 +189,52 @@ export default function StatusTimeline() {
 		}
 	};
 
+	const handleConfirmCode = async () => {
+		if (!email || !confirmationCode) {
+			toast.error("Por favor, preencha o código de confirmação");
+			return;
+		}
+
+		if (confirmationCode.length !== 6) {
+			toast.error("O código deve ter exatamente 6 caracteres");
+			return;
+		}
+
+		try {
+			setIsConfirmingCode(true);
+			const response = await residentsService.confirmEmail({
+				email,
+				code: confirmationCode.toUpperCase(),
+			});
+
+			toast.success(response.message || "Email confirmado com sucesso!");
+
+			// Recarregar dados do status
+			const statusResponse = await apiClient.get<ResidentStatusData>(
+				`/v1/residents/status?email=${encodeURIComponent(email)}`,
+			);
+			if (statusResponse.success && statusResponse.data) {
+				setResidentData(statusResponse.data);
+				setConfirmationCode("");
+			}
+
+			// Redirecionar para login após 3 segundos
+			setTimeout(() => {
+				navigate("/login");
+			}, 3000);
+		} catch (error) {
+			if (error instanceof ApiClientError) {
+				toast.error(error.response.message || "Erro ao confirmar email");
+			} else if (error instanceof Error) {
+				toast.error(error.message);
+			} else {
+				toast.error("Erro ao confirmar email");
+			}
+		} finally {
+			setIsConfirmingCode(false);
+		}
+	};
+
 	const loadBuildings = async () => {
 		try {
 			setIsLoadingBuildings(true);
@@ -234,6 +289,30 @@ export default function StatusTimeline() {
 		setShowCamera(false);
 	};
 
+	const validateCPF = (cpf: string): boolean => {
+		const cleanCpf = cpf.replace(/\D/g, "");
+		if (cleanCpf.length !== 11) return false;
+		if (/^(\d)\1{10}$/.test(cleanCpf)) return false;
+
+		let sum = 0;
+		for (let i = 0; i < 9; i++) {
+			sum += parseInt(cleanCpf.charAt(i)) * (10 - i);
+		}
+		let digit = 11 - (sum % 11);
+		if (digit >= 10) digit = 0;
+		if (digit !== parseInt(cleanCpf.charAt(9))) return false;
+
+		sum = 0;
+		for (let i = 0; i < 10; i++) {
+			sum += parseInt(cleanCpf.charAt(i)) * (11 - i);
+		}
+		digit = 11 - (sum % 11);
+		if (digit >= 10) digit = 0;
+		if (digit !== parseInt(cleanCpf.charAt(10))) return false;
+
+		return true;
+	};
+
 	const handleUpdateRejectedResident = async () => {
 		if (!email) return;
 
@@ -243,8 +322,30 @@ export default function StatusTimeline() {
 			return;
 		}
 
+		// Validar nome: apenas letras e espaços
+		if (!/^[a-zA-ZÀ-ÿ\s]+$/.test(formData.name.trim())) {
+			toast.error("Nome deve conter apenas letras e espaços");
+			return;
+		}
+
 		if (!formData.email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
 			toast.error("Email inválido");
+			return;
+		}
+
+		if (!formData.document) {
+			toast.error("CPF é obrigatório");
+			return;
+		}
+
+		const documentDigits = formData.document.replace(/\D/g, "");
+		if (documentDigits.length !== 11) {
+			toast.error("CPF deve conter exatamente 11 dígitos");
+			return;
+		}
+
+		if (!validateCPF(formData.document)) {
+			toast.error("CPF inválido");
 			return;
 		}
 
@@ -282,9 +383,21 @@ export default function StatusTimeline() {
 			const phoneDigits = formData.phone ? formData.phone.replace(/\D/g, "") : "";
 			const formattedPhone = phoneDigits ? `+55${phoneDigits}` : undefined;
 
+			// Remover formatação do CPF
+			const documentDigits = formData.document.replace(/\D/g, "");
+
+			// Converter nome para snake_case
+			const nameSnakeCase = formData.name
+				.trim()
+				.normalize("NFD")
+				.replace(/[\u0300-\u036f]/g, "")
+				.toLowerCase()
+				.replace(/\s+/g, "_");
+
 			const updateData: any = {
-				name: formData.name.trim(),
+				name: nameSnakeCase,
 				email: formData.email.trim(),
+				document: documentDigits,
 				buildingId: formData.buildingId,
 				apartmentId: formData.apartmentId,
 			};
@@ -478,11 +591,20 @@ export default function StatusTimeline() {
 											<Input
 												id="name"
 												value={formData.name}
-												onChange={(e) => setFormData((prev) => ({ ...prev, name: e.target.value }))}
+												onChange={(e) => {
+													const value = e.target.value;
+													// Permitir apenas letras e espaços
+													if (/^[a-zA-ZÀ-ÿ\s]*$/.test(value) || value === "") {
+														setFormData((prev) => ({ ...prev, name: value }));
+													}
+												}}
 												placeholder="Digite seu nome completo"
 												minLength={3}
 												className="h-12"
 											/>
+											<p className="text-xs text-muted-foreground mt-1">
+												Apenas letras e espaços são permitidos
+											</p>
 										</div>
 
 										<div>
@@ -500,32 +622,54 @@ export default function StatusTimeline() {
 										</div>
 
 										<div>
-											<Label htmlFor="password">Nova Senha (opcional)</Label>
-											<Input
-												id="password"
-												type="password"
-												value={formData.password}
-												onChange={(e) =>
-													setFormData((prev) => ({ ...prev, password: e.target.value }))
-												}
-												placeholder="Deixe em branco para manter a senha atual"
-												className="h-12"
-											/>
+											<Label htmlFor="password">Nova Senha</Label>
+											<div className="relative">
+												<Input
+													id="password"
+													type={showPassword ? "text" : "password"}
+													value={formData.password}
+													onChange={(e) =>
+														setFormData((prev) => ({ ...prev, password: e.target.value }))
+													}
+													placeholder="Deixe em branco para manter a senha atual"
+													className="h-12 pr-10"
+												/>
+												<button
+													type="button"
+													onClick={() => setShowPassword(!showPassword)}
+													className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+												>
+													{showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+												</button>
+											</div>
 										</div>
 
 										{formData.password && (
 											<div>
 												<Label htmlFor="confirmPassword">Confirmar Nova Senha</Label>
-												<Input
-													id="confirmPassword"
-													type="password"
-													value={formData.confirmPassword}
-													onChange={(e) =>
-														setFormData((prev) => ({ ...prev, confirmPassword: e.target.value }))
-													}
-													placeholder="Confirme sua nova senha"
-													className="h-12"
-												/>
+												<div className="relative">
+													<Input
+														id="confirmPassword"
+														type={showConfirmPassword ? "text" : "password"}
+														value={formData.confirmPassword}
+														onChange={(e) =>
+															setFormData((prev) => ({ ...prev, confirmPassword: e.target.value }))
+														}
+														placeholder="Confirme sua nova senha"
+														className="h-12 pr-10"
+													/>
+													<button
+														type="button"
+														onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+														className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+													>
+														{showConfirmPassword ? (
+															<EyeOff className="h-4 w-4" />
+														) : (
+															<Eye className="h-4 w-4" />
+														)}
+													</button>
+												</div>
 											</div>
 										)}
 
@@ -549,6 +693,21 @@ export default function StatusTimeline() {
 													)}
 												</InputMask>
 											</div>
+										</div>
+
+										<div>
+											<Label htmlFor="document">CPF *</Label>
+											<InputMask
+												mask="999.999.999-99"
+												maskChar={null}
+												value={formData.document}
+												onChange={(e: any) =>
+													setFormData((prev) => ({ ...prev, document: e.target.value }))
+												}
+												placeholder="000.000.000-00"
+											>
+												{(inputProps: any) => <Input {...inputProps} type="text" className="h-12" />}
+											</InputMask>
 										</div>
 
 										<div>
@@ -631,6 +790,8 @@ export default function StatusTimeline() {
 												!formData.name ||
 												formData.name.trim().length < 3 ||
 												!formData.email ||
+												!formData.document ||
+												formData.document.replace(/\D/g, "").length !== 11 ||
 												!formData.buildingId ||
 												!formData.apartmentId ||
 												(formData.password && formData.password !== formData.confirmPassword)
@@ -706,11 +867,43 @@ export default function StatusTimeline() {
 																Status Atual
 															</span>
 															{step.status === "A_CONFIRMACAO_EMAIL" && (
-																<div className="mt-3 p-3 bg-muted/50 rounded-lg space-y-2">
+																<div className="mt-3 p-4 bg-muted/50 rounded-lg space-y-4">
 																	<p className="text-sm text-muted-foreground">
 																		Um email com o código de confirmação já foi enviado para{" "}
 																		<strong>{email}</strong>. Verifique sua caixa de entrada e spam.
 																	</p>
+																	
+																	<div className="space-y-2">
+																		<Label htmlFor="confirmationCode">Código de Confirmação</Label>
+																		<Input
+																			id="confirmationCode"
+																			type="text"
+																			value={confirmationCode}
+																			onChange={(e) => {
+																				const value = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "");
+																				if (value.length <= 6) {
+																					setConfirmationCode(value);
+																				}
+																			}}
+																			className="h-12 text-center text-2xl font-mono tracking-widest uppercase"
+																			placeholder="ABC123"
+																			maxLength={6}
+																			autoComplete="off"
+																			disabled={isConfirmingCode}
+																		/>
+																		<p className="text-xs text-muted-foreground text-center">
+																			O código contém 6 caracteres entre letras e números
+																		</p>
+																	</div>
+
+																	<Button
+																		onClick={handleConfirmCode}
+																		disabled={confirmationCode.length !== 6 || isConfirmingCode}
+																		className="w-full h-12"
+																	>
+																		{isConfirmingCode ? "Confirmando..." : "Confirmar Email"}
+																	</Button>
+
 																	<Button
 																		variant="outline"
 																		size="sm"

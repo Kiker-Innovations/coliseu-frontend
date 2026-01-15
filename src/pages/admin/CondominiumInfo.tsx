@@ -27,6 +27,16 @@ import {
 	DialogTrigger,
 } from "@/components/ui/dialog";
 import {
+	AlertDialog,
+	AlertDialogAction,
+	AlertDialogCancel,
+	AlertDialogContent,
+	AlertDialogDescription,
+	AlertDialogFooter,
+	AlertDialogHeader,
+	AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
 	Building2,
 	Users,
 	MapPin,
@@ -65,13 +75,15 @@ import CondominiumInfoSkeleton from "@/skeleton/admin/CondominiumInfoSkeleton";
 import { amenitiesService, type Amenity } from "@/services/api";
 import { adminService } from "@/services/api";
 import { apartmentsService } from "@/services/api";
-import { amenityBookingsService, type AmenityBooking } from "@/services/api";
+import { bookingsService, type Booking } from "@/services/api";
 
 export default function CondominiumInfo() {
 	const [isLoading, setIsLoading] = useState(true);
 	const [isResidentsOpen, setIsResidentsOpen] = useState(false);
 	const [isAreaDialogOpen, setIsAreaDialogOpen] = useState(false);
 	const [editingAreaId, setEditingAreaId] = useState<string | null>(null);
+	const [isDeleteAreaDialogOpen, setIsDeleteAreaDialogOpen] = useState(false);
+	const [areaToDelete, setAreaToDelete] = useState<{ id: string; name: string } | null>(null);
 	const [amenities, setAmenities] = useState<Amenity[]>([]);
 	const [totalApartments, setTotalApartments] = useState(0);
 	const [totalResidents, setTotalResidents] = useState(0);
@@ -84,7 +96,7 @@ export default function CondominiumInfo() {
 		}>
 	>([]);
 	const [buildingId, setBuildingId] = useState<string>("");
-	const [bookings, setBookings] = useState<AmenityBooking[]>([]);
+	const [bookings, setBookings] = useState<Booking[]>([]);
 	const [isLoadingBookings, setIsLoadingBookings] = useState(false);
 
 	// Estados para busca de condôminos
@@ -235,7 +247,7 @@ export default function CondominiumInfo() {
 		const loadBookings = async () => {
 			try {
 				setIsLoadingBookings(true);
-				const response = await amenityBookingsService.getBookingsByBuilding();
+				const response = await bookingsService.getBookingsByBuilding();
 				if (response.success && response.data) {
 					setBookings(response.data.bookings || []);
 				} else {
@@ -622,6 +634,7 @@ export default function CondominiumInfo() {
 			value: undefined,
 			fineValue: undefined,
 			maxResidents: undefined,
+			maxHours: undefined,
 			bookingType: undefined,
 			status: "ATIVO",
 		},
@@ -662,6 +675,7 @@ export default function CondominiumInfo() {
 					}
 				}
 				if (data.maxResidents !== undefined) updateData.maxResidents = data.maxResidents;
+				if (data.maxHours !== undefined) updateData.maxHours = data.maxHours;
 				if (data.bookingType) updateData.bookingType = data.bookingType;
 				if (data.status) updateData.status = data.status;
 
@@ -752,6 +766,7 @@ export default function CondominiumInfo() {
 					createData.nonComplianceFine = Number(data.nonComplianceFine);
 				}
 				if (data.maxResidents !== undefined) createData.maxResidents = data.maxResidents;
+				if (data.maxHours !== undefined) createData.maxHours = data.maxHours;
 				if (data.bookingType) createData.bookingType = data.bookingType;
 
 				try {
@@ -813,15 +828,23 @@ export default function CondominiumInfo() {
 			value: area.value ?? undefined,
 			fineValue: area.fineValue ?? undefined,
 			maxResidents: area.maxResidents ?? undefined,
+			maxHours: area.maxHours ?? undefined,
 			bookingType: area.bookingType ?? undefined,
 			status: area.status || "ATIVO",
 		});
 		setIsAreaDialogOpen(true);
 	};
 
-	const handleDeleteArea = async (areaId: string) => {
+	const handleDeleteAreaClick = (area: Amenity) => {
+		setAreaToDelete({ id: area._id, name: area.name });
+		setIsDeleteAreaDialogOpen(true);
+	};
+
+	const handleConfirmDeleteArea = async () => {
+		if (!areaToDelete) return;
+
 		try {
-			await amenitiesService.deleteAmenity(areaId);
+			await amenitiesService.deleteAmenity(areaToDelete.id);
 			toast.success("Comodidade removida com sucesso!");
 
 			// Recarregar comodidades
@@ -843,6 +866,9 @@ export default function CondominiumInfo() {
 					console.error("Erro ao recarregar comodidades:", error);
 				}
 			}
+
+			setIsDeleteAreaDialogOpen(false);
+			setAreaToDelete(null);
 		} catch (error: any) {
 			toast.error("Erro ao remover comodidade");
 		}
@@ -953,7 +979,7 @@ export default function CondominiumInfo() {
 															<span className="font-medium">{amenityName}</span>
 															<Badge
 																variant={
-																	booking.status === "CONFIRMADO"
+																	booking.status === "AGENDADO"
 																		? "default"
 																		: booking.status === "PENDENTE"
 																			? "secondary"
@@ -963,7 +989,7 @@ export default function CondominiumInfo() {
 																}
 																className="text-xs"
 															>
-																{booking.status === "CONFIRMADO"
+																{booking.status === "AGENDADO"
 																	? "Confirmado"
 																	: booking.status === "PENDENTE"
 																		? "Pendente"
@@ -1109,9 +1135,12 @@ export default function CondominiumInfo() {
 														const typeValue =
 															value === "" ? undefined : (value as "COMODIDADE" | "AREA_COMUM");
 														areaForm.setValue("type", typeValue);
-														// Limpar value se mudar para AREA_COMUM
+														// Limpar value, fineValue, bookingType e maxHours se mudar para AREA_COMUM
 														if (value === "AREA_COMUM") {
 															areaForm.setValue("value", undefined);
+															areaForm.setValue("fineValue", undefined);
+															areaForm.setValue("bookingType", undefined);
+															areaForm.setValue("maxHours", undefined);
 														}
 													}}
 												>
@@ -1155,32 +1184,63 @@ export default function CondominiumInfo() {
 												</div>
 											)}
 
-											<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-												<div className="space-y-2">
-													<Label htmlFor="fineValue">Multa por Atraso (R$)</Label>
-													<div className="relative">
-														<DollarSign className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-														<Input
-															id="fineValue"
-															type="number"
-															step="0.01"
-															min="0"
-															placeholder="0.00"
-															{...areaForm.register("fineValue", {
-																valueAsNumber: true,
-																setValueAs: (v) =>
-																	v === "" || v === null || v === undefined ? undefined : Number(v),
-															})}
-															className="pl-9"
-														/>
+											{areaForm.watch("type") !== "AREA_COMUM" && (
+												<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+													<div className="space-y-2">
+														<Label htmlFor="fineValue">Multa por Atraso (R$)</Label>
+														<div className="relative">
+															<DollarSign className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+															<Input
+																id="fineValue"
+																type="number"
+																step="0.01"
+																min="0"
+																placeholder="0.00"
+																{...areaForm.register("fineValue", {
+																	valueAsNumber: true,
+																	setValueAs: (v) =>
+																		v === "" || v === null || v === undefined ? undefined : Number(v),
+																})}
+																className="pl-9"
+															/>
+														</div>
+														{areaForm.formState.errors.fineValue && (
+															<p className="text-sm text-destructive">
+																{areaForm.formState.errors.fineValue.message}
+															</p>
+														)}
 													</div>
-													{areaForm.formState.errors.fineValue && (
-														<p className="text-sm text-destructive">
-															{areaForm.formState.errors.fineValue.message}
-														</p>
-													)}
-												</div>
 
+													<div className="space-y-2">
+														<Label htmlFor="nonComplianceFine">
+															Multa por Não Seguir as Conformidades (R$)
+														</Label>
+														<div className="relative">
+															<DollarSign className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+															<Input
+																id="nonComplianceFine"
+																type="number"
+																step="0.01"
+																min="0"
+																placeholder="0.00"
+																{...areaForm.register("nonComplianceFine", {
+																	valueAsNumber: true,
+																	setValueAs: (v) =>
+																		v === "" || v === null || v === undefined ? undefined : Number(v),
+																})}
+																className="pl-9"
+															/>
+														</div>
+														{areaForm.formState.errors.nonComplianceFine && (
+															<p className="text-sm text-destructive">
+																{areaForm.formState.errors.nonComplianceFine.message}
+															</p>
+														)}
+													</div>
+												</div>
+											)}
+
+											{areaForm.watch("type") === "AREA_COMUM" && (
 												<div className="space-y-2">
 													<Label htmlFor="nonComplianceFine">
 														Multa por Não Seguir as Conformidades (R$)
@@ -1207,33 +1267,36 @@ export default function CondominiumInfo() {
 														</p>
 													)}
 												</div>
+											)}
+
+											<div className="space-y-2">
+												<Label htmlFor="maxResidents">Quantidade Máxima de Residentes</Label>
+												<Input
+													id="maxResidents"
+													type="number"
+													min="1"
+													placeholder="Ex: 10"
+													{...areaForm.register("maxResidents", {
+														valueAsNumber: true,
+													})}
+												/>
+												{areaForm.formState.errors.maxResidents && (
+													<p className="text-sm text-destructive">
+														{areaForm.formState.errors.maxResidents.message}
+													</p>
+												)}
 											</div>
 
-											<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-												<div className="space-y-2">
-													<Label htmlFor="maxResidents">Quantidade Máxima de Residentes</Label>
-													<Input
-														id="maxResidents"
-														type="number"
-														min="1"
-														placeholder="Ex: 10"
-														{...areaForm.register("maxResidents", {
-															valueAsNumber: true,
-														})}
-													/>
-													{areaForm.formState.errors.maxResidents && (
-														<p className="text-sm text-destructive">
-															{areaForm.formState.errors.maxResidents.message}
-														</p>
-													)}
-												</div>
-
+											{areaForm.watch("type") !== "AREA_COMUM" && (
 												<div className="space-y-2">
 													<Label htmlFor="bookingType">Tipo de Reserva</Label>
 													<Select
 														value={areaForm.watch("bookingType") || ""}
 														onValueChange={(value) => {
-															areaForm.setValue("bookingType", value as "DIARIO" | undefined);
+															areaForm.setValue("bookingType", value as "DIARIO" | "POR_HORAS" | undefined);
+															if (value === "DIARIO") {
+																areaForm.setValue("maxHours", undefined);
+															}
 														}}
 													>
 														<SelectTrigger>
@@ -1241,6 +1304,7 @@ export default function CondominiumInfo() {
 														</SelectTrigger>
 														<SelectContent>
 															<SelectItem value="DIARIO">Diário</SelectItem>
+															<SelectItem value="POR_HORAS">Por Horas</SelectItem>
 														</SelectContent>
 													</Select>
 													{areaForm.formState.errors.bookingType && (
@@ -1249,7 +1313,33 @@ export default function CondominiumInfo() {
 														</p>
 													)}
 												</div>
-											</div>
+											)}
+
+											{areaForm.watch("type") !== "AREA_COMUM" &&
+												areaForm.watch("bookingType") === "POR_HORAS" && (
+													<div className="space-y-2">
+														<Label htmlFor="maxHours">Quantidade Máxima de Horas *</Label>
+														<Input
+															id="maxHours"
+															type="number"
+															min="1"
+															max="24"
+															placeholder="Ex: 4"
+															{...areaForm.register("maxHours", {
+																valueAsNumber: true,
+																required: "Quantidade máxima de horas é obrigatória quando o tipo de reserva é por horas",
+															})}
+														/>
+														{areaForm.formState.errors.maxHours && (
+															<p className="text-sm text-destructive">
+																{areaForm.formState.errors.maxHours.message}
+															</p>
+														)}
+														<p className="text-xs text-muted-foreground">
+															Defina o limite máximo de horas que podem ser agendadas (1 a 24 horas)
+														</p>
+													</div>
+												)}
 
 											<div className="space-y-2">
 												<Label htmlFor="usageRules">Normas de Uso (Opcional)</Label>
@@ -1336,7 +1426,7 @@ export default function CondominiumInfo() {
 															</Badge>
 															{area.bookingType && (
 																<Badge variant="secondary" className="text-xs">
-																	Reserva Diária
+																	{area.bookingType === "POR_HORAS" ? "Por Horas" : "Reserva Diária"}
 																</Badge>
 															)}
 															<Badge
@@ -1440,7 +1530,7 @@ export default function CondominiumInfo() {
 														<Button
 															size="sm"
 															variant="outline"
-															onClick={() => handleDeleteArea(area._id)}
+															onClick={() => handleDeleteAreaClick(area)}
 														>
 															<Trash2 className="w-4 h-4" />
 														</Button>
@@ -2306,6 +2396,25 @@ export default function CondominiumInfo() {
 					</div>
 				</DialogContent>
 			</Dialog>
+
+			{/* AlertDialog para confirmar exclusão de comodidade */}
+			<AlertDialog open={isDeleteAreaDialogOpen} onOpenChange={setIsDeleteAreaDialogOpen}>
+				<AlertDialogContent>
+					<AlertDialogHeader>
+						<AlertDialogTitle>Confirmar exclusão</AlertDialogTitle>
+						<AlertDialogDescription>
+							Tem certeza que deseja deletar a comodidade{" "}
+							<strong>{areaToDelete?.name}</strong>? Esta ação não pode ser desfeita.
+						</AlertDialogDescription>
+					</AlertDialogHeader>
+					<AlertDialogFooter>
+						<AlertDialogCancel onClick={() => setAreaToDelete(null)}>Cancelar</AlertDialogCancel>
+						<AlertDialogAction onClick={handleConfirmDeleteArea} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+							Deletar
+						</AlertDialogAction>
+					</AlertDialogFooter>
+				</AlertDialogContent>
+			</AlertDialog>
 		</div>
 	);
 }

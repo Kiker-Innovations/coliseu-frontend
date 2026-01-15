@@ -20,7 +20,6 @@ import Login from "./pages/resident/auth/Login";
 import Register from "./pages/resident/auth/Register";
 import ResetPassword from "./pages/resident/auth/ResetPassword";
 import UpdatePassword from "./pages/resident/auth/UpdatePassword";
-import ConfirmCode from "./pages/resident/auth/ConfirmCode";
 import StatusTimeline from "./pages/resident/auth/StatusTimeline";
 import Dashboard from "./pages/resident/Dashboard";
 import Suggestions from "./pages/resident/Suggestions";
@@ -85,7 +84,6 @@ const App = () => (
 						<Route path="/register" element={<Register />} />
 						<Route path="/reset-password" element={<ResetPassword />} />
 						<Route path="/update-password" element={<UpdatePassword />} />
-						<Route path="/confirmcode" element={<ConfirmCode />} />
 						<Route
 							path="/status"
 							element={

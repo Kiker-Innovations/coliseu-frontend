@@ -1,6 +1,6 @@
 /**
- * Amenity Bookings API Service
- * Handles all amenity booking-related API endpoints
+ * Bookings API Service
+ * Handles all booking-related API endpoints
  */
 
 import { API_CONFIG } from "@/config/api.config";
@@ -8,49 +8,31 @@ import { apiClient } from "./client";
 import type { ApiResponse } from "./types";
 
 /**
- * Amenity Booking data
+ * Booking data
  */
-export interface AmenityBooking {
+export interface Booking {
 	_id: string;
 	amenityId: string;
 	residentId?: string;
 	buildingId?: string;
 	apartmentId?: string;
-	startDate: string; // ISO 8601 format
+	paymentUrl?: string | null; // URL de pagamento associada à reserva
+	paymentId?: string | null; // ID do pagamento associado
+    startDate: string; // ISO 8601 format
 	endDate: string; // ISO 8601 format
 	numberOfDays?: number;
 	totalValue: number;
-	status: "PENDENTE" | "CONFIRMADO" | "EM_ANDAMENTO" | "FINALIZADO" | "CANCELADO";
-	qrCode?: string;
-	qrCodeExpiry?: string;
+	status: "PENDENTE" | "AGENDADO" | "EM_ANDAMENTO" | "FINALIZADO" | "CANCELADO";
 	observation?: string;
 	createdAt?: string;
 	updatedAt?: string;
-	amenity?: {
-		_id: string;
-		name: string;
-		description?: string | null;
-		type?: string | null;
-		bookingType?: "DIARIO";
-		value?: number;
-	};
-	apartment?: {
-		_id: string;
-		number: string;
-		floor?: number | null;
-		block?: string | null;
-	};
-	resident?: {
-		_id: string;
-		name: string;
-		email: string;
-	} | null;
+	paymentStatus?: "PENDENTE" | "PAGO" | "CANCELADO" | "ERROR" | null; // Status do pagamento
 }
 
 /**
- * Create amenity booking request
+ * Create booking request
  */
-export interface CreateAmenityBookingRequest {
+export interface CreateBookingRequest {
 	observation?: string;
 	amenityId: string;
 	startDate: string; // ISO 8601 format (e.g., "2024-01-15T14:00:00Z")
@@ -58,158 +40,93 @@ export interface CreateAmenityBookingRequest {
 }
 
 /**
- * Get amenity bookings params
+ * Get bookings params
  */
-export interface GetAmenityBookingsParams {
+export interface GetBookingsParams {
 	page?: number;
 	limit?: number;
 	amenityId?: string;
-	status?: "PENDENTE" | "CONFIRMADO" | "CANCELADO";
+	status?: "PENDENTE" | "AGENDADO" | "CANCELADO";
 	startDate?: string; // ISO 8601 format
 	endDate?: string; // ISO 8601 format
 }
 
 /**
- * Amenity Bookings List Response
+ * Bookings List Response
  */
-export interface AmenityBookingsListResponse {
-	bookings: AmenityBooking[];
+export interface BookingsListResponse {
+	bookings: Booking[];
 	total: number;
 	page: number;
 	limit: number;
 }
 
 /**
- * Amenity Bookings Service Class
+ * Bookings Service Class
  */
-class AmenityBookingsService {
-	private readonly basePath = `/${API_CONFIG.version}/amenity-bookings`;
+class BookingsService {
+	private readonly basePath = `/${API_CONFIG.version}/bookings`;
 
 	/**
-	 * Create a new amenity booking
-	 * POST /v1/amenity-bookings
+	 * Create a new booking
+	 * POST /v1/bookings
 	 */
-	async createBooking(data: CreateAmenityBookingRequest): Promise<ApiResponse<AmenityBooking>> {
-		return apiClient.post<AmenityBooking>(this.basePath, data);
+	async createBooking(data: CreateBookingRequest): Promise<ApiResponse<Booking>> {
+		return apiClient.post<Booking>(this.basePath, data);
 	}
 
 	/**
-	 * Get amenity bookings with filters
-	 * GET /v1/amenity-bookings?page=1&limit=10&amenityId=&status=&startDate=&endDate=
+	 * Get bookings with filters
+	 * GET /v1/bookings?page=1&limit=10&amenityId=&status=&startDate=&endDate=
 	 */
 	async getBookings(
-		params?: GetAmenityBookingsParams,
-	): Promise<ApiResponse<AmenityBookingsListResponse>> {
-		return apiClient.get<AmenityBookingsListResponse>(this.basePath, { params });
+		params?: GetBookingsParams,
+	): Promise<ApiResponse<BookingsListResponse>> {
+		// Convert params to Record format for apiClient
+		const queryParams: Record<string, string | number | boolean | string[] | number[]> = {};
+		if (params?.page !== undefined) queryParams.page = params.page;
+		if (params?.limit !== undefined) queryParams.limit = params.limit;
+		if (params?.amenityId) queryParams.amenityId = params.amenityId;
+		if (params?.status) queryParams.status = params.status;
+		if (params?.startDate) queryParams.startDate = params.startDate;
+		if (params?.endDate) queryParams.endDate = params.endDate;
+		
+		return apiClient.get<BookingsListResponse>(this.basePath, { params: queryParams });
 	}
 
 	/**
 	 * Get booking by ID
-	 * GET /v1/amenity-bookings/:id
+	 * GET /v1/bookings/:id
 	 */
-	async getBookingById(id: string): Promise<ApiResponse<AmenityBooking>> {
-		return apiClient.get<AmenityBooking>(`${this.basePath}/${id}`);
+	async getBookingById(id: string): Promise<ApiResponse<Booking>> {
+		return apiClient.get<Booking>(`${this.basePath}/${id}`);
 	}
 
 	/**
-	 * Cancel amenity booking
-	 * POST /v1/amenity-bookings/:id/cancel
+	 * Cancel booking
+	 * POST /v1/bookings/:id/cancel
 	 */
-	async cancelBooking(id: string): Promise<ApiResponse<AmenityBooking>> {
-		return apiClient.post<AmenityBooking>(`${this.basePath}/${id}/cancel`, {});
+	async cancelBooking(id: string): Promise<ApiResponse<Booking>> {
+		return apiClient.post<Booking>(`${this.basePath}/${id}/cancel`, {});
 	}
 
 	/**
-	 * Get amenity bookings by building (Admin only)
-	 * GET /v1/amenity-bookings/admin/building
+	 * Get bookings by building (Admin only)
+	 * GET /v1/bookings/admin/building
 	 * Returns all bookings for the building, excluding FINALIZADO and CANCELADO
 	 */
 	async getBookingsByBuilding(): Promise<
 		ApiResponse<{
-			bookings: AmenityBooking[];
+			bookings: Booking[];
 			total: number;
 		}>
 	> {
 		return apiClient.get<{
-			bookings: AmenityBooking[];
+			bookings: Booking[];
 			total: number;
 		}>(`${this.basePath}/admin/building`);
 	}
 }
 
-export const amenityBookingsService = new AmenityBookingsService();
-
-// Legacy exports for backward compatibility (deprecated - use amenityBookingsService)
-export type Booking = AmenityBooking;
-export type CreateBookingRequest = CreateAmenityBookingRequest;
-export type GetBookingsParams = GetAmenityBookingsParams;
-export type BookingsListResponse = AmenityBookingsListResponse;
-export type AvailableTimeSlot = {
-	startTime: string;
-	endTime: string;
-	isAvailable: boolean;
-};
-
-/**
- * @deprecated Use amenityBookingsService instead
- */
-class BookingsService {
-	private readonly basePath = `/${API_CONFIG.version}/bookings`;
-
-	async createBooking(data: CreateBookingRequest): Promise<ApiResponse<Booking>> {
-		// Convert legacy format to new format
-		const newData: CreateAmenityBookingRequest = {
-			amenityId: data.amenityId,
-			startDate: `${data.date}T${data.startTime}:00Z`,
-			endDate: `${data.date}T${data.endTime}:00Z`,
-			totalValue: 0, // Legacy doesn't have totalValue
-		};
-		return amenityBookingsService.createBooking(newData);
-	}
-
-	async getBookings(params?: GetBookingsParams): Promise<ApiResponse<BookingsListResponse>> {
-		const newParams: GetAmenityBookingsParams = {
-			page: params?.page,
-			limit: params?.limit,
-			amenityId: params?.amenityId,
-			status: params?.status,
-			startDate: params?.date ? `${params.date}T00:00:00Z` : undefined,
-		};
-		const response = await amenityBookingsService.getBookings(newParams);
-		// Convert response format
-		if (response.success && response.data) {
-			return {
-				...response,
-				data: {
-					bookings: response.data.data,
-					total: response.data.total,
-					page: response.data.page,
-					limit: response.data.limit,
-				},
-			};
-		}
-		return response as any;
-	}
-
-	async getBookingById(id: string): Promise<ApiResponse<Booking>> {
-		return amenityBookingsService.getBookingById(id);
-	}
-
-	async updateBooking(id: string, data: any): Promise<ApiResponse<Booking>> {
-		return apiClient.put<Booking>(`${this.basePath}/${id}`, data);
-	}
-
-	async confirmBooking(id: string): Promise<ApiResponse<Booking>> {
-		return apiClient.post<Booking>(`${this.basePath}/${id}/confirm`, {});
-	}
-
-	async cancelBooking(id: string): Promise<ApiResponse<Booking>> {
-		return amenityBookingsService.cancelBooking(id);
-	}
-
-	async deleteBooking(id: string): Promise<ApiResponse<void>> {
-		return apiClient.delete<void>(`${this.basePath}/${id}`);
-	}
-}
-
 export const bookingsService = new BookingsService();
+

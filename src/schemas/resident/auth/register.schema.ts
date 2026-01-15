@@ -21,6 +21,36 @@ export const registerSchema = z
 			.min(1, "Telefone é obrigatório")
 			.regex(/^\(\d{2}\)\s\d{5}-\d{4}$/, "Telefone inválido. Use o formato (11) 99999-9999")
 			.trim(),
+		document: z
+			.string()
+			.min(1, "CPF é obrigatório")
+			.regex(/^\d{3}\.\d{3}\.\d{3}-\d{2}$/, "CPF inválido. Use o formato 000.000.000-00")
+			.refine(
+				(cpf) => {
+					const cleanCpf = cpf.replace(/\D/g, "");
+					if (cleanCpf.length !== 11) return false;
+					if (/^(\d)\1{10}$/.test(cleanCpf)) return false;
+					
+					let sum = 0;
+					for (let i = 0; i < 9; i++) {
+						sum += parseInt(cleanCpf.charAt(i)) * (10 - i);
+					}
+					let digit = 11 - (sum % 11);
+					if (digit >= 10) digit = 0;
+					if (digit !== parseInt(cleanCpf.charAt(9))) return false;
+					
+					sum = 0;
+					for (let i = 0; i < 10; i++) {
+						sum += parseInt(cleanCpf.charAt(i)) * (11 - i);
+					}
+					digit = 11 - (sum % 11);
+					if (digit >= 10) digit = 0;
+					if (digit !== parseInt(cleanCpf.charAt(10))) return false;
+					
+					return true;
+				},
+				{ message: "CPF inválido" },
+			),
 		photo: z
 			.instanceof(FileList)
 			.refine((files) => files.length > 0, "Foto de verificação é obrigatória")
