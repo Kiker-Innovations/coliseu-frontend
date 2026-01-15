@@ -46,9 +46,27 @@ export const amenitySchema = z.object({
 		.min(1, "Máximo de residents deve ser pelo menos 1")
 		.int("Deve ser um número inteiro")
 		.optional(),
+	maxHours: z
+		.number()
+		.min(1, "Limite de horas deve ser pelo menos 1")
+		.max(24, "Limite de horas não pode ser maior que 24")
+		.optional(),
 	usageRules: z.string().optional(),
-	bookingType: z.enum(["DIARIO"]).optional(),
+	bookingType: z.enum(["DIARIO", "POR_HORAS"]).optional(),
 	status: z.enum(["ATIVO", "INATIVO"]).default("ATIVO"),
-});
+})
+.refine(
+	(data) => {
+		// Se bookingType é POR_HORAS, maxHours é obrigatório
+		if (data.bookingType === "POR_HORAS" && (!data.maxHours || data.maxHours < 1)) {
+			return false;
+		}
+		return true;
+	},
+	{
+		message: "Quantidade máxima de horas é obrigatória quando o tipo de reserva é por horas",
+		path: ["maxHours"],
+	},
+);
 
 export type AmenitySchema = z.infer<typeof amenitySchema>;

@@ -17,6 +17,7 @@ export interface ResidentRegisterRequest {
 	email: string;
 	password: string;
 	phone: string;
+	document: string;
 }
 
 /**

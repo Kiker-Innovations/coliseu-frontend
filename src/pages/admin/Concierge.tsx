@@ -404,77 +404,77 @@ export default function Concierge() {
 							<Shield className="w-5 h-5 text-primary" />
 							<h2 className="text-2xl font-semibold">Porteiros</h2>
 						</div>
-						{concierges.length === 0 ? (
-							<Card>
-								<CardContent className="py-12 text-center">
-									<Shield className="w-16 h-16 mx-auto text-muted-foreground mb-4 opacity-50" />
-									<p className="text-lg font-medium text-muted-foreground">
-										Nenhum porteiro cadastrado
-									</p>
-									<p className="text-sm text-muted-foreground mt-2">
+					{concierges.length === 0 ? (
+						<Card>
+							<CardContent className="py-12 text-center">
+								<Shield className="w-16 h-16 mx-auto text-muted-foreground mb-4 opacity-50" />
+								<p className="text-lg font-medium text-muted-foreground">
+									Nenhum porteiro cadastrado
+								</p>
+								<p className="text-sm text-muted-foreground mt-2">
 										Cadastre um novo porteiro na aba "Cadastrar Porteiro"
-									</p>
-								</CardContent>
-							</Card>
-						) : (
-							<div className="grid grid-cols-1 gap-4">
-								{concierges.map((c) => (
-									<Card key={c.id}>
-										<CardHeader>
-											<div className="flex items-start justify-between">
-												<div className="flex-1">
-													<CardTitle className="flex items-center gap-2">
-														<Shield className="w-5 h-5 text-primary" />
-														{c.name}
-													</CardTitle>
-													<p className="text-sm text-muted-foreground mt-1">{c.email}</p>
-													<div className="mt-2 flex gap-2">
-														<Badge variant="secondary">
-															{c.shift === "MANHA" && "Manhã"}
-															{c.shift === "TARDE" && "Tarde"}
-															{c.shift === "NOITE" && "Noite"}
+								</p>
+							</CardContent>
+						</Card>
+					) : (
+						<div className="grid grid-cols-1 gap-4">
+							{concierges.map((c) => (
+								<Card key={c.id}>
+									<CardHeader>
+										<div className="flex items-start justify-between">
+											<div className="flex-1">
+												<CardTitle className="flex items-center gap-2">
+													<Shield className="w-5 h-5 text-primary" />
+													{c.name}
+												</CardTitle>
+												<p className="text-sm text-muted-foreground mt-1">{c.email}</p>
+												<div className="mt-2 flex gap-2">
+													<Badge variant="secondary">
+														{c.shift === "MANHA" && "Manhã"}
+														{c.shift === "TARDE" && "Tarde"}
+														{c.shift === "NOITE" && "Noite"}
+													</Badge>
+													{c.status && (
+														<Badge
+															variant={
+																c.status === "ATIVO"
+																	? "default"
+																	: c.status === "DE_FERIAS"
+																		? "secondary"
+																		: "destructive"
+															}
+														>
+															{c.status === "ATIVO" && "Ativo"}
+															{c.status === "INATIVO" && "Inativo"}
+															{c.status === "DE_FERIAS" && "De Férias"}
 														</Badge>
-														{c.status && (
-															<Badge
-																variant={
-																	c.status === "ATIVO"
-																		? "default"
-																		: c.status === "DE_FERIAS"
-																			? "secondary"
-																			: "destructive"
-																}
-															>
-																{c.status === "ATIVO" && "Ativo"}
-																{c.status === "INATIVO" && "Inativo"}
-																{c.status === "DE_FERIAS" && "De Férias"}
-															</Badge>
-														)}
-													</div>
-												</div>
-												<div className="flex gap-2">
-													<Button
-														size="sm"
-														variant="outline"
-														onClick={() => navigate(`/admin/concierge/view/${c.id}`)}
-													>
-														<Eye className="w-4 h-4" />
-													</Button>
-													<Button size="sm" variant="outline" onClick={() => handleEdit(c)}>
-														<Edit className="w-4 h-4" />
-													</Button>
-													<Button size="sm" variant="outline" onClick={() => handleResetPassword(c)}>
-														<KeyRound className="w-4 h-4" />
-													</Button>
-													<Button size="sm" variant="outline" onClick={() => handleDelete(c)}>
-														<Trash2 className="w-4 h-4" />
-													</Button>
+													)}
 												</div>
 											</div>
-										</CardHeader>
-									</Card>
-								))}
-							</div>
-						)}
+											<div className="flex gap-2">
+												<Button
+													size="sm"
+													variant="outline"
+													onClick={() => navigate(`/admin/concierge/view/${c.id}`)}
+												>
+													<Eye className="w-4 h-4" />
+												</Button>
+												<Button size="sm" variant="outline" onClick={() => handleEdit(c)}>
+													<Edit className="w-4 h-4" />
+												</Button>
+												<Button size="sm" variant="outline" onClick={() => handleResetPassword(c)}>
+													<KeyRound className="w-4 h-4" />
+												</Button>
+												<Button size="sm" variant="outline" onClick={() => handleDelete(c)}>
+													<Trash2 className="w-4 h-4" />
+												</Button>
+											</div>
+										</div>
+									</CardHeader>
+								</Card>
+							))}
+						</div>
+					)}
 					</div>
 
 					{/* Separador */}

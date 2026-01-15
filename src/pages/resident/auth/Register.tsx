@@ -3,7 +3,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Link, useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
 import InputMask from "react-input-mask";
-import { Camera } from "lucide-react";
+import { Camera, Eye, EyeOff } from "lucide-react";
 import { BR } from "country-flag-icons/react/3x2";
 import { residentsService, ApiClientError } from "@/services/api";
 import { Button } from "@/components/ui/button";
@@ -35,6 +35,8 @@ export default function Register() {
 	const [isLoadingBuildings, setIsLoadingBuildings] = useState(true);
 	const [apartments, setApartments] = useState<Apartment[]>([]);
 	const [isLoadingApartments, setIsLoadingApartments] = useState(false);
+	const [showPassword, setShowPassword] = useState(false);
+	const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
 	// Redirect if already authenticated
 	useEffect(() => {
@@ -76,6 +78,7 @@ export default function Register() {
 			password: "",
 			confirmPassword: "",
 			phone: "",
+			document: "",
 		},
 	});
 
@@ -131,6 +134,9 @@ export default function Register() {
 		try {
 			const phoneDigits = data.phone.replace(/\D/g, "");
 			const formattedPhone = `+55${phoneDigits}`;
+			
+			// Remove formatação do CPF (remove pontos e traço)
+			const documentDigits = data.document.replace(/\D/g, "");
 
 			const response = await residentsService.register({
 				buildingId: data.buildingId,
@@ -139,6 +145,7 @@ export default function Register() {
 				email: data.email,
 				password: data.password,
 				phone: formattedPhone,
+				document: documentDigits,
 			});
 
 			if (data.photo?.[0] && response.data?.presignedUrl) {
@@ -272,7 +279,21 @@ export default function Register() {
 
 						<div className="space-y-2">
 							<Label htmlFor="password">Senha</Label>
-							<Input id="password" type="password" {...register("password")} className="h-12" />
+							<div className="relative">
+								<Input
+									id="password"
+									type={showPassword ? "text" : "password"}
+									{...register("password")}
+									className="h-12 pr-10"
+								/>
+								<button
+									type="button"
+									onClick={() => setShowPassword(!showPassword)}
+									className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+								>
+									{showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+								</button>
+							</div>
 							{errors.password && (
 								<p className="text-sm text-destructive">{errors.password.message}</p>
 							)}
@@ -280,12 +301,25 @@ export default function Register() {
 
 						<div className="space-y-2">
 							<Label htmlFor="confirmPassword">Confirmar Senha</Label>
-							<Input
-								id="confirmPassword"
-								type="password"
-								{...register("confirmPassword")}
-								className="h-12"
-							/>
+							<div className="relative">
+								<Input
+									id="confirmPassword"
+									type={showConfirmPassword ? "text" : "password"}
+									{...register("confirmPassword")}
+									className="h-12 pr-10"
+								/>
+								<button
+									type="button"
+									onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+									className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+								>
+									{showConfirmPassword ? (
+										<EyeOff className="h-4 w-4" />
+									) : (
+										<Eye className="h-4 w-4" />
+									)}
+								</button>
+							</div>
 							{errors.confirmPassword && (
 								<p className="text-sm text-destructive">{errors.confirmPassword.message}</p>
 							)}
@@ -308,6 +342,22 @@ export default function Register() {
 								</InputMask>
 							</div>
 							{errors.phone && <p className="text-sm text-destructive">{errors.phone.message}</p>}
+						</div>
+
+						<div className="space-y-2">
+							<Label htmlFor="document">CPF</Label>
+							<InputMask
+								mask="999.999.999-99"
+								maskChar={null}
+								id="document"
+								{...register("document")}
+								placeholder="000.000.000-00"
+							>
+								{(inputProps: any) => <Input {...inputProps} type="text" className="h-12" />}
+							</InputMask>
+							{errors.document && (
+								<p className="text-sm text-destructive">{errors.document.message}</p>
+							)}
 						</div>
 
 						<div className="space-y-2">
