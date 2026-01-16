@@ -83,6 +83,7 @@ export interface Package {
  */
 export interface ConfirmDeliveryRequest {
 	recipientName?: string;
+	pickupCode: string;
 	// deliveryConciergeId removed - backend extracts from token
 }
 
@@ -135,6 +136,7 @@ export interface ResidentPackage {
 	receiverDate: string;
 	deliveryDate?: string;
 	status: string;
+	pickupCode: string;
 	cancelReason?: string;
 	canceledBy?: string;
 	cancelledAt?: string;
@@ -314,11 +316,11 @@ class PackageService {
 	 */
 	async getPackages(params: GetPackagesParams): Promise<ApiResponse<ConciergePackage[]>> {
 		this.ensureToken();
-		
+
 		const queryParams: Record<string, string> = {
 			status: params.status,
 		};
-		
+
 		// Only add days parameter for delivered and cancelled packages
 		if (params.days && (params.status === "ENTREGUE" || params.status === "CANCELADO")) {
 			queryParams.days = String(params.days);
@@ -327,7 +329,7 @@ class PackageService {
 		const response = await apiClient.get<ConciergePackage[]>(this.basePath, {
 			params: queryParams,
 		});
-		
+
 		return {
 			...response,
 			data: response.data || [],
@@ -365,7 +367,7 @@ class PackageService {
 	 */
 	async getMyPackages(params?: GetMyPackagesParams): Promise<ApiResponse<ResidentPackage[]>> {
 		this.ensureToken(true);
-		
+
 		const queryParams: Record<string, string> = {};
 		if (params?.status) {
 			queryParams.status = params.status;
@@ -374,7 +376,7 @@ class PackageService {
 		const response = await apiClient.get<ResidentPackage[]>(`${this.basePath}/my-packages`, {
 			params: Object.keys(queryParams).length > 0 ? queryParams : undefined,
 		});
-		
+
 		return {
 			...response,
 			data: response.data || [],
@@ -387,9 +389,11 @@ class PackageService {
 	 */
 	async getMyPackagesStats(): Promise<ApiResponse<ResidentPackageStats>> {
 		this.ensureToken(true);
-		
-		const response = await apiClient.get<ResidentPackageStats>(`${this.basePath}/my-packages/stats`);
-		
+
+		const response = await apiClient.get<ResidentPackageStats>(
+			`${this.basePath}/my-packages/stats`,
+		);
+
 		if (!response.success || !response.data) {
 			// Return default stats if request fails
 			return {
@@ -402,11 +406,10 @@ class PackageService {
 				},
 			};
 		}
-		
+
 		return response;
 	}
 }
 
 // Export singleton instance
 export const packageService = new PackageService();
-

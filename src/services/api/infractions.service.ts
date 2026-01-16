@@ -132,19 +132,16 @@ class InfractionsService {
 	 * Get all infractions (returns apartments with infractions and residents)
 	 * GET /v1/infractions
 	 */
-	async getInfractions(
-		params?: GetInfractionsParams
-	): Promise<ApartmentWithInfractions[]> {
+	async getInfractions(params?: GetInfractionsParams): Promise<ApartmentWithInfractions[]> {
 		// Map params to plain object to satisfy axios/ts expectations
 		const cleanParams: Record<string, string> = {};
 		if (params) {
 			if (params.apartmentId !== undefined) cleanParams.apartmentId = params.apartmentId;
 			if (params.status !== undefined) cleanParams.status = params.status;
 		}
-		const response = await apiClient.get<ApartmentWithInfractions[]>(
-			this.basePath,
-			{ params: cleanParams }
-		);
+		const response = await apiClient.get<ApartmentWithInfractions[]>(this.basePath, {
+			params: cleanParams,
+		});
 		return Array.isArray(response.data) ? response.data : [];
 	}
 
@@ -152,13 +149,8 @@ class InfractionsService {
 	 * Create fine infraction
 	 * POST /v1/infractions/fine
 	 */
-	async createFineInfraction(
-		data: CreateFineInfractionRequest
-	): Promise<Infraction> {
-		const response = await apiClient.post<Infraction>(
-			`${this.basePath}/fine`,
-			data
-		);
+	async createFineInfraction(data: CreateFineInfractionRequest): Promise<Infraction> {
+		const response = await apiClient.post<Infraction>(`${this.basePath}/fine`, data);
 		return response.data!;
 	}
 
@@ -167,12 +159,9 @@ class InfractionsService {
 	 * POST /v1/infractions/notification
 	 */
 	async createNotificationInfraction(
-		data: CreateNotificationInfractionRequest
+		data: CreateNotificationInfractionRequest,
 	): Promise<Infraction> {
-		const response = await apiClient.post<Infraction>(
-			`${this.basePath}/notification`,
-			data
-		);
+		const response = await apiClient.post<Infraction>(`${this.basePath}/notification`, data);
 		return response.data!;
 	}
 
@@ -180,18 +169,15 @@ class InfractionsService {
 	 * Get my fines (resident only)
 	 * GET /v1/infractions/my-fines
 	 */
-	async getMyFines(
-		status?: "PENDENTE" | "EM_REVISAO" | "PAGO" | "CANCELADA"
-	): Promise<Fine[]> {
+	async getMyFines(status?: "PENDENTE" | "EM_REVISAO" | "PAGO" | "CANCELADA"): Promise<Fine[]> {
 		const cleanParams: Record<string, string> = {};
 		if (status) {
 			cleanParams.status = status;
 		}
-		
-		const response = await apiClient.get<Fine[]>(
-			`${this.basePath}/my-fines`,
-			{ params: cleanParams }
-		);
+
+		const response = await apiClient.get<Fine[]>(`${this.basePath}/my-fines`, {
+			params: cleanParams,
+		});
 		// A resposta da API vem com estrutura { success, message, data }
 		// onde data é um array de multas
 		return Array.isArray(response.data) ? response.data : [];
@@ -206,7 +192,7 @@ class InfractionsService {
 		text: string,
 		fileName: string,
 		fileSize: number,
-		mimeType: string
+		mimeType: string,
 	): Promise<{
 		_id: string;
 		infractionId: string;
@@ -218,16 +204,13 @@ class InfractionsService {
 			infractionId: string;
 			presignedUrl: string;
 			createdAt: string;
-		}>(
-			`${this.basePath}/contest`,
-			{
-				infractionId,
-				text,
-				fileName,
-				fileSize,
-				mimeType,
-			}
-		);
+		}>(`${this.basePath}/contest`, {
+			infractionId,
+			text,
+			fileName,
+			fileSize,
+			mimeType,
+		});
 		return response.data!;
 	}
 
@@ -320,4 +303,3 @@ class InfractionsService {
 
 // Export singleton instance
 export const infractionsService = new InfractionsService();
-

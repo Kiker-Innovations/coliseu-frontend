@@ -116,7 +116,8 @@ export default function Fines() {
 	const [isPendingFinesDialogOpen, setIsPendingFinesDialogOpen] = useState(false);
 	const [isInReviewFinesDialogOpen, setIsInReviewFinesDialogOpen] = useState(false);
 	const [selectedApartment, setSelectedApartment] = useState<ApartmentWithResidents | null>(null);
-	const [selectedApartmentForFines, setSelectedApartmentForFines] = useState<ApartmentWithResidents | null>(null);
+	const [selectedApartmentForFines, setSelectedApartmentForFines] =
+		useState<ApartmentWithResidents | null>(null);
 	const [infractionType, setInfractionType] = useState<"fine" | "notification">("fine");
 
 	// Estados para Dialogs de Fine
@@ -127,7 +128,9 @@ export default function Fines() {
 
 	// Estados para Dialog de Contestação
 	const [isAppealDialogOpen, setIsAppealDialogOpen] = useState(false);
-	const [selectedInfractionForAppeal, setSelectedInfractionForAppeal] = useState<Infraction | null>(null);
+	const [selectedInfractionForAppeal, setSelectedInfractionForAppeal] = useState<Infraction | null>(
+		null,
+	);
 	const [appealData, setAppealData] = useState<{
 		text: string;
 		fileName: string;
@@ -191,8 +194,10 @@ export default function Fines() {
 	// Função helper para construir apartments com residents e infractions
 	const buildApartmentsWithResidents = async (buildingId: string) => {
 		// Buscar todos os apartamentos
-		const allApartments = await apartmentsService.getApartmentsByBuildingId(buildingId).catch(() => []);
-		
+		const allApartments = await apartmentsService
+			.getApartmentsByBuildingId(buildingId)
+			.catch(() => []);
+
 		// Buscar apartamentos com infractions
 		const apartmentsWithInfractions = await infractionsService.getInfractions().catch(() => []);
 
@@ -207,12 +212,15 @@ export default function Fines() {
 
 		// Criar um mapa de apartamentos com infractions para facilitar lookup
 		const apartmentsWithInfractionsMap = new Map<string, ApartmentWithInfractions>();
-		apartmentsWithInfractions.forEach(apt => {
+		apartmentsWithInfractions.forEach((apt) => {
 			apartmentsWithInfractionsMap.set(apt._id, apt);
 		});
 
 		// Criar um mapa de residents por apartmentId
-		const residentsByApartmentId = new Map<string, Array<{ _id: string; name: string; email: string; phone?: string }>>();
+		const residentsByApartmentId = new Map<
+			string,
+			Array<{ _id: string; name: string; email: string; phone?: string }>
+		>();
 		allResidents.forEach((resident: any) => {
 			const apartmentId = resident.apartmentId ? String(resident.apartmentId) : null;
 			if (apartmentId) {
@@ -229,64 +237,65 @@ export default function Fines() {
 		});
 
 		// Mapear todos os apartamentos, incluindo os sem infractions
-		const apartmentsWithResidents: ApartmentWithResidents[] = allApartments.map((apt: Apartment) => {
-			const aptWithInfractions = apartmentsWithInfractionsMap.get(apt._id);
-			const aptResidents = residentsByApartmentId.get(apt._id) || aptWithInfractions?.residents || [];
-			
-			if (aptWithInfractions) {
-				// Apartamento com infractions
-				const pendingCount = aptWithInfractions.infractions.filter(
-					(inf) => inf.type === "MULTA" && inf.status === "PENDENTE"
-				).length;
-				const inReviewCount = aptWithInfractions.infractions.filter(
-					(inf) => inf.type === "MULTA" && inf.status === "EM_REVISAO"
-				).length;
+		const apartmentsWithResidents: ApartmentWithResidents[] = allApartments.map(
+			(apt: Apartment) => {
+				const aptWithInfractions = apartmentsWithInfractionsMap.get(apt._id);
+				const aptResidents =
+					residentsByApartmentId.get(apt._id) || aptWithInfractions?.residents || [];
 
-				const aptNotifications = aptWithInfractions.infractions.filter(
-					(inf) => inf.type === "NOTIFICACAO"
-				);
+				if (aptWithInfractions) {
+					// Apartamento com infractions
+					const pendingCount = aptWithInfractions.infractions.filter(
+						(inf) => inf.type === "MULTA" && inf.status === "PENDENTE",
+					).length;
+					const inReviewCount = aptWithInfractions.infractions.filter(
+						(inf) => inf.type === "MULTA" && inf.status === "EM_REVISAO",
+					).length;
 
-				const aptFines = aptWithInfractions.infractions.filter(
-					(inf) => inf.type === "MULTA"
-				);
+					const aptNotifications = aptWithInfractions.infractions.filter(
+						(inf) => inf.type === "NOTIFICACAO",
+					);
 
-				return {
-					_id: apt._id,
-					buildingId: apt.buildingId,
-					number: apt.number,
-					block: apt.block || "",
-					floor: apt.floor || 0,
-					status: apt.status || "DESOCUPADO",
-					createdAt: apt.createdAt || new Date().toISOString(),
-					updatedAt: apt.updatedAt || new Date().toISOString(),
-					residents: aptResidents,
-					pendingFines: pendingCount,
-					finesInReview: inReviewCount,
-					notifications: aptNotifications,
-					fines: aptFines,
-				};
-			} else {
-				// Apartamento sem infractions
-				return {
-					_id: apt._id,
-					buildingId: apt.buildingId,
-					number: apt.number,
-					block: apt.block || "",
-					floor: apt.floor || 0,
-					status: apt.status || "DESOCUPADO",
-					createdAt: apt.createdAt || new Date().toISOString(),
-					updatedAt: apt.updatedAt || new Date().toISOString(),
-					residents: aptResidents,
-					pendingFines: 0,
-					finesInReview: 0,
-					notifications: [],
-					fines: [],
-				};
-			}
-		});
+					const aptFines = aptWithInfractions.infractions.filter((inf) => inf.type === "MULTA");
+
+					return {
+						_id: apt._id,
+						buildingId: apt.buildingId,
+						number: apt.number,
+						block: apt.block || "",
+						floor: apt.floor || 0,
+						status: apt.status || "DESOCUPADO",
+						createdAt: apt.createdAt || new Date().toISOString(),
+						updatedAt: apt.updatedAt || new Date().toISOString(),
+						residents: aptResidents,
+						pendingFines: pendingCount,
+						finesInReview: inReviewCount,
+						notifications: aptNotifications,
+						fines: aptFines,
+					};
+				} else {
+					// Apartamento sem infractions
+					return {
+						_id: apt._id,
+						buildingId: apt.buildingId,
+						number: apt.number,
+						block: apt.block || "",
+						floor: apt.floor || 0,
+						status: apt.status || "DESOCUPADO",
+						createdAt: apt.createdAt || new Date().toISOString(),
+						updatedAt: apt.updatedAt || new Date().toISOString(),
+						residents: aptResidents,
+						pendingFines: 0,
+						finesInReview: 0,
+						notifications: [],
+						fines: [],
+					};
+				}
+			},
+		);
 
 		// Flatten infractions para compatibilidade com código existente
-		const allInfractions = apartmentsWithInfractions.flatMap(apt => apt.infractions);
+		const allInfractions = apartmentsWithInfractions.flatMap((apt) => apt.infractions);
 
 		return { apartmentsWithResidents, infractionsData: allInfractions };
 	};
@@ -334,8 +343,8 @@ export default function Fines() {
 					apt.residents.some(
 						(r) =>
 							r.name.toLowerCase().includes(searchLower) ||
-							r.email.toLowerCase().includes(searchLower)
-					)
+							r.email.toLowerCase().includes(searchLower),
+					),
 			);
 		}
 
@@ -368,12 +377,12 @@ export default function Fines() {
 	// Handlers para Infractions
 	const handleOpenInfractionDialog = (
 		apartment: ApartmentWithResidents,
-		type: "fine" | "notification"
+		type: "fine" | "notification",
 	) => {
 		setSelectedApartment(apartment);
 		setInfractionType(type);
 		const occurrenceDateISO = new Date().toISOString();
-		
+
 		if (type === "fine") {
 			infractionFineForm.reset({
 				fineId: fines[0]?._id || "",
@@ -441,16 +450,19 @@ export default function Fines() {
 			await infractionsService.approveAppeal(selectedInfractionForAppeal._id);
 			toast.success("Contestação aprovada! A multa foi cancelada.");
 			handleCloseAppealDialog();
-			
+
 			// Recarregar dados e atualizar selectedApartment e selectedApartmentForFines
 			const buildingId = getBuildingId();
 			if (buildingId) {
-				const { apartmentsWithResidents, infractionsData } = await buildApartmentsWithResidents(buildingId);
+				const { apartmentsWithResidents, infractionsData } =
+					await buildApartmentsWithResidents(buildingId);
 				setAllInfractions(infractionsData);
 				setApartments(apartmentsWithResidents);
-				
+
 				// Atualizar selectedApartment com os novos dados
-				const updatedApartment = apartmentsWithResidents.find(apt => apt._id === apartmentToUpdate._id);
+				const updatedApartment = apartmentsWithResidents.find(
+					(apt) => apt._id === apartmentToUpdate._id,
+				);
 				if (updatedApartment) {
 					if (selectedApartment) {
 						setSelectedApartment(updatedApartment);
@@ -482,16 +494,19 @@ export default function Fines() {
 			await infractionsService.rejectAppeal(selectedInfractionForAppeal._id);
 			toast.success("Contestação reprovada! A multa voltou para pendente.");
 			handleCloseAppealDialog();
-			
+
 			// Recarregar dados e atualizar selectedApartment e selectedApartmentForFines
 			const buildingId = getBuildingId();
 			if (buildingId) {
-				const { apartmentsWithResidents, infractionsData } = await buildApartmentsWithResidents(buildingId);
+				const { apartmentsWithResidents, infractionsData } =
+					await buildApartmentsWithResidents(buildingId);
 				setAllInfractions(infractionsData);
 				setApartments(apartmentsWithResidents);
-				
+
 				// Atualizar selectedApartment com os novos dados
-				const updatedApartment = apartmentsWithResidents.find(apt => apt._id === apartmentToUpdate._id);
+				const updatedApartment = apartmentsWithResidents.find(
+					(apt) => apt._id === apartmentToUpdate._id,
+				);
 				if (updatedApartment) {
 					if (selectedApartment) {
 						setSelectedApartment(updatedApartment);
@@ -678,7 +693,7 @@ export default function Fines() {
 											</label>
 										</div>
 										<div className="flex items-center gap-2">
-										<Filter className="h-4 w-4 text-muted-foreground" />
+											<Filter className="h-4 w-4 text-muted-foreground" />
 											<label className="flex items-center gap-2 text-sm">
 												<input
 													type="checkbox"
@@ -723,7 +738,7 @@ export default function Fines() {
 											</TableRow>
 										) : (
 											paginatedApartments.map((apartment) => (
-												<TableRow 
+												<TableRow
 													key={apartment._id}
 													className="cursor-pointer hover:bg-muted/50"
 													onClick={() => {
@@ -736,9 +751,7 @@ export default function Fines() {
 													<TableCell>
 														<div className="space-y-1">
 															{apartment.residents.length === 0 ? (
-																<span className="text-sm text-muted-foreground">
-																	Sem moradores
-																</span>
+																<span className="text-sm text-muted-foreground">Sem moradores</span>
 															) : (
 																apartment.residents.map((resident) => (
 																	<div key={resident._id} className="text-sm">
@@ -787,7 +800,10 @@ export default function Fines() {
 														)}
 													</TableCell>
 													<TableCell className="text-right">
-														<div className="flex justify-end gap-2" onClick={(e) => e.stopPropagation()}>
+														<div
+															className="flex justify-end gap-2"
+															onClick={(e) => e.stopPropagation()}
+														>
 															<Button
 																size="sm"
 																variant="outline"
@@ -800,7 +816,9 @@ export default function Fines() {
 															<Button
 																size="sm"
 																variant="outline"
-																onClick={() => handleOpenInfractionDialog(apartment, "notification")}
+																onClick={() =>
+																	handleOpenInfractionDialog(apartment, "notification")
+																}
 															>
 																<Bell className="w-4 h-4 mr-2" />
 																Notificar
@@ -817,13 +835,16 @@ export default function Fines() {
 							{totalPages > 1 && (
 								<div className="flex items-center justify-between px-4 py-4 border-t">
 									<div className="text-sm text-muted-foreground">
-										Mostrando {paginatedApartments.length > 0 ? (currentPage - 1) * itemsPerPage + 1 : 0} a {Math.min(currentPage * itemsPerPage, filteredApartments.length)} de {filteredApartments.length} apartamentos
+										Mostrando{" "}
+										{paginatedApartments.length > 0 ? (currentPage - 1) * itemsPerPage + 1 : 0} a{" "}
+										{Math.min(currentPage * itemsPerPage, filteredApartments.length)} de{" "}
+										{filteredApartments.length} apartamentos
 									</div>
 									<div className="flex items-center gap-2">
 										<Button
 											variant="outline"
 											size="sm"
-											onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+											onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
 											disabled={currentPage === 1}
 										>
 											<ChevronLeft className="h-4 w-4" />
@@ -857,7 +878,7 @@ export default function Fines() {
 										<Button
 											variant="outline"
 											size="sm"
-											onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+											onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
 											disabled={currentPage === totalPages}
 										>
 											Próxima
@@ -995,7 +1016,8 @@ export default function Fines() {
 									<SelectContent>
 										{fines.map((fine) => (
 											<SelectItem key={fine._id} value={fine._id}>
-												{fine.name} - R$ {fine.value.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+												{fine.name} - R${" "}
+												{fine.value.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
 											</SelectItem>
 										))}
 									</SelectContent>
@@ -1188,9 +1210,7 @@ export default function Fines() {
 								{...fineForm.register("name")}
 							/>
 							{fineForm.formState.errors.name && (
-								<p className="text-sm text-destructive">
-									{fineForm.formState.errors.name.message}
-								</p>
+								<p className="text-sm text-destructive">{fineForm.formState.errors.name.message}</p>
 							)}
 						</div>
 
@@ -1231,16 +1251,12 @@ export default function Fines() {
 						</div>
 
 						<div className="flex gap-4 pt-4">
-							<Button
-								type="submit"
-								className="flex-1"
-								disabled={fineForm.formState.isSubmitting}
-							>
+							<Button type="submit" className="flex-1" disabled={fineForm.formState.isSubmitting}>
 								{fineForm.formState.isSubmitting
 									? "Salvando..."
 									: isEditingFine
-									? "Atualizar"
-									: "Criar"}
+										? "Atualizar"
+										: "Criar"}
 							</Button>
 							<Button
 								type="button"
@@ -1267,7 +1283,10 @@ export default function Fines() {
 					</AlertDialogHeader>
 					<AlertDialogFooter>
 						<AlertDialogCancel>Cancelar</AlertDialogCancel>
-						<AlertDialogAction onClick={handleDeleteFine} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+						<AlertDialogAction
+							onClick={handleDeleteFine}
+							className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+						>
 							Deletar
 						</AlertDialogAction>
 					</AlertDialogFooter>
@@ -1278,23 +1297,25 @@ export default function Fines() {
 			<Dialog open={isPendingFinesDialogOpen} onOpenChange={setIsPendingFinesDialogOpen}>
 				<DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
 					<DialogHeader>
-						<DialogTitle>Multas Pendentes - Apartamento {selectedApartmentForFines?.number}</DialogTitle>
+						<DialogTitle>
+							Multas Pendentes - Apartamento {selectedApartmentForFines?.number}
+						</DialogTitle>
 						<DialogDescription>
 							Visualize todas as multas pendentes deste apartamento
 						</DialogDescription>
 					</DialogHeader>
 
 					<div className="space-y-4">
-						{selectedApartmentForFines && selectedApartmentForFines.fines.filter(f => f.status === "PENDENTE").length === 0 ? (
-							<p className="text-sm text-muted-foreground">Nenhuma multa pendente para este apartamento.</p>
+						{selectedApartmentForFines &&
+						selectedApartmentForFines.fines.filter((f) => f.status === "PENDENTE").length === 0 ? (
+							<p className="text-sm text-muted-foreground">
+								Nenhuma multa pendente para este apartamento.
+							</p>
 						) : (
 							<div className="space-y-4">
 								{selectedApartmentForFines?.fines
-									.filter(f => f.status === "PENDENTE")
-									.sort(
-										(a, b) =>
-											new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-									)
+									.filter((f) => f.status === "PENDENTE")
+									.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
 									.map((fine) => (
 										<Card key={fine._id}>
 											<CardContent className="pt-6">
@@ -1321,12 +1342,11 @@ export default function Fines() {
 													<div className="flex items-center gap-3">
 														<div className="text-right">
 															<p className="text-xl font-bold text-destructive">
-																R$ {fine.value.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+																R${" "}
+																{fine.value.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
 															</p>
 														</div>
-														<Badge variant="secondary">
-															Pendente
-														</Badge>
+														<Badge variant="secondary">Pendente</Badge>
 													</div>
 												</div>
 											</CardContent>
@@ -1342,23 +1362,26 @@ export default function Fines() {
 			<Dialog open={isInReviewFinesDialogOpen} onOpenChange={setIsInReviewFinesDialogOpen}>
 				<DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
 					<DialogHeader>
-						<DialogTitle>Multas em Análise - Apartamento {selectedApartmentForFines?.number}</DialogTitle>
+						<DialogTitle>
+							Multas em Análise - Apartamento {selectedApartmentForFines?.number}
+						</DialogTitle>
 						<DialogDescription>
 							Visualize todas as multas em análise deste apartamento
 						</DialogDescription>
 					</DialogHeader>
 
 					<div className="space-y-4">
-						{selectedApartmentForFines && selectedApartmentForFines.fines.filter(f => f.status === "EM_REVISAO").length === 0 ? (
-							<p className="text-sm text-muted-foreground">Nenhuma multa em análise para este apartamento.</p>
+						{selectedApartmentForFines &&
+						selectedApartmentForFines.fines.filter((f) => f.status === "EM_REVISAO").length ===
+							0 ? (
+							<p className="text-sm text-muted-foreground">
+								Nenhuma multa em análise para este apartamento.
+							</p>
 						) : (
 							<div className="space-y-4">
 								{selectedApartmentForFines?.fines
-									.filter(f => f.status === "EM_REVISAO")
-									.sort(
-										(a, b) =>
-											new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-									)
+									.filter((f) => f.status === "EM_REVISAO")
+									.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
 									.map((fine) => (
 										<Card key={fine._id}>
 											<CardContent className="pt-6">
@@ -1385,12 +1408,11 @@ export default function Fines() {
 													<div className="flex items-center gap-3">
 														<div className="text-right">
 															<p className="text-xl font-bold text-destructive">
-																R$ {fine.value.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+																R${" "}
+																{fine.value.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
 															</p>
 														</div>
-														<Badge variant="outline">
-															Em Análise
-														</Badge>
+														<Badge variant="outline">Em Análise</Badge>
 													</div>
 												</div>
 												<div className="mt-4 pt-4 border-t">
@@ -1415,12 +1437,15 @@ export default function Fines() {
 			</Dialog>
 
 			{/* Dialog: Detalhes do Apartamento */}
-			<Dialog open={isApartmentDetailsDialogOpen} onOpenChange={(open) => {
-				setIsApartmentDetailsDialogOpen(open);
-				if (!open) {
-					setFinesViewType(null);
-				}
-			}}>
+			<Dialog
+				open={isApartmentDetailsDialogOpen}
+				onOpenChange={(open) => {
+					setIsApartmentDetailsDialogOpen(open);
+					if (!open) {
+						setFinesViewType(null);
+					}
+				}}
+			>
 				<DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
 					<DialogHeader>
 						<DialogTitle>Apartamento {selectedApartment?.number}</DialogTitle>
@@ -1468,7 +1493,10 @@ export default function Fines() {
 								) : (
 									<div className="space-y-4">
 										{selectedApartment?.residents.map((resident) => (
-											<div key={resident._id} className="flex items-start justify-between p-4 border rounded-lg">
+											<div
+												key={resident._id}
+												className="flex items-start justify-between p-4 border rounded-lg"
+											>
 												<div className="space-y-1">
 													<p className="font-medium">{resident.name}</p>
 													<p className="text-sm text-muted-foreground">{resident.email}</p>
@@ -1493,15 +1521,18 @@ export default function Fines() {
 									</CardTitle>
 								</CardHeader>
 								<CardContent>
-									{selectedApartment && selectedApartment.fines.filter(f => f.status === "PENDENTE").length === 0 ? (
-										<p className="text-sm text-muted-foreground">Nenhuma multa pendente para este apartamento.</p>
+									{selectedApartment &&
+									selectedApartment.fines.filter((f) => f.status === "PENDENTE").length === 0 ? (
+										<p className="text-sm text-muted-foreground">
+											Nenhuma multa pendente para este apartamento.
+										</p>
 									) : (
 										<div className="space-y-4">
 											{selectedApartment?.fines
-												.filter(f => f.status === "PENDENTE")
+												.filter((f) => f.status === "PENDENTE")
 												.sort(
 													(a, b) =>
-														new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+														new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
 												)
 												.map((fine) => (
 													<div key={fine._id} className="p-4 border rounded-lg">
@@ -1528,12 +1559,13 @@ export default function Fines() {
 															<div className="flex items-center gap-3">
 																<div className="text-right">
 																	<p className="text-xl font-bold text-destructive">
-																		R$ {fine.value.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+																		R${" "}
+																		{fine.value.toLocaleString("pt-BR", {
+																			minimumFractionDigits: 2,
+																		})}
 																	</p>
 																</div>
-																<Badge variant="secondary">
-																	Pendente
-																</Badge>
+																<Badge variant="secondary">Pendente</Badge>
 															</div>
 														</div>
 													</div>
@@ -1554,15 +1586,18 @@ export default function Fines() {
 									</CardTitle>
 								</CardHeader>
 								<CardContent>
-									{selectedApartment && selectedApartment.fines.filter(f => f.status === "EM_REVISAO").length === 0 ? (
-										<p className="text-sm text-muted-foreground">Nenhuma multa em análise para este apartamento.</p>
+									{selectedApartment &&
+									selectedApartment.fines.filter((f) => f.status === "EM_REVISAO").length === 0 ? (
+										<p className="text-sm text-muted-foreground">
+											Nenhuma multa em análise para este apartamento.
+										</p>
 									) : (
 										<div className="space-y-4">
 											{selectedApartment?.fines
-												.filter(f => f.status === "EM_REVISAO")
+												.filter((f) => f.status === "EM_REVISAO")
 												.sort(
 													(a, b) =>
-														new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+														new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
 												)
 												.map((fine) => (
 													<div key={fine._id} className="p-4 border rounded-lg">
@@ -1589,12 +1624,13 @@ export default function Fines() {
 															<div className="flex items-center gap-3">
 																<div className="text-right">
 																	<p className="text-xl font-bold text-destructive">
-																		R$ {fine.value.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+																		R${" "}
+																		{fine.value.toLocaleString("pt-BR", {
+																			minimumFractionDigits: 2,
+																		})}
 																	</p>
 																</div>
-																<Badge variant="outline">
-																	Em Análise
-																</Badge>
+																<Badge variant="outline">Em Análise</Badge>
 															</div>
 														</div>
 														<div className="mt-3 pt-3 border-t">
@@ -1626,15 +1662,19 @@ export default function Fines() {
 								</CardTitle>
 							</CardHeader>
 							<CardContent>
-								{selectedApartment && selectedApartment.fines.filter(f => f.status === "CANCELADA" || f.status === "PAGO").length === 0 ? (
-									<p className="text-sm text-muted-foreground">Nenhuma multa no histórico para este apartamento.</p>
+								{selectedApartment &&
+								selectedApartment.fines.filter(
+									(f) => f.status === "CANCELADA" || f.status === "PAGO",
+								).length === 0 ? (
+									<p className="text-sm text-muted-foreground">
+										Nenhuma multa no histórico para este apartamento.
+									</p>
 								) : (
 									<div className="space-y-4">
 										{selectedApartment?.fines
-											.filter(f => f.status === "CANCELADA" || f.status === "PAGO")
+											.filter((f) => f.status === "CANCELADA" || f.status === "PAGO")
 											.sort(
-												(a, b) =>
-													new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+												(a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
 											)
 											.map((fine) => (
 												<div key={fine._id} className="p-4 border rounded-lg">
@@ -1661,25 +1701,20 @@ export default function Fines() {
 														<div className="flex items-center gap-3">
 															<div className="text-right">
 																<p className="text-xl font-bold text-destructive">
-																	R$ {fine.value.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+																	R${" "}
+																	{fine.value.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
 																</p>
 															</div>
-															<Badge
-																variant={
-																	fine.status === "PAGO"
-																		? "default"
-																		: "destructive"
-																}
-															>
-																{fine.status === "PAGO"
-																	? "Paga"
-																	: "Cancelada"}
+															<Badge variant={fine.status === "PAGO" ? "default" : "destructive"}>
+																{fine.status === "PAGO" ? "Paga" : "Cancelada"}
 															</Badge>
 														</div>
 													</div>
 													{fine.canceledNote && (
 														<div className="mt-3 pt-3 border-t">
-															<p className="text-sm text-muted-foreground mb-2">Motivo do cancelamento:</p>
+															<p className="text-sm text-muted-foreground mb-2">
+																Motivo do cancelamento:
+															</p>
 															<p className="text-sm whitespace-pre-wrap text-destructive">
 																{fine.canceledNote}
 															</p>
@@ -1715,14 +1750,17 @@ export default function Fines() {
 								</CardTitle>
 							</CardHeader>
 							<CardContent>
-								{selectedApartment && (!selectedApartment.notifications || selectedApartment.notifications.length === 0) ? (
-									<p className="text-sm text-muted-foreground">Nenhuma notificação enviada para este apartamento.</p>
+								{selectedApartment &&
+								(!selectedApartment.notifications ||
+									selectedApartment.notifications.length === 0) ? (
+									<p className="text-sm text-muted-foreground">
+										Nenhuma notificação enviada para este apartamento.
+									</p>
 								) : (
 									<div className="space-y-4">
 										{selectedApartment?.notifications
 											.sort(
-												(a, b) =>
-													new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+												(a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
 											)
 											.map((notification) => (
 												<div key={notification._id} className="p-4 border rounded-lg">
@@ -1747,18 +1785,16 @@ export default function Fines() {
 															</p>
 														</div>
 														<Badge
-															variant={
-																notification.status === "ATIVO"
-																	? "default"
-																	: "secondary"
-															}
+															variant={notification.status === "ATIVO" ? "default" : "secondary"}
 														>
 															{notification.status === "ATIVO" ? "Ativo" : "Inativo"}
 														</Badge>
 													</div>
 													<div className="mt-3 pt-3 border-t">
 														<p className="text-sm text-muted-foreground mb-2">Descrição:</p>
-														<p className="text-sm whitespace-pre-wrap">{notification.description}</p>
+														<p className="text-sm whitespace-pre-wrap">
+															{notification.description}
+														</p>
 													</div>
 												</div>
 											))}
@@ -1769,10 +1805,7 @@ export default function Fines() {
 					</div>
 
 					<div className="flex justify-end gap-2 pt-4">
-						<Button
-							variant="outline"
-							onClick={() => setIsApartmentDetailsDialogOpen(false)}
-						>
+						<Button variant="outline" onClick={() => setIsApartmentDetailsDialogOpen(false)}>
 							Fechar
 						</Button>
 						<Button
@@ -1821,20 +1854,23 @@ export default function Fines() {
 						<div className="space-y-6">
 							{/* Informações da Multa */}
 							<div className="p-4 bg-destructive/10 border border-destructive/20 rounded-lg">
-								<h3 className="font-semibold text-sm text-destructive mb-2">
-									Multa Contestada
-								</h3>
+								<h3 className="font-semibold text-sm text-destructive mb-2">Multa Contestada</h3>
 								<div className="grid grid-cols-2 gap-4">
 									<div>
 										<p className="text-xs text-muted-foreground">Valor</p>
 										<p className="text-xl font-bold text-destructive">
-											R$ {selectedInfractionForAppeal.value.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+											R${" "}
+											{selectedInfractionForAppeal.value.toLocaleString("pt-BR", {
+												minimumFractionDigits: 2,
+											})}
 										</p>
 									</div>
 									<div>
 										<p className="text-xs text-muted-foreground">Data da Ocorrência</p>
 										<p className="text-sm font-medium">
-											{new Date(selectedInfractionForAppeal.occurrenceDate).toLocaleDateString("pt-BR")}
+											{new Date(selectedInfractionForAppeal.occurrenceDate).toLocaleDateString(
+												"pt-BR",
+											)}
 										</p>
 									</div>
 								</div>
@@ -1870,9 +1906,7 @@ export default function Fines() {
 										<div className="flex items-center gap-3 flex-1 min-w-0">
 											<FileText className="w-5 h-5 text-muted-foreground flex-shrink-0" />
 											<div className="flex-1 min-w-0">
-												<p className="text-sm font-medium truncate">
-													{appealData.fileName}
-												</p>
+												<p className="text-sm font-medium truncate">{appealData.fileName}</p>
 												<p className="text-xs text-muted-foreground">
 													{(appealData.fileSize / 1024).toFixed(2)} KB
 												</p>

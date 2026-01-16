@@ -193,8 +193,7 @@ class PollsService {
 	 */
 	private getAuthToken(): string | null {
 		return (
-			localStorage.getItem("coliseu_access_token") ||
-			sessionStorage.getItem("coliseu_access_token")
+			localStorage.getItem("coliseu_access_token") || sessionStorage.getItem("coliseu_access_token")
 		);
 	}
 
@@ -226,7 +225,11 @@ class PollsService {
 	 */
 	async getPolls(params: GetPollsParams): Promise<ApiResponse<ActivePoll[]>> {
 		// Validate buildingId
-		if (!params.buildingId || typeof params.buildingId !== "string" || params.buildingId.trim() === "") {
+		if (
+			!params.buildingId ||
+			typeof params.buildingId !== "string" ||
+			params.buildingId.trim() === ""
+		) {
 			console.error("Invalid buildingId provided to getPolls:", params.buildingId);
 			throw new Error("buildingId é obrigatório e deve ser uma string válida");
 		}
@@ -278,9 +281,7 @@ class PollsService {
 	 * Get all active polls
 	 * GET /v1/polls/active (deprecated - use getPolls with status=["ATIVO", "PROGRAMADO"] instead)
 	 */
-	async getActivePolls(
-		params: GetActivePollsParams,
-	): Promise<ApiResponse<ActivePoll[]>> {
+	async getActivePolls(params: GetActivePollsParams): Promise<ApiResponse<ActivePoll[]>> {
 		// Use the new getPolls method with active statuses
 		return this.getPolls({
 			buildingId: params.buildingId,
@@ -311,12 +312,9 @@ class PollsService {
 		data: CancelPollRequest,
 	): Promise<ApiResponse<CancelPollResponse>> {
 		// DELETE with body
-		return apiClient.delete<CancelPollResponse>(
-			`${this.basePath}/${pollId}/cancel`,
-			{
-				body: JSON.stringify(data),
-			},
-		);
+		return apiClient.delete<CancelPollResponse>(`${this.basePath}/${pollId}/cancel`, {
+			body: JSON.stringify(data),
+		});
 	}
 
 	/**
@@ -326,10 +324,10 @@ class PollsService {
 	 */
 	async votePoll(data: VotePollRequest): Promise<ApiResponse<VotePollResponse>> {
 		this.ensureToken(true);
-		
+
 		// Remove residentId from data if present, as backend extracts it from token
 		const { residentId, ...voteData } = data;
-		
+
 		return apiClient.post<VotePollResponse>(`${this.basePath}/vote`, voteData);
 	}
 
@@ -340,7 +338,9 @@ class PollsService {
 	 */
 	async cancelVote(pollId: string): Promise<ApiResponse<{ success: boolean; message: string }>> {
 		this.ensureToken(true);
-		return apiClient.delete<{ success: boolean; message: string }>(`${this.basePath}/${pollId}/vote`);
+		return apiClient.delete<{ success: boolean; message: string }>(
+			`${this.basePath}/${pollId}/vote`,
+		);
 	}
 
 	/**
@@ -356,4 +356,3 @@ class PollsService {
 
 // Export singleton instance
 export const pollsService = new PollsService();
-

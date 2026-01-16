@@ -12,11 +12,7 @@ export const visitorSchema = z.object({
 		.regex(/^[\d\s\(\)\-]+$/, "Telefone inválido")
 		.optional()
 		.or(z.literal("")),
-	email: z
-		.string()
-		.email("Email inválido")
-		.optional()
-		.or(z.literal("")),
+	email: z.string().email("Email inválido").optional().or(z.literal("")),
 	vehicleType: z.string().optional().or(z.literal("")),
 	vehiclePlate: z
 		.string()
@@ -27,14 +23,22 @@ export const visitorSchema = z.object({
 	types: z
 		.array(z.enum(["convidado", "prestador_servico"]))
 		.min(1, "Selecione pelo menos um tipo de visitante"),
+	companyName: z.string().max(100, "Nome da empresa deve ter no máximo 100 caracteres").optional().or(z.literal("")),
 	photo: z.instanceof(File, { message: "Foto é obrigatória" }),
 	note: z.string().optional().or(z.literal("")),
+	// Campos opcionais para cadastrar primeira visita junto
+	visitApartmentId: z.string().optional().or(z.literal("")),
+	visitNote: z
+		.string()
+		.max(500, "Observação da visita deve ter no máximo 500 caracteres")
+		.optional()
+		.or(z.literal(""))
+		.transform((val) => (val === "" ? undefined : val)),
 });
 
 export type VisitorSchema = z.infer<typeof visitorSchema>;
 
-// Schema para edição (foto é opcional pois pode manter a original)
-export const visitorEditSchema = visitorSchema.omit({ photo: true });
+// Schema para edição (foto é opcional pois pode manter a original, e não inclui campos de visita)
+export const visitorEditSchema = visitorSchema.omit({ photo: true, visitApartmentId: true, visitNote: true });
 
 export type VisitorEditSchema = z.infer<typeof visitorEditSchema>;
-

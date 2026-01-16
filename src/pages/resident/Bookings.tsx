@@ -41,6 +41,7 @@ import {
 	AlertCircle,
 	Search,
 	QrCode,
+	RefreshCw,
 } from "lucide-react";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -52,28 +53,40 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import {
 	amenitiesService,
-	amenityBookingsService,
+	bookingsService,
 	type Amenity,
-	type AmenityBooking,
-	type CreateAmenityBookingRequest,
-	type GetAmenityBookingsParams,
+	type Booking,
+	type CreateBookingRequest,
+	type GetBookingsParams,
 } from "@/services/api";
 import { useAuth } from "@/hooks/use-auth";
 
-const bookingSchema = z.object({
-	amenityId: z.string().uuid("Selecione uma comodidade"),
-	date: z.string().min(1, "Data é obrigatória"),
-	endDate: z.string().min(1, "Data de término é obrigatória"),
-	numberOfResidents: z
-		.number()
-		.int("Deve ser um número inteiro")
-		.min(1, "Deve ser pelo menos 1")
-		.optional(),
-	observation: z.string().max(500, "Observação deve ter no máximo 500 caracteres").optional(),
-	acceptedTerms: z.boolean().refine((val) => val === true, {
-		message: "Você deve aceitar os termos de uso",
-	}),
-});
+const bookingSchema = z
+	.object({
+		amenityId: z.string().uuid("Selecione uma comodidade"),
+		date: z.string().min(1, "Data é obrigatória"),
+		endDate: z.string().optional(),
+		startTime: z.string().optional(),
+		endTime: z.string().optional(),
+		numberOfResidents: z
+			.number()
+			.int("Deve ser um número inteiro")
+			.min(1, "Deve ser pelo menos 1")
+			.optional(),
+		observation: z.string().max(500, "Observação deve ter no máximo 500 caracteres").optional(),
+		acceptedTerms: z.boolean().refine((val) => val === true, {
+			message: "Você deve aceitar os termos de uso",
+		}),
+	})
+	.refine(
+		(data) => {
+			// Validação será feita dinamicamente baseado no tipo de reserva
+			return true;
+		},
+		{
+			message: "Dados inválidos",
+		},
+	);
 
 type BookingFormData = z.infer<typeof bookingSchema>;
 
@@ -85,15 +98,13 @@ function BookingDetails({
 	setAmenityCache,
 	getStatusBadge,
 	onCancel,
-	onShowQRCode,
 }: {
-	booking: AmenityBooking;
+	booking: Booking;
 	amenities: Amenity[];
 	amenityCache: Map<string, Amenity>;
 	setAmenityCache: React.Dispatch<React.SetStateAction<Map<string, Amenity>>>;
 	getStatusBadge: (status: string) => React.ReactNode;
 	onCancel: (bookingId: string) => void;
-	onShowQRCode: (booking: AmenityBooking) => void;
 }) {
 	const [amenityName, setAmenityName] = useState<string>("Carregando...");
 	const [amenityData, setAmenityData] = useState<Amenity | null>(null);
@@ -109,19 +120,19 @@ function BookingDetails({
 
 			// Primeiro, tenta encontrar no array de amenities
 			let amenity = amenities.find((a) => a._id === booking.amenityId);
-			
+
 			// Se não encontrou, tenta no cache
 			if (!amenity) {
 				amenity = amenityCache.get(booking.amenityId);
 			}
-			
+
 			// Se encontrou, atualiza o nome e os dados
 			if (amenity) {
 				setAmenityName(amenity.name);
 				setAmenityData(amenity);
 				return;
 			}
-			
+
 			// Se ainda não encontrou, busca da API
 			try {
 				const fetchedAmenity = await amenitiesService.getAmenityById(booking.amenityId);
@@ -147,7 +158,7 @@ function BookingDetails({
 
 	const formatDateTime = (dateString: string): string => {
 		if (!dateString) return "-";
-		
+
 		try {
 			const date = new Date(dateString);
 			if (isNaN(date.getTime())) {
@@ -169,7 +180,7 @@ function BookingDetails({
 
 	const formatDate = (dateString: string): string => {
 		if (!dateString) return "-";
-		
+
 		try {
 			const date = new Date(dateString);
 			if (isNaN(date.getTime())) {
@@ -189,7 +200,7 @@ function BookingDetails({
 
 	const formatTime = (dateString: string): string => {
 		if (!dateString) return "-";
-		
+
 		try {
 			const date = new Date(dateString);
 			if (isNaN(date.getTime())) {
@@ -214,12 +225,26 @@ function BookingDetails({
 
 			<div>
 				<Label className="text-muted-foreground">Data de Início</Label>
-				<p className="font-medium">{formatDate(booking.startDate)}</p>
+				<p className="font-medium">
+					{formatDate(booking.startDate)}
+					{booking.startDate && new Date(booking.startDate).getHours() !== 0 && (
+						<span className="ml-2 text-sm text-muted-foreground">
+							({formatTime(booking.startDate)})
+						</span>
+					)}
+				</p>
 			</div>
 
 			<div>
 				<Label className="text-muted-foreground">Data de Término</Label>
-				<p className="font-medium">{formatDate(booking.endDate)}</p>
+				<p className="font-medium">
+					{formatDate(booking.endDate)}
+					{booking.endDate && new Date(booking.endDate).getHours() !== 23 && (
+						<span className="ml-2 text-sm text-muted-foreground">
+							({formatTime(booking.endDate)})
+						</span>
+					)}
+				</p>
 			</div>
 			{booking.numberOfDays && (
 				<div>
@@ -227,12 +252,21 @@ function BookingDetails({
 					<p className="font-medium">{booking.numberOfDays} dia(s)</p>
 				</div>
 			)}
+			{booking.startDate && booking.endDate && !booking.numberOfDays && (
+				<div>
+					<Label className="text-muted-foreground">Horário</Label>
+					<p className="font-medium">
+						{formatTime(booking.startDate)} - {formatTime(booking.endDate)}
+					</p>
+				</div>
+			)}
 
 			{booking.totalValue > 0 && (
 				<div>
 					<Label className="text-muted-foreground">Valor Total</Label>
 					<p className="font-medium">
-						R$ {booking.totalValue.toLocaleString("pt-BR", {
+						R${" "}
+						{booking.totalValue.toLocaleString("pt-BR", {
 							minimumFractionDigits: 2,
 							maximumFractionDigits: 2,
 						})}
@@ -242,9 +276,7 @@ function BookingDetails({
 
 			<div>
 				<Label className="text-muted-foreground">Status</Label>
-				<div className="mt-1">
-					{getStatusBadge(booking.status)}
-				</div>
+				<div className="mt-1">{getStatusBadge(booking.status)}</div>
 			</div>
 
 			{booking.observation && (
@@ -260,7 +292,8 @@ function BookingDetails({
 						<div className="pt-4 border-t">
 							<Label className="text-muted-foreground">Multa por Atraso</Label>
 							<p className="text-sm font-medium text-destructive mt-1">
-								R$ {amenityData.fineValue.toLocaleString("pt-BR", {
+								R${" "}
+								{amenityData.fineValue.toLocaleString("pt-BR", {
 									minimumFractionDigits: 2,
 									maximumFractionDigits: 2,
 								})}
@@ -272,7 +305,8 @@ function BookingDetails({
 						<div className="pt-4 border-t">
 							<Label className="text-muted-foreground">Multa por Descumprimento de Normas</Label>
 							<p className="text-sm font-medium text-destructive mt-1">
-								R$ {amenityData.nonComplianceFine.toLocaleString("pt-BR", {
+								R${" "}
+								{amenityData.nonComplianceFine.toLocaleString("pt-BR", {
 									minimumFractionDigits: 2,
 									maximumFractionDigits: 2,
 								})}
@@ -283,7 +317,7 @@ function BookingDetails({
 					{amenityData.usageRules && (
 						<div className="pt-4 border-t">
 							<Label className="text-muted-foreground">Normas de Uso</Label>
-							<div 
+							<div
 								className="text-sm mt-1 prose prose-sm max-w-none"
 								dangerouslySetInnerHTML={{ __html: amenityData.usageRules }}
 							/>
@@ -292,23 +326,22 @@ function BookingDetails({
 				</>
 			)}
 
-			{booking.qrCode && booking.totalValue > 0 && (
+			{booking.totalValue > 0 && booking.paymentUrl && booking.status === "PENDENTE" && (
 				<div className="pt-4 border-t">
 					<Button
-						variant="outline"
+						variant="default"
 						type="button"
-						onClick={() => onShowQRCode(booking)}
+						onClick={() => window.open(booking.paymentUrl!, '_blank')}
 						className="w-full"
 					>
 						<QrCode className="w-4 h-4 mr-2" />
-						Ver QR Code PIX
+						Pagar agora
 					</Button>
 				</div>
 			)}
 
 			<div className="flex gap-2 pt-4 border-t">
-				{booking.status !== "CANCELADO" && 
-				 booking.status !== "FINALIZADO" && (
+				{booking.status !== "CANCELADO" && booking.status !== "FINALIZADO" && (
 					<Button
 						variant="destructive"
 						type="button"
@@ -332,17 +365,16 @@ function BookingRow({
 	setAmenityCache,
 	onViewBooking,
 	getStatusBadge,
-	onShowQRCode,
 }: {
-	booking: AmenityBooking;
+	booking: Booking;
 	amenities: Amenity[];
 	amenityCache: Map<string, Amenity>;
 	setAmenityCache: React.Dispatch<React.SetStateAction<Map<string, Amenity>>>;
-	onViewBooking: (booking: AmenityBooking) => void;
+	onViewBooking: (booking: Booking) => void;
 	getStatusBadge: (status: string) => React.ReactNode;
-	onShowQRCode: (booking: AmenityBooking) => void;
 }) {
 	const [amenityName, setAmenityName] = useState<string>("Carregando...");
+	const [amenityData, setAmenityData] = useState<Amenity | null>(null);
 
 	useEffect(() => {
 		const loadAmenityName = async () => {
@@ -354,31 +386,35 @@ function BookingRow({
 
 			// Primeiro, tenta encontrar no array de amenities
 			let amenity = amenities.find((a) => a._id === booking.amenityId);
-			
+
 			// Se não encontrou, tenta no cache
 			if (!amenity) {
 				amenity = amenityCache.get(booking.amenityId);
 			}
-			
+
 			// Se encontrou, atualiza o nome
 			if (amenity) {
 				setAmenityName(amenity.name);
+				setAmenityData(amenity);
 				return;
 			}
-			
+
 			// Se ainda não encontrou, busca da API
 			try {
 				const fetchedAmenity = await amenitiesService.getAmenityById(booking.amenityId);
 				if (fetchedAmenity) {
 					setAmenityName(fetchedAmenity.name);
+					setAmenityData(fetchedAmenity);
 					// Adiciona ao cache
 					setAmenityCache((prev) => new Map(prev).set(booking.amenityId, fetchedAmenity));
 				} else {
 					setAmenityName("Comodidade não encontrada");
+					setAmenityData(null);
 				}
 			} catch (error) {
 				console.error("Erro ao buscar comodidade:", error);
 				setAmenityName("Comodidade não encontrada");
+				setAmenityData(null);
 			}
 		};
 
@@ -387,7 +423,7 @@ function BookingRow({
 
 	const formatDate = (dateString: string): string => {
 		if (!dateString) return "-";
-		
+
 		try {
 			// Se já está no formato YYYY-MM-DD, converte diretamente
 			if (dateString.match(/^\d{4}-\d{2}-\d{2}$/)) {
@@ -397,7 +433,7 @@ function BookingRow({
 				}
 				return date.toLocaleDateString("pt-BR");
 			}
-			
+
 			// Tenta converter como Date ISO
 			const date = new Date(dateString);
 			if (isNaN(date.getTime())) {
@@ -412,7 +448,7 @@ function BookingRow({
 
 	const formatTime = (dateString: string): string => {
 		if (!dateString) return "-";
-		
+
 		try {
 			const date = new Date(dateString);
 			if (isNaN(date.getTime())) {
@@ -433,20 +469,45 @@ function BookingRow({
 			className="cursor-pointer"
 			onClick={(e) => {
 				// Não abrir modal se clicar em um botão
-				if ((e.target as HTMLElement).closest('button')) {
+				if ((e.target as HTMLElement).closest("button")) {
 					return;
 				}
 				onViewBooking(booking);
 			}}
 		>
-			<TableCell className="font-medium">
-				{amenityName}
-			</TableCell>
+			<TableCell className="font-medium">{amenityName}</TableCell>
 			<TableCell>
 				{formatDate(booking.startDate)}
+				{amenityData?.bookingType === "POR_HORAS" && booking.startDate && (
+					<span className="ml-2 text-sm text-muted-foreground">
+						({formatTime(booking.startDate)})
+					</span>
+				)}
 			</TableCell>
 			<TableCell>
-				{booking.endDate ? formatDate(booking.endDate) : "-"}
+				{booking.endDate ? (
+					<>
+						{formatDate(booking.endDate)}
+						{amenityData?.bookingType === "POR_HORAS" && (
+							<span className="ml-2 text-sm text-muted-foreground">
+								({formatTime(booking.endDate)})
+							</span>
+						)}
+					</>
+				) : (
+					"-"
+				)}
+			</TableCell>
+			<TableCell>
+				{amenityData?.bookingType && (
+					<Badge variant="outline" className="text-xs mr-2">
+						{amenityData.bookingType === "POR_HORAS"
+							? "Por Horas"
+							: amenityData.bookingType === "DIARIO"
+								? "Diária"
+								: amenityData.bookingType}
+					</Badge>
+				)}
 			</TableCell>
 			<TableCell>
 				{booking.totalValue > 0
@@ -459,19 +520,21 @@ function BookingRow({
 			<TableCell>{getStatusBadge(booking.status)}</TableCell>
 			<TableCell onClick={(e) => e.stopPropagation()}>
 				<div className="flex gap-2">
-					{booking.qrCode && booking.totalValue > 0 && (
+					{/* Botão Pagar - aparece quando tem paymentUrl e status PENDENTE */}
+					{booking.totalValue > 0 && booking.paymentUrl && booking.status === "PENDENTE" && (
 						<Button
 							size="sm"
-							variant="outline"
+							variant="default"
 							type="button"
+							className="bg-primary text-primary-foreground"
 							onClick={(e) => {
 								e.preventDefault();
 								e.stopPropagation();
-								onShowQRCode(booking);
+								window.open(booking.paymentUrl!, '_blank');
 							}}
 						>
 							<QrCode className="w-4 h-4 mr-1" />
-							QR Code
+							Pagar
 						</Button>
 					)}
 					<Button
@@ -496,27 +559,30 @@ export default function Bookings() {
 	const { user } = useAuth();
 	const [isLoading, setIsLoading] = useState(true);
 	const [amenities, setAmenities] = useState<Amenity[]>([]);
-	const [bookings, setBookings] = useState<AmenityBooking[]>([]);
+	const [bookings, setBookings] = useState<Booking[]>([]);
 	const [selectedAmenity, setSelectedAmenity] = useState<Amenity | null>(null);
 	const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
 	const [isBookingDialogOpen, setIsBookingDialogOpen] = useState(false);
 	const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
-	const [viewingBooking, setViewingBooking] = useState<AmenityBooking | null>(null);
+	const [viewingBooking, setViewingBooking] = useState<Booking | null>(null);
 	const [activeTab, setActiveTab] = useState("amenities");
 	const [amenityCache, setAmenityCache] = useState<Map<string, Amenity>>(new Map());
-	const [createdBooking, setCreatedBooking] = useState<AmenityBooking | null>(null);
-	const [isQRDialogOpen, setIsQRDialogOpen] = useState(false);
-	const [qrBookingToShow, setQrBookingToShow] = useState<AmenityBooking | null>(null);
+	const [createdBooking, setCreatedBooking] = useState<Booking | null>(null);
 	const [isAmenityDetailsDialogOpen, setIsAmenityDetailsDialogOpen] = useState(false);
 	const [amenityToView, setAmenityToView] = useState<Amenity | null>(null);
 	const [bookingStep, setBookingStep] = useState(1); // 1: Data, 2: Confirmar, 3: Instruções
 	const [acceptedTerms, setAcceptedTerms] = useState(false);
+	const [startTime, setStartTime] = useState<string>("");
+	const [endTime, setEndTime] = useState<string>("");
 
 	const bookingForm = useForm<BookingFormData>({
 		resolver: zodResolver(bookingSchema),
 		defaultValues: {
 			amenityId: "",
 			date: "",
+			endDate: "",
+			startTime: "",
+			endTime: "",
 			numberOfResidents: 1,
 			observation: "",
 			acceptedTerms: false,
@@ -541,22 +607,31 @@ export default function Bookings() {
 			console.error("Erro ao carregar comodidades:", error);
 			toast.error(error.message || "Erro ao carregar comodidades");
 		}
-	}, [user?.buildingId]);
+	}, []);
 
 	const loadBookings = useCallback(async () => {
 		try {
 			// Buscar TODAS as reservas do apartmentId do resident logado
-			const params: GetAmenityBookingsParams = {
+			const params: GetBookingsParams = {
 				page: 1,
 				limit: 100,
 			};
 
-			const response = await amenityBookingsService.getBookings(params);
+			const response = await bookingsService.getBookings(params);
+			console.log("📦 Resposta da API bookings:", response);
 
 			if (response.success && response.data) {
 				// A API retorna { bookings: [], total: number, page: number, limit: number }
 				// Retornar TODAS as reservas (sem filtrar por status)
 				const allBookings = response.data.bookings || [];
+				
+				// Log para verificar se paymentUrl está nos dados
+				console.log("📋 Bookings recebidos:", allBookings.map(b => ({
+					_id: b._id,
+					totalValue: b.totalValue,
+					paymentUrl: b.paymentUrl,
+					status: b.status,
+				})));
 
 				// Ordenar por data (mais recentes primeiro)
 				const sortedBookings = allBookings.sort((a, b) => {
@@ -594,7 +669,7 @@ export default function Bookings() {
 			toast.error("Áreas comuns não permitem reserva");
 			return;
 		}
-		
+
 		if (!amenity.bookingType) {
 			toast.error("Esta comodidade não permite reserva");
 			return;
@@ -605,9 +680,14 @@ export default function Bookings() {
 		setBookingStep(1);
 		setAcceptedTerms(false);
 		setSelectedDate(undefined);
+		setStartTime("");
+		setEndTime("");
 		bookingForm.reset({
 			amenityId: amenity._id,
 			date: "",
+			endDate: "",
+			startTime: "",
+			endTime: "",
 			numberOfResidents: 1,
 			observation: "",
 			acceptedTerms: false,
@@ -622,7 +702,6 @@ export default function Bookings() {
 		}
 	};
 
-
 	const handleBookingSubmit = async (data: BookingFormData) => {
 		try {
 			if (!selectedDate) {
@@ -631,22 +710,92 @@ export default function Bookings() {
 				return;
 			}
 
-			// DIARIO - endDate é obrigatório
-			if (!data.endDate) {
-				toast.error("Data de término é obrigatória");
-				bookingForm.setError("endDate", { message: "Data de término é obrigatória" });
+			if (!selectedAmenity) {
+				toast.error("Comodidade não selecionada");
 				return;
 			}
 
-			// Preparar dados para reserva DIARIO
-			const bookingData: CreateAmenityBookingRequest = {
-				amenityId: data.amenityId,
-				startDate: selectedDate.toISOString(),
-				endDate: new Date(data.endDate).toISOString(),
-				observation: data.observation || undefined,
-			};
+			const bookingType = selectedAmenity.bookingType;
+			let bookingData: CreateBookingRequest;
 
-			const response = await amenityBookingsService.createBooking(bookingData);
+			if (bookingType === "DIARIO") {
+				// Para DIARIO: startDate e endDate são o mesmo dia
+				const dateStr = format(selectedDate, "yyyy-MM-dd");
+				const startDate = new Date(`${dateStr}T00:00:00`);
+				const endDate = new Date(`${dateStr}T23:59:59`);
+
+				bookingData = {
+					amenityId: data.amenityId,
+					startDate: startDate.toISOString(),
+					endDate: endDate.toISOString(),
+					observation: data.observation || undefined,
+				};
+			} else if (bookingType === "POR_HORAS") {
+				// Para POR_HORAS: validar horas
+				if (!startTime || !endTime) {
+					toast.error("Hora de início e fim são obrigatórias");
+					return;
+				}
+
+				// Validar que horas sejam inteiras (00 minutos)
+				const startTimeMatch = startTime.match(/^(\d{2}):(\d{2})$/);
+				const endTimeMatch = endTime.match(/^(\d{2}):(\d{2})$/);
+
+				if (!startTimeMatch || !endTimeMatch) {
+					toast.error("Formato de hora inválido");
+					return;
+				}
+
+				if (startTimeMatch[2] !== "00" || endTimeMatch[2] !== "00") {
+					toast.error("As horas devem ser inteiras (ex: 14:00, não 14:30)");
+					return;
+				}
+
+				// Validar que hora fim seja maior que hora início
+				const startHour = parseInt(startTimeMatch[1]);
+				const endHour = parseInt(endTimeMatch[1]);
+
+				if (endHour <= startHour) {
+					toast.error("Hora de término deve ser maior que hora de início");
+					return;
+				}
+
+				// Validar que não ultrapasse maxHours
+				const hoursDiff = endHour - startHour;
+				if (selectedAmenity.maxHours && hoursDiff > selectedAmenity.maxHours) {
+					toast.error(
+						`O limite máximo de horas para esta comodidade é ${selectedAmenity.maxHours} hora(s)`,
+					);
+					return;
+				}
+
+				// Validar que não seja no passado (se for hoje)
+				const today = new Date();
+				const isToday = format(selectedDate, "yyyy-MM-dd") === format(today, "yyyy-MM-dd");
+				if (isToday) {
+					const currentHour = today.getHours();
+					if (startHour < currentHour) {
+						toast.error("Não é possível reservar para um horário que já passou");
+						return;
+					}
+				}
+
+				const dateStr = format(selectedDate, "yyyy-MM-dd");
+				const startDate = new Date(`${dateStr}T${startTime}:00`);
+				const endDate = new Date(`${dateStr}T${endTime}:00`);
+
+				bookingData = {
+					amenityId: data.amenityId,
+					startDate: startDate.toISOString(),
+					endDate: endDate.toISOString(),
+					observation: data.observation || undefined,
+				};
+			} else {
+				toast.error("Tipo de reserva não suportado");
+				return;
+			}
+
+			const response = await bookingsService.createBooking(bookingData);
 
 			if (response.success && response.data) {
 				toast.success("Reserva criada com sucesso!");
@@ -654,6 +803,8 @@ export default function Bookings() {
 				setIsBookingDialogOpen(false);
 				setBookingStep(1);
 				setAcceptedTerms(false);
+				setStartTime("");
+				setEndTime("");
 				bookingForm.reset();
 				setSelectedDate(undefined);
 
@@ -661,11 +812,11 @@ export default function Bookings() {
 				setActiveTab("bookings");
 				await loadBookings();
 
-				// Se tem QR code (comodidade paga), mostrar dialog automaticamente
-				if (response.data.qrCode && response.data.totalValue > 0) {
+				// Se tem valor e tem paymentUrl na resposta, abrir URL diretamente
+				if (response.data.totalValue > 0 && response.data.paymentUrl) {
 					setTimeout(() => {
-						setQrBookingToShow(response.data);
-						setIsQRDialogOpen(true);
+						// Abrir URL diretamente em nova aba
+						window.open(response.data.paymentUrl, '_blank');
 					}, 300);
 				}
 			} else {
@@ -677,14 +828,14 @@ export default function Bookings() {
 		}
 	};
 
-	const handleViewBooking = (booking: AmenityBooking) => {
+	const handleViewBooking = (booking: Booking) => {
 		setViewingBooking(booking);
 		setIsViewDialogOpen(true);
 	};
 
 	const handleCancelBooking = async (bookingId: string) => {
 		try {
-			const response = await amenityBookingsService.cancelBooking(bookingId);
+			const response = await bookingsService.cancelBooking(bookingId);
 
 			if (response.success) {
 				toast.success("Reserva cancelada com sucesso!");
@@ -700,11 +851,11 @@ export default function Bookings() {
 
 	const getStatusBadge = (status: string) => {
 		switch (status) {
-			case "CONFIRMADO":
+			case "AGENDADO":
 				return (
 					<Badge variant="default" className="bg-green-500">
 						<CheckCircle className="w-3 h-3 mr-1" />
-						Confirmado
+						Agendado
 					</Badge>
 				);
 			case "PENDENTE":
@@ -729,18 +880,18 @@ export default function Bookings() {
 	const getAmenityName = (amenityId: string): string => {
 		// Primeiro, tenta encontrar no array de amenities
 		let amenity = amenities.find((a) => a._id === amenityId);
-		
+
 		// Se não encontrou, tenta no cache
 		if (!amenity) {
 			amenity = amenityCache.get(amenityId);
 		}
-		
+
 		return amenity?.name || "Comodidade não encontrada";
 	};
 
 	const formatDate = (dateString: string): string => {
 		if (!dateString) return "-";
-		
+
 		try {
 			// Se já está no formato YYYY-MM-DD, converte diretamente
 			if (dateString.match(/^\d{4}-\d{2}-\d{2}$/)) {
@@ -750,7 +901,7 @@ export default function Bookings() {
 				}
 				return date.toLocaleDateString("pt-BR");
 			}
-			
+
 			// Tenta converter como Date ISO
 			const date = new Date(dateString);
 			if (isNaN(date.getTime())) {
@@ -762,7 +913,6 @@ export default function Bookings() {
 			return "-";
 		}
 	};
-
 
 	if (isLoading) {
 		return (
@@ -783,9 +933,7 @@ export default function Bookings() {
 		<div className="space-y-6">
 			<div>
 				<h1 className="text-3xl font-bold">Reservas</h1>
-				<p className="text-muted-foreground">
-					Reserve comodidades do condomínio
-				</p>
+				<p className="text-muted-foreground">Reserve comodidades do condomínio</p>
 			</div>
 
 			<Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
@@ -798,23 +946,21 @@ export default function Bookings() {
 					{amenities.length === 0 ? (
 						<Card>
 							<CardContent className="flex items-center justify-center h-32">
-								<p className="text-muted-foreground">
-									Nenhuma comodidade disponível para reserva
-								</p>
+								<p className="text-muted-foreground">Nenhuma comodidade disponível para reserva</p>
 							</CardContent>
 						</Card>
 					) : (
 						<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
 							{amenities.map((amenity) => {
-								// AREA_COMUM não permite reserva, apenas COMODIDADE com bookingType DIARIO pode reservar
-								const canBook = amenity.type === "COMODIDADE" && amenity.bookingType === "DIARIO";
+								// AREA_COMUM não permite reserva, apenas COMODIDADE com bookingType DIARIO ou POR_HORAS pode reservar
+								const canBook =
+									amenity.type === "COMODIDADE" &&
+									(amenity.bookingType === "DIARIO" || amenity.bookingType === "POR_HORAS");
 								return (
 									<Card
 										key={amenity._id}
 										className={`transition-all h-full flex flex-col ${
-											canBook
-												? "hover:shadow-lg hover:border-primary"
-												: ""
+											canBook ? "hover:shadow-lg hover:border-primary" : ""
 										}`}
 									>
 										<CardHeader className="pb-3">
@@ -832,7 +978,11 @@ export default function Bookings() {
 												)}
 												{amenity.bookingType && (
 													<Badge variant="outline" className="text-xs">
-														Reserva Diária
+														{amenity.bookingType === "POR_HORAS"
+															? "Por Horas"
+															: amenity.bookingType === "DIARIO"
+																? "Reserva Diária"
+																: amenity.bookingType}
 													</Badge>
 												)}
 											</div>
@@ -847,11 +997,14 @@ export default function Bookings() {
 												<div className="pt-2 border-t">
 													<p className="text-xs text-muted-foreground mb-1">Valor</p>
 													<p className="text-lg font-bold text-primary">
-														R$ {amenity.value.toLocaleString("pt-BR", {
+														R${" "}
+														{amenity.value.toLocaleString("pt-BR", {
 															minimumFractionDigits: 2,
 															maximumFractionDigits: 2,
 														})}
-														<span className="text-sm font-normal text-muted-foreground">/dia</span>
+														<span className="text-sm font-normal text-muted-foreground">
+															{amenity.bookingType === "POR_HORAS" ? "/hora" : "/dia"}
+														</span>
 													</p>
 												</div>
 											) : (
@@ -862,7 +1015,10 @@ export default function Bookings() {
 											)}
 
 											{/* Botões de Ação */}
-											<div className="flex gap-2 pt-3 border-t mt-auto" onClick={(e) => e.stopPropagation()}>
+											<div
+												className="flex gap-2 pt-3 border-t mt-auto"
+												onClick={(e) => e.stopPropagation()}
+											>
 												{canBook && (
 													<Button
 														type="button"
@@ -900,12 +1056,27 @@ export default function Bookings() {
 				</TabsContent>
 
 				<TabsContent value="bookings" className="space-y-6">
+					<div className="flex items-center justify-between">
+						<h2 className="text-2xl font-bold">Minhas Reservas</h2>
+						<Button
+							type="button"
+							variant="outline"
+							onClick={async () => {
+								setIsLoading(true);
+								await loadBookings();
+								setIsLoading(false);
+								toast.success("Reservas atualizadas");
+							}}
+							disabled={isLoading}
+						>
+							<RefreshCw className={`w-4 h-4 mr-2 ${isLoading ? "animate-spin" : ""}`} />
+							Atualizar
+						</Button>
+					</div>
 					{!bookings || bookings.length === 0 ? (
 						<Card>
 							<CardContent className="flex items-center justify-center h-32">
-								<p className="text-muted-foreground">
-									Nenhuma reserva encontrada
-								</p>
+								<p className="text-muted-foreground">Nenhuma reserva encontrada</p>
 							</CardContent>
 						</Card>
 					) : (
@@ -913,12 +1084,13 @@ export default function Bookings() {
 							<Table>
 								<TableHeader>
 									<TableRow>
-									<TableHead>Comodidade</TableHead>
-									<TableHead>Data Início</TableHead>
-									<TableHead>Data Fim</TableHead>
-									<TableHead>Valor</TableHead>
-									<TableHead>Status</TableHead>
-									<TableHead>Ações</TableHead>
+										<TableHead>Comodidade</TableHead>
+										<TableHead>Data Início</TableHead>
+										<TableHead>Data Fim</TableHead>
+										<TableHead>Tipo</TableHead>
+										<TableHead>Valor</TableHead>
+										<TableHead>Status</TableHead>
+										<TableHead>Ações</TableHead>
 									</TableRow>
 								</TableHeader>
 								<TableBody>
@@ -931,10 +1103,6 @@ export default function Bookings() {
 											setAmenityCache={setAmenityCache}
 											onViewBooking={handleViewBooking}
 											getStatusBadge={getStatusBadge}
-											onShowQRCode={(booking) => {
-												setQrBookingToShow(booking);
-												setIsQRDialogOpen(true);
-											}}
 										/>
 									))}
 								</TableBody>
@@ -953,6 +1121,8 @@ export default function Bookings() {
 						bookingForm.reset();
 						setSelectedAmenity(null);
 						setSelectedDate(undefined);
+						setStartTime("");
+						setEndTime("");
 						setBookingStep(1);
 						setAcceptedTerms(false);
 					}
@@ -960,20 +1130,20 @@ export default function Bookings() {
 			>
 				<DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
 					<DialogHeader>
-						<DialogTitle>
-							Agendar {selectedAmenity?.name || "Comodidade"}
-						</DialogTitle>
+						<DialogTitle>Agendar {selectedAmenity?.name || "Comodidade"}</DialogTitle>
 						<DialogDescription>
 							{bookingStep === 1 && "Escolha o dia da reserva"}
-							{bookingStep === 2 && "Escolha o horário da reserva"}
-							{bookingStep === 3 && "Confirme os dados da reserva"}
-							{bookingStep === 4 && "Leia as instruções de uso"}
+							{bookingStep === 2 &&
+								(selectedAmenity?.bookingType === "POR_HORAS"
+									? "Escolha o horário da reserva"
+									: "Confirme os dados da reserva")}
+							{bookingStep === 3 && "Leia as instruções de uso"}
 						</DialogDescription>
 					</DialogHeader>
 
 					{/* Stepper */}
 					<div className="flex items-center justify-between mb-6">
-						{[1, 2, 3, 4].map((step) => (
+						{[1, 2, 3].map((step) => (
 							<React.Fragment key={step}>
 								<div className="flex items-center">
 									<div
@@ -985,11 +1155,9 @@ export default function Bookings() {
 									>
 										{step}
 									</div>
-									{step < 4 && (
+									{step < 3 && (
 										<div
-											className={`w-16 h-1 mx-2 ${
-												bookingStep > step ? "bg-primary" : "bg-muted"
-											}`}
+											className={`w-16 h-1 mx-2 ${bookingStep > step ? "bg-primary" : "bg-muted"}`}
 										/>
 									)}
 								</div>
@@ -997,10 +1165,7 @@ export default function Bookings() {
 						))}
 					</div>
 
-					<form
-						onSubmit={bookingForm.handleSubmit(handleBookingSubmit)}
-						className="space-y-4"
-					>
+					<form onSubmit={bookingForm.handleSubmit(handleBookingSubmit)} className="space-y-4">
 						{/* Etapa 1: Escolher Dia */}
 						{bookingStep === 1 && (
 							<div className="space-y-4">
@@ -1031,15 +1196,18 @@ export default function Bookings() {
 														bookingForm.setValue("date", format(date, "yyyy-MM-dd"));
 													}
 												}}
-												disabled={(date) => date < new Date()}
+												disabled={(date) => {
+													const today = new Date();
+													today.setHours(0, 0, 0, 0);
+													const dateToCheck = new Date(date);
+													dateToCheck.setHours(0, 0, 0, 0);
+													return dateToCheck < today;
+												}}
 												initialFocus
 											/>
 										</PopoverContent>
 									</Popover>
-									<input
-										type="hidden"
-										{...bookingForm.register("date")}
-									/>
+									<input type="hidden" {...bookingForm.register("date")} />
 									{bookingForm.formState.errors.date && (
 										<p className="text-sm text-destructive">
 											{bookingForm.formState.errors.date.message}
@@ -1063,76 +1231,196 @@ export default function Bookings() {
 							</div>
 						)}
 
-						{/* Etapa 2: Confirmar */}
+						{/* Etapa 2: Horário (POR_HORAS) ou Confirmar (DIARIO) */}
 						{bookingStep === 2 && (
 							<div className="space-y-4">
-								<div className="space-y-3 p-4 border rounded-md">
-									<div>
-										<Label className="text-muted-foreground">Comodidade</Label>
-										<p className="font-medium">{selectedAmenity?.name}</p>
-									</div>
-									<div>
-										<Label className="text-muted-foreground">Data de Início</Label>
-										<p className="font-medium">
-											{selectedDate ? format(selectedDate, "PPP", { locale: ptBR }) : "-"}
-										</p>
-									</div>
-									<div className="space-y-2">
-										<Label htmlFor="endDate">Data de Término</Label>
-										<Input
-											id="endDate"
-											type="date"
-											min={selectedDate ? format(selectedDate, "yyyy-MM-dd") : undefined}
-											required
-											{...bookingForm.register("endDate")}
-										/>
-										{bookingForm.formState.errors.endDate && (
-											<p className="text-sm text-destructive">
-												{bookingForm.formState.errors.endDate.message}
-											</p>
-										)}
-									</div>
-									<div className="space-y-2">
-										<Label htmlFor="observation">Observação (opcional)</Label>
-										<Textarea
-											id="observation"
-											placeholder="Adicione uma observação sobre sua reserva..."
-											{...bookingForm.register("observation")}
-											rows={3}
-										/>
-									</div>
-								</div>
-								<div className="flex justify-between">
-									<Button
-										type="button"
-										variant="outline"
-										onClick={() => setBookingStep(1)}
-									>
-										Voltar
-									</Button>
-									<Button
-										type="button"
-										onClick={() => {
-											// Validar endDate
-											const endDate = bookingForm.watch("endDate");
-											if (!endDate) {
-												toast.error("Data de término é obrigatória");
-												bookingForm.setError("endDate", { message: "Data de término é obrigatória" });
-												return;
-											}
-											
-											if (selectedAmenity?.usageRules) {
-												setBookingStep(3);
-											} else {
-												// Se não tem usageRules, criar direto
-												bookingForm.setValue("acceptedTerms", true);
-												bookingForm.handleSubmit(handleBookingSubmit)();
-											}
-										}}
-									>
-										Próximo
-									</Button>
-								</div>
+								{selectedAmenity?.bookingType === "POR_HORAS" ? (
+									<>
+										<div className="space-y-3 p-4 border rounded-md">
+											<div>
+												<Label className="text-muted-foreground">Comodidade</Label>
+												<p className="font-medium">{selectedAmenity?.name}</p>
+											</div>
+											<div>
+												<Label className="text-muted-foreground">Data</Label>
+												<p className="font-medium">
+													{selectedDate ? format(selectedDate, "PPP", { locale: ptBR }) : "-"}
+												</p>
+											</div>
+											<div className="grid grid-cols-2 gap-4">
+												<div className="space-y-2">
+													<Label htmlFor="startTime">Hora de Início *</Label>
+													<Select
+														value={startTime}
+														onValueChange={(value) => {
+															setStartTime(value);
+															bookingForm.setValue("startTime", value);
+															// Resetar endTime se for menor que startTime
+															if (endTime && value >= endTime) {
+																setEndTime("");
+																bookingForm.setValue("endTime", "");
+															}
+														}}
+													>
+														<SelectTrigger>
+															<SelectValue placeholder="Selecione a hora" />
+														</SelectTrigger>
+														<SelectContent className="max-h-[200px]">
+															{Array.from({ length: 24 }, (_, i) => {
+																const hour = i.toString().padStart(2, "0");
+																const timeValue = `${hour}:00`;
+																const isToday = selectedDate
+																	? format(selectedDate, "yyyy-MM-dd") ===
+																	  format(new Date(), "yyyy-MM-dd")
+																	: false;
+																const currentHour = new Date().getHours();
+																const isPast = isToday && i < currentHour;
+																return (
+																	<SelectItem
+																		key={timeValue}
+																		value={timeValue}
+																		disabled={isPast}
+																		className={isPast ? "text-muted-foreground opacity-50" : ""}
+																	>
+																		{timeValue}
+																	</SelectItem>
+																);
+															})}
+														</SelectContent>
+													</Select>
+													{bookingForm.formState.errors.startTime && (
+														<p className="text-sm text-destructive">
+															{bookingForm.formState.errors.startTime.message}
+														</p>
+													)}
+												</div>
+												<div className="space-y-2">
+													<Label htmlFor="endTime">Hora de Término *</Label>
+													<Select
+														value={endTime}
+														onValueChange={(value) => {
+															setEndTime(value);
+															bookingForm.setValue("endTime", value);
+														}}
+														disabled={!startTime}
+													>
+														<SelectTrigger>
+															<SelectValue placeholder="Selecione a hora" />
+														</SelectTrigger>
+														<SelectContent className="max-h-[200px]">
+															{Array.from({ length: 24 }, (_, i) => {
+																const hour = i.toString().padStart(2, "0");
+																const timeValue = `${hour}:00`;
+																if (!startTime) return null;
+																const startHour = parseInt(startTime.split(":")[0]);
+																const endHour = i;
+																const maxHours = selectedAmenity?.maxHours || 24;
+																const hoursDiff = endHour - startHour;
+																const isValid =
+																	endHour > startHour && hoursDiff <= maxHours;
+																return (
+																	<SelectItem
+																		key={timeValue}
+																		value={timeValue}
+																		disabled={!isValid}
+																		className={!isValid ? "text-muted-foreground opacity-50" : ""}
+																	>
+																		{timeValue}
+																		{hoursDiff > maxHours && ` (limite: ${maxHours}h)`}
+																	</SelectItem>
+																);
+															})}
+														</SelectContent>
+													</Select>
+													{bookingForm.formState.errors.endTime && (
+														<p className="text-sm text-destructive">
+															{bookingForm.formState.errors.endTime.message}
+														</p>
+													)}
+													{selectedAmenity?.maxHours && (
+														<p className="text-xs text-muted-foreground">
+															Limite máximo: {selectedAmenity.maxHours} hora(s)
+														</p>
+													)}
+												</div>
+											</div>
+											<div className="space-y-2">
+												<Label htmlFor="observation">Observação (opcional)</Label>
+												<Textarea
+													id="observation"
+													placeholder="Adicione uma observação sobre sua reserva..."
+													{...bookingForm.register("observation")}
+													rows={3}
+												/>
+											</div>
+										</div>
+										<div className="flex justify-between">
+											<Button type="button" variant="outline" onClick={() => setBookingStep(1)}>
+												Voltar
+											</Button>
+											<Button
+												type="button"
+												onClick={() => {
+													if (!startTime || !endTime) {
+														toast.error("Selecione a hora de início e fim");
+														return;
+													}
+
+													if (selectedAmenity?.usageRules) {
+														setBookingStep(3);
+													} else {
+														bookingForm.setValue("acceptedTerms", true);
+														bookingForm.handleSubmit(handleBookingSubmit)();
+													}
+												}}
+											>
+												Próximo
+											</Button>
+										</div>
+									</>
+								) : (
+									<>
+										<div className="space-y-3 p-4 border rounded-md">
+											<div>
+												<Label className="text-muted-foreground">Comodidade</Label>
+												<p className="font-medium">{selectedAmenity?.name}</p>
+											</div>
+											<div>
+												<Label className="text-muted-foreground">Data</Label>
+												<p className="font-medium">
+													{selectedDate ? format(selectedDate, "PPP", { locale: ptBR }) : "-"}
+												</p>
+											</div>
+											<div className="space-y-2">
+												<Label htmlFor="observation">Observação (opcional)</Label>
+												<Textarea
+													id="observation"
+													placeholder="Adicione uma observação sobre sua reserva..."
+													{...bookingForm.register("observation")}
+													rows={3}
+												/>
+											</div>
+										</div>
+										<div className="flex justify-between">
+											<Button type="button" variant="outline" onClick={() => setBookingStep(1)}>
+												Voltar
+											</Button>
+											<Button
+												type="button"
+												onClick={() => {
+													if (selectedAmenity?.usageRules) {
+														setBookingStep(3);
+													} else {
+														bookingForm.setValue("acceptedTerms", true);
+														bookingForm.handleSubmit(handleBookingSubmit)();
+													}
+												}}
+											>
+												Próximo
+											</Button>
+										</div>
+									</>
+								)}
 							</div>
 						)}
 
@@ -1162,10 +1450,7 @@ export default function Bookings() {
 											bookingForm.setValue("acceptedTerms", isChecked);
 										}}
 									/>
-									<Label
-										htmlFor="acceptedTerms"
-										className="text-sm font-normal cursor-pointer"
-									>
+									<Label htmlFor="acceptedTerms" className="text-sm font-normal cursor-pointer">
 										Li e concordo com as instruções de uso
 									</Label>
 								</div>
@@ -1175,20 +1460,14 @@ export default function Bookings() {
 									</p>
 								)}
 								<div className="flex justify-between">
-									<Button
-										type="button"
-										variant="outline"
-										onClick={() => setBookingStep(3)}
-									>
+									<Button type="button" variant="outline" onClick={() => setBookingStep(3)}>
 										Voltar
 									</Button>
 									<Button
 										type="submit"
 										disabled={!acceptedTerms || bookingForm.formState.isSubmitting}
 									>
-										{bookingForm.formState.isSubmitting
-											? "Criando..."
-											: "Confirmar Reserva"}
+										{bookingForm.formState.isSubmitting ? "Criando..." : "Confirmar Reserva"}
 									</Button>
 								</div>
 							</div>
@@ -1220,116 +1499,11 @@ export default function Bookings() {
 							setAmenityCache={setAmenityCache}
 							getStatusBadge={getStatusBadge}
 							onCancel={handleCancelBooking}
-							onShowQRCode={(booking) => {
-								setQrBookingToShow(booking);
-								setIsViewDialogOpen(false);
-								setIsQRDialogOpen(true);
-							}}
 						/>
 					)}
 				</DialogContent>
 			</Dialog>
 
-			{/* Dialog de QR Code PIX */}
-			<Dialog 
-				open={isQRDialogOpen} 
-				onOpenChange={(open) => {
-					setIsQRDialogOpen(open);
-					if (!open) {
-						setQrBookingToShow(null);
-					}
-				}}
-			>
-				<DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
-					<DialogHeader className="flex-shrink-0">
-						<DialogTitle className="flex items-center gap-2">
-							<QrCode className="w-5 h-5" />
-							Pagamento via PIX
-						</DialogTitle>
-						<DialogDescription>
-							Escaneie o QR code com o aplicativo do seu banco para realizar o pagamento
-						</DialogDescription>
-					</DialogHeader>
-					{qrBookingToShow?.qrCode ? (
-						<div className="space-y-4">
-							{/* QR Code */}
-							<div className="flex flex-col items-center gap-3">
-								<div className="flex items-center justify-center p-4 bg-white rounded-lg border-2 border-dashed border-primary/20 w-full max-w-[280px] mx-auto">
-									<div className="flex flex-col items-center gap-2 w-full">
-										<QrCode className="w-40 h-40 text-primary flex-shrink-0" />
-										<p className="text-xs text-muted-foreground text-center break-all px-2">
-											{qrBookingToShow.qrCode}
-										</p>
-									</div>
-								</div>
-								<p className="text-xs text-muted-foreground text-center">
-									Escaneie este código com o app do seu banco
-								</p>
-							</div>
-
-							{/* Informações do Pagamento */}
-							<div className="space-y-2 p-3 bg-muted rounded-lg">
-								<div className="flex justify-between items-center">
-									<span className="text-sm text-muted-foreground">Valor a pagar</span>
-									<span className="text-xl font-bold text-primary">
-										R$ {qrBookingToShow.totalValue.toLocaleString("pt-BR", {
-											minimumFractionDigits: 2,
-											maximumFractionDigits: 2,
-										})}
-									</span>
-								</div>
-								{qrBookingToShow.amenity && (
-									<div className="flex justify-between items-center pt-2 border-t">
-										<span className="text-sm text-muted-foreground">Comodidade</span>
-										<span className="text-sm font-medium text-right max-w-[60%] truncate">
-											{qrBookingToShow.amenity.name}
-										</span>
-									</div>
-								)}
-								{qrBookingToShow.startDate && (
-									<div className="flex justify-between items-center">
-										<span className="text-sm text-muted-foreground">Data da reserva</span>
-										<span className="text-sm font-medium">
-											{new Date(qrBookingToShow.startDate).toLocaleDateString("pt-BR")}
-										</span>
-									</div>
-								)}
-								{qrBookingToShow.qrCodeExpiry && (
-									<div className="flex justify-between items-center pt-2 border-t">
-										<span className="text-xs text-muted-foreground">QR Code válido até</span>
-										<span className="text-xs font-medium text-destructive text-right">
-											{new Date(qrBookingToShow.qrCodeExpiry).toLocaleString("pt-BR", {
-												day: "2-digit",
-												month: "2-digit",
-												year: "numeric",
-												hour: "2-digit",
-												minute: "2-digit",
-											})}
-										</span>
-									</div>
-								)}
-							</div>
-
-							{/* Instruções */}
-							<div className="space-y-2 p-3 bg-blue-50 dark:bg-blue-950/20 rounded-lg">
-								<p className="text-sm font-medium text-blue-900 dark:text-blue-100">
-									Como pagar:
-								</p>
-								<ol className="text-xs text-blue-800 dark:text-blue-200 space-y-1 list-decimal list-inside">
-									<li>Abra o app do seu banco</li>
-									<li>Escolha a opção PIX</li>
-									<li>Escaneie o QR code acima</li>
-									<li>Confirme o pagamento</li>
-								</ol>
-							</div>
-						</div>
-					) : (
-						<div className="flex items-center justify-center py-8">
-							<p className="text-sm text-muted-foreground">Carregando QR code...</p>
-						</div>
-					)}
-				</DialogContent>
-			</Dialog>
 
 			{/* Dialog de Detalhes da Comodidade */}
 			<Dialog
@@ -1347,9 +1521,7 @@ export default function Bookings() {
 							<MapPin className="w-5 h-5 text-primary" />
 							{amenityToView?.name || "Detalhes da Comodidade"}
 						</DialogTitle>
-						<DialogDescription>
-							Informações completas sobre a comodidade
-						</DialogDescription>
+						<DialogDescription>Informações completas sobre a comodidade</DialogDescription>
 					</DialogHeader>
 					{amenityToView && (
 						<div className="space-y-4">
@@ -1372,15 +1544,15 @@ export default function Bookings() {
 									<p className="text-sm font-medium mt-1">
 										{amenityToView.bookingType === "DIARIO"
 											? "Reserva Diária"
-											: "Não definido"}
+											: amenityToView.bookingType === "POR_HORAS"
+												? "Por Horas"
+												: "Não definido"}
 									</p>
 								</div>
 								{amenityToView.maxResidents && (
 									<div>
 										<Label className="text-muted-foreground">Máximo de Residentes</Label>
-										<p className="text-sm font-medium mt-1">
-											{amenityToView.maxResidents}
-										</p>
+										<p className="text-sm font-medium mt-1">{amenityToView.maxResidents}</p>
 									</div>
 								)}
 							</div>
@@ -1389,11 +1561,14 @@ export default function Bookings() {
 								<div className="pt-2 border-t">
 									<Label className="text-muted-foreground">Valor</Label>
 									<p className="text-2xl font-bold text-primary mt-1">
-										R$ {amenityToView.value.toLocaleString("pt-BR", {
+										R${" "}
+										{amenityToView.value.toLocaleString("pt-BR", {
 											minimumFractionDigits: 2,
 											maximumFractionDigits: 2,
 										})}
-										<span className="text-sm font-normal text-muted-foreground">/dia</span>
+										<span className="text-sm font-normal text-muted-foreground">
+											{amenityToView.bookingType === "POR_HORAS" ? "/hora" : "/dia"}
+										</span>
 									</p>
 								</div>
 							)}
@@ -1402,7 +1577,8 @@ export default function Bookings() {
 								<div className="pt-2 border-t">
 									<Label className="text-muted-foreground">Multa por Atraso</Label>
 									<p className="text-lg font-medium text-destructive mt-1">
-										R$ {amenityToView.fineValue.toLocaleString("pt-BR", {
+										R${" "}
+										{amenityToView.fineValue.toLocaleString("pt-BR", {
 											minimumFractionDigits: 2,
 											maximumFractionDigits: 2,
 										})}
@@ -1412,9 +1588,12 @@ export default function Bookings() {
 
 							{amenityToView.nonComplianceFine && amenityToView.nonComplianceFine > 0 && (
 								<div className="pt-2 border-t">
-									<Label className="text-muted-foreground">Multa por Descumprimento de Normas</Label>
+									<Label className="text-muted-foreground">
+										Multa por Descumprimento de Normas
+									</Label>
 									<p className="text-lg font-medium text-destructive mt-1">
-										R$ {amenityToView.nonComplianceFine.toLocaleString("pt-BR", {
+										R${" "}
+										{amenityToView.nonComplianceFine.toLocaleString("pt-BR", {
 											minimumFractionDigits: 2,
 											maximumFractionDigits: 2,
 										})}
@@ -1425,7 +1604,7 @@ export default function Bookings() {
 							{amenityToView.usageRules && (
 								<div className="pt-2 border-t">
 									<Label className="text-muted-foreground">Normas de Uso</Label>
-									<div 
+									<div
 										className="text-sm mt-1 prose prose-sm max-w-none"
 										dangerouslySetInnerHTML={{ __html: amenityToView.usageRules }}
 									/>
@@ -1455,5 +1634,3 @@ export default function Bookings() {
 		</div>
 	);
 }
-
-

@@ -2,48 +2,47 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 
 export default function VisitorsSkeleton() {
-  return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="space-y-2">
-          <Skeleton className="h-9 w-80" />
-          <Skeleton className="h-5 w-64" />
-        </div>
-      </div>
+	return (
+		<div className="space-y-6">
+			{/* Header */}
+			<div className="flex items-center justify-between">
+				<div className="space-y-2">
+					<Skeleton className="h-9 w-80" />
+					<Skeleton className="h-5 w-64" />
+				</div>
+			</div>
 
-      {/* Main Card */}
-      <Card>
-        <CardHeader>
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-            <Skeleton className="h-7 w-48" />
-            <Skeleton className="h-10 w-full sm:w-72" />
-          </div>
-        </CardHeader>
-        <CardContent>
-          {/* Tabs */}
-          <div className="space-y-6">
-            <div className="flex gap-2">
-              <Skeleton className="h-10 w-48" />
-              <Skeleton className="h-10 w-48" />
-            </div>
+			{/* Main Card */}
+			<Card>
+				<CardHeader>
+					<div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+						<Skeleton className="h-7 w-48" />
+						<Skeleton className="h-10 w-full sm:w-72" />
+					</div>
+				</CardHeader>
+				<CardContent>
+					{/* Tabs */}
+					<div className="space-y-6">
+						<div className="flex gap-2">
+							<Skeleton className="h-10 w-48" />
+							<Skeleton className="h-10 w-48" />
+						</div>
 
-            {/* List Skeleton */}
-            <div className="rounded-md border">
-              <div className="p-4">
-                <div className="space-y-3">
-                  {[1, 2, 3, 4, 5].map((i) => (
-                    <div key={i} className="flex items-center gap-4">
-                      <Skeleton className="h-20 w-full" />
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-    </div>
-  );
+						{/* List Skeleton */}
+						<div className="rounded-md border">
+							<div className="p-4">
+								<div className="space-y-3">
+									{[1, 2, 3, 4, 5].map((i) => (
+										<div key={i} className="flex items-center gap-4">
+											<Skeleton className="h-20 w-full" />
+										</div>
+									))}
+								</div>
+							</div>
+						</div>
+					</div>
+				</CardContent>
+			</Card>
+		</div>
+	);
 }
-

@@ -58,10 +58,7 @@ class FinesService {
 	 * POST /v1/fines
 	 */
 	async createFine(data: CreateFineRequest): Promise<Fine> {
-		const response = await apiClient.post<Fine>(
-			this.basePath,
-			data
-		);
+		const response = await apiClient.post<Fine>(this.basePath, data);
 		return response.data!;
 	}
 
@@ -70,10 +67,7 @@ class FinesService {
 	 * PUT /v1/fines/:id
 	 */
 	async updateFine(id: string, data: UpdateFineRequest): Promise<Fine> {
-		const response = await apiClient.put<Fine>(
-			`${this.basePath}/${id}`,
-			data
-		);
+		const response = await apiClient.put<Fine>(`${this.basePath}/${id}`, data);
 		return response.data!;
 	}
 
@@ -88,4 +82,3 @@ class FinesService {
 
 // Export singleton instance
 export const finesService = new FinesService();
-
