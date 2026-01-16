@@ -3,6 +3,7 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { Suspense, lazy } from "react";
 import AuthProvider from "./contexts/AuthContext";
 import {
 	ProtectedResidentRoute,
@@ -14,58 +15,61 @@ import { ProtectedPageRoute } from "./components/auth/ProtectedPageRoute";
 import { AppLayout } from "./components/layout/AppLayout";
 import { AppLayoutAdmin } from "./components/layout/AppLayoutAdmin";
 import { AppLayoutConcierge } from "./components/layout/AppLayoutConcierge";
+import { InstallPrompt } from "./components/pwa/InstallPrompt";
 
 // Resident pages
-import Login from "./pages/resident/auth/Login";
-import Register from "./pages/resident/auth/Register";
-import ResetPassword from "./pages/resident/auth/ResetPassword";
-import UpdatePassword from "./pages/resident/auth/UpdatePassword";
-import StatusTimeline from "./pages/resident/auth/StatusTimeline";
-import Dashboard from "./pages/resident/Dashboard";
-import Suggestions from "./pages/resident/Suggestions";
-import Vote from "./pages/resident/Vote";
-import Progress from "./pages/resident/Progress";
-import Poll from "./pages/resident/Poll";
-import Fines from "./pages/resident/Fines";
-import Documents from "./pages/resident/Documents";
-import Packages from "./pages/resident/Packages";
-import Bookings from "./pages/resident/Bookings";
-import Notices from "./pages/resident/Notices";
-import Profile from "./pages/resident/Profile";
-import Help from "./pages/resident/Help";
-import NotFound from "./pages/NotFound";
+const Login = lazy(() => import("./pages/resident/auth/Login"));
+const Register = lazy(() => import("./pages/resident/auth/Register"));
+const ResetPassword = lazy(() => import("./pages/resident/auth/ResetPassword"));
+const UpdatePassword = lazy(() => import("./pages/resident/auth/UpdatePassword"));
+const StatusTimeline = lazy(() => import("./pages/resident/auth/StatusTimeline"));
+const Dashboard = lazy(() => import("./pages/resident/Dashboard"));
+const Suggestions = lazy(() => import("./pages/resident/Suggestions"));
+const Vote = lazy(() => import("./pages/resident/Vote"));
+const Progress = lazy(() => import("./pages/resident/Progress"));
+const Poll = lazy(() => import("./pages/resident/Poll"));
+const Fines = lazy(() => import("./pages/resident/Fines"));
+const Documents = lazy(() => import("./pages/resident/Documents"));
+const Packages = lazy(() => import("./pages/resident/Packages"));
+const Bookings = lazy(() => import("./pages/resident/Bookings"));
+const Notices = lazy(() => import("./pages/resident/Notices"));
+const Profile = lazy(() => import("./pages/resident/Profile"));
+const Help = lazy(() => import("./pages/resident/Help"));
+const NotFound = lazy(() => import("./pages/NotFound"));
 
 // Admin pages
-import AdminLogin from "./pages/admin/auth/Login";
-import AdminResetPassword from "./pages/admin/auth/ResetPassword";
-import AdminUpdatePassword from "./pages/admin/auth/UpdatePassword";
-import AdminConfirmCode from "./pages/admin/auth/ConfirmCode";
-import AdminDashboard from "./pages/admin/Dashboard";
-import AdminFinancial from "./pages/admin/Financial";
-import AdminVoting from "./pages/admin/Voting";
-import AdminPolls from "./pages/admin/Polls";
-import AdminCondominiumInfo from "./pages/admin/CondominiumInfo";
-import AdminFines from "./pages/admin/Fines";
-import AdminNotices from "./pages/admin/Notices";
-import AdminConcierge from "./pages/admin/Concierge";
-import AdminConciergeEdit from "./pages/admin/ConciergeEdit";
-import AdminConciergeView from "./pages/admin/ConciergeView";
-import AdminProjects from "./pages/admin/Projects";
-import AdminDocuments from "./pages/admin/Documents";
-import AdminProfile from "./pages/admin/Profile";
-import AdminHelp from "./pages/admin/Help";
+const AdminLogin = lazy(() => import("./pages/admin/auth/Login"));
+const AdminResetPassword = lazy(() => import("./pages/admin/auth/ResetPassword"));
+const AdminUpdatePassword = lazy(() => import("./pages/admin/auth/UpdatePassword"));
+const AdminConfirmCode = lazy(() => import("./pages/admin/auth/ConfirmCode"));
+const AdminDashboard = lazy(() => import("./pages/admin/Dashboard"));
+const AdminFinancial = lazy(() => import("./pages/admin/Financial"));
+const AdminVoting = lazy(() => import("./pages/admin/Voting"));
+const AdminPolls = lazy(() => import("./pages/admin/Polls"));
+const AdminCondominiumInfo = lazy(() => import("./pages/admin/CondominiumInfo"));
+const AdminFines = lazy(() => import("./pages/admin/Fines"));
+const AdminNotices = lazy(() => import("./pages/admin/Notices"));
+const AdminConcierge = lazy(() => import("./pages/admin/Concierge"));
+const AdminConciergeEdit = lazy(() => import("./pages/admin/ConciergeEdit"));
+const AdminConciergeView = lazy(() => import("./pages/admin/ConciergeView"));
+const AdminProjects = lazy(() => import("./pages/admin/Projects"));
+const AdminDocuments = lazy(() => import("./pages/admin/Documents"));
+const AdminProfile = lazy(() => import("./pages/admin/Profile"));
+const AdminHelp = lazy(() => import("./pages/admin/Help"));
 
 // Concierge pages
-import ConciergeLogin from "./pages/concierge/auth/Login";
-import ConciergeResetPassword from "./pages/concierge/auth/ResetPassword";
-import ConciergeResetPasswordToken from "./pages/concierge/auth/ResetPasswordToken";
-import ConciergeUpdatePassword from "./pages/concierge/auth/UpdatePassword";
-import ConciergeDashboard from "./pages/concierge/Dashboard";
-import ConciergePackages from "./pages/concierge/Packages";
-import ConciergeFines from "./pages/concierge/Fines";
-import ConciergeVisitors from "./pages/concierge/Visitors";
-import ConciergeHelp from "./pages/concierge/Help";
-import ConciergeContacts from "./pages/concierge/Contacts";
+const ConciergeLogin = lazy(() => import("./pages/concierge/auth/Login"));
+const ConciergeResetPassword = lazy(() => import("./pages/concierge/auth/ResetPassword"));
+const ConciergeResetPasswordToken = lazy(
+	() => import("./pages/concierge/auth/ResetPasswordToken"),
+);
+const ConciergeUpdatePassword = lazy(() => import("./pages/concierge/auth/UpdatePassword"));
+const ConciergeDashboard = lazy(() => import("./pages/concierge/Dashboard"));
+const ConciergePackages = lazy(() => import("./pages/concierge/Packages"));
+const ConciergeFines = lazy(() => import("./pages/concierge/Fines"));
+const ConciergeVisitors = lazy(() => import("./pages/concierge/Visitors"));
+const ConciergeHelp = lazy(() => import("./pages/concierge/Help"));
+const ConciergeContacts = lazy(() => import("./pages/concierge/Contacts"));
 
 const queryClient = new QueryClient();
 
@@ -74,10 +78,18 @@ const App = () => (
 		<TooltipProvider>
 			<Toaster />
 			<Sonner />
+			<InstallPrompt />
 			<BrowserRouter>
 				<AuthProvider>
-					<Routes>
-						<Route path="/" element={<Login />} />
+					<Suspense
+						fallback={
+							<div className="flex min-h-[50svh] items-center justify-center text-sm text-muted-foreground">
+								Carregando...
+							</div>
+						}
+					>
+						<Routes>
+							<Route path="/" element={<Login />} />
 
 						{/* Resident Routes */}
 						<Route path="/login" element={<Login />} />
@@ -385,8 +397,9 @@ const App = () => (
 						</Route>
 
 						{/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-						<Route path="*" element={<NotFound />} />
-					</Routes>
+							<Route path="*" element={<NotFound />} />
+						</Routes>
+					</Suspense>
 				</AuthProvider>
 			</BrowserRouter>
 		</TooltipProvider>

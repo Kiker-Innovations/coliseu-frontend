@@ -93,8 +93,24 @@ All colors MUST be HSL.
 		@apply border-border;
 	}
 
+	html {
+		-webkit-text-size-adjust: 100%;
+	}
+
 	body {
 		@apply bg-background text-foreground;
+		min-height: 100svh;
+		overscroll-behavior: contain;
+	}
+
+	#root {
+		min-height: 100svh;
+	}
+
+	button,
+	[role="button"],
+	a {
+		touch-action: manipulation;
 	}
 }
 
