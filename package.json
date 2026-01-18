@@ -12,7 +12,8 @@
 		"build:dev": "vite build --mode development",
 		"preview": "vite preview",
 		"lint": "npx @biomejs/biome format ./ --write",
-		"lint:check": "npx @biomejs/biome check ./src"
+		"lint:check": "npx @biomejs/biome check ./src",
+		"deploy": "PORT=${PORT:-8080} vite preview --port ${PORT:-8080} --host 0.0.0.0"
 	},
 	"dependencies": {
 		"@hookform/resolvers": "^3.10.0",
