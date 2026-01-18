@@ -1,7 +1,10 @@
 {
-	"name": "vite_react_shadcn_ts",
+	"name": "coliseu-frontend",
 	"private": true,
-	"version": "0.0.0",
+	"version": "1.0.0",
+	"description": "Sistema de gestão de condomínios.",
+	"author": "Luiz Ricardo Santos",
+	"email": "contato@coliseu.app",
 	"type": "module",
 	"scripts": {
 		"dev": "vite",
