@@ -1,7 +1,10 @@
 {
-	"name": "vite_react_shadcn_ts",
+	"name": "coliseu-frontend",
 	"private": true,
-	"version": "0.0.0",
+	"version": "1.0.0",
+	"description": "Sistema de gestão de condomínios.",
+	"author": "Luiz Ricardo Santos",
+	"email": "contato@coliseu.app",
 	"type": "module",
 	"scripts": {
 		"dev": "vite",
@@ -9,7 +12,8 @@
 		"build:dev": "vite build --mode development",
 		"preview": "vite preview",
 		"lint": "npx @biomejs/biome format ./ --write",
-		"lint:check": "npx @biomejs/biome check ./src"
+		"lint:check": "npx @biomejs/biome check ./src",
+		"deploy": "PORT=${PORT:-8080} vite preview --port ${PORT:-8080} --host 0.0.0.0"
 	},
 	"dependencies": {
 		"@hookform/resolvers": "^3.10.0",
