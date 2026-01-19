@@ -4,9 +4,9 @@
  */
 
 export const API_CONFIG = {
-	baseURL: import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api/coliseu",
-	timeout: 30000, // 30 seconds
-	version: "v1",
+  baseURL: import.meta.env.VITE_API_URL || "http://localhost:3000/api/coliseu",
+  timeout: 30000, // 30 seconds
+  version: "v1",
 } as const;
 
 /**
@@ -14,7 +14,7 @@ export const API_CONFIG = {
  * Prepared for future JWT implementation
  */
 export const AUTH_STORAGE_KEYS = {
-	accessToken: "coliseu_access_token",
-	refreshToken: "coliseu_refresh_token",
-	user: "coliseu_user",
+  accessToken: "coliseu_access_token",
+  refreshToken: "coliseu_refresh_token",
+  user: "coliseu_user",
 } as const;
