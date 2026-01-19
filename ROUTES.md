@@ -344,4 +344,3 @@ Este documento descreve as rotas criadas para os módulos de sugestões de proje
 Novas collections adicionadas ao `env.ts`:
 - `projectSuggestions`: Armazena as sugestões de projeto processadas
 - `projectSuggestionPolls`: Armazena os votos dos moradores nas sugestões
-
