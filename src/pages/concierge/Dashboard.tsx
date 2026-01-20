@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -7,6 +7,7 @@ import { Package, User, ExternalLink, UserCheck, Calendar, Inbox, ChevronDown } 
 import DashboardSkeleton from "@/skeleton/concierge/DashboardSkeleton";
 import { toast } from "sonner";
 import { packageService, visitsService, type RecentVisit } from "@/services/api";
+import { usePageRefresh } from "@/hooks/use-page-refresh";
 
 interface PackageData {
 	id: string;
@@ -30,65 +31,68 @@ export default function ConciergeDashboard() {
 	const [packagesOpen, setPackagesOpen] = useState(true);
 	const [visitsOpen, setVisitsOpen] = useState(true);
 
-	useEffect(() => {
-		const loadData = async () => {
-			try {
-				setIsLoading(true);
-				const [pendingResponse, recentVisitsResponse] = await Promise.all([
-					packageService.getPackages({ status: "PENDENTE" }),
-					visitsService.getRecentVisits(3),
-				]);
+	const loadData = useCallback(async () => {
+		try {
+			setIsLoading(true);
+			const [pendingResponse, recentVisitsResponse] = await Promise.all([
+				packageService.getPackages({ status: "PENDENTE" }),
+				visitsService.getRecentVisits(3),
+			]);
 
-				const pending = pendingResponse.data || [];
+			const pending = pendingResponse.data || [];
 
-				// Map pending packages
-				const pendingMapped: PackageData[] = pending.map((pkg) => ({
-					id: pkg._id,
-					recipientName: pkg.ownerName,
-					description: pkg.description,
-					apartmentNumber: pkg.apartmentNumber,
-					apartmentFloor: pkg.apartmentFloor,
-					apartmentBlock: pkg.apartmentBlock,
-					arrivalDate: pkg.receiverDate,
-				}));
+			// Map pending packages
+			const pendingMapped: PackageData[] = pending.map((pkg) => ({
+				id: pkg._id,
+				recipientName: pkg.ownerName,
+				description: pkg.description,
+				apartmentNumber: pkg.apartmentNumber,
+				apartmentFloor: pkg.apartmentFloor,
+				apartmentBlock: pkg.apartmentBlock,
+				arrivalDate: pkg.receiverDate,
+			}));
 
-				// Calculate apartment with most packages
-				const apartmentCounts: { [key: string]: number } = {};
-				for (const pkg of pendingMapped) {
-					apartmentCounts[pkg.apartmentNumber] = (apartmentCounts[pkg.apartmentNumber] || 0) + 1;
-				}
-
-				const sortedApartments = Object.entries(apartmentCounts).sort((a, b) => b[1] - a[1]);
-
-				if (sortedApartments.length > 0) {
-					const [apartment, count] = sortedApartments[0];
-					setApartmentWithMostPackages({
-						apartment,
-						packageCount: count,
-					});
-				}
-
-				setPendingPackages(pendingMapped);
-				setRecentVisits(recentVisitsResponse.data || []);
-			} catch (error: any) {
-				toast.error(error.message || "Erro ao carregar dados do dashboard");
-			} finally {
-				setIsLoading(false);
+			// Calculate apartment with most packages
+			const apartmentCounts: { [key: string]: number } = {};
+			for (const pkg of pendingMapped) {
+				apartmentCounts[pkg.apartmentNumber] = (apartmentCounts[pkg.apartmentNumber] || 0) + 1;
 			}
-		};
 
-		loadData();
+			const sortedApartments = Object.entries(apartmentCounts).sort((a, b) => b[1] - a[1]);
+
+			if (sortedApartments.length > 0) {
+				const [apartment, count] = sortedApartments[0];
+				setApartmentWithMostPackages({
+					apartment,
+					packageCount: count,
+				});
+			}
+
+			setPendingPackages(pendingMapped);
+			setRecentVisits(recentVisitsResponse.data || []);
+		} catch (error: any) {
+			toast.error(error.message || "Erro ao carregar dados do dashboard");
+		} finally {
+			setIsLoading(false);
+		}
 	}, []);
+
+	// Register refresh function for pull-to-refresh
+	usePageRefresh({ onRefresh: loadData });
+
+	useEffect(() => {
+		loadData();
+	}, [loadData]);
 
 	if (isLoading) {
 		return <DashboardSkeleton />;
 	}
 
 	return (
-		<div className="space-y-6">
+		<div className="space-y-4 sm:space-y-6">
 			<div>
-				<h1 className="text-3xl font-bold">Dashboard da Portaria</h1>
-				<p className="text-muted-foreground">Visão geral das encomendas e atividades do dia</p>
+				<h1 className="text-2xl sm:text-3xl font-bold">Dashboard da Portaria</h1>
+				<p className="text-sm sm:text-base text-muted-foreground">Visão geral das encomendas e atividades</p>
 			</div>
 
 			{/* Pending Packages List */}

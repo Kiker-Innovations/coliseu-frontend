@@ -1,5 +1,20 @@
 {
 	"version": 1,
 	"include": ["/*"],
-	"exclude": []
+	"exclude": [
+		"/assets/*",
+		"/icons/*",
+		"/*.ico",
+		"/*.png",
+		"/*.svg",
+		"/*.jpg",
+		"/*.jpeg",
+		"/*.webp",
+		"/*.webmanifest",
+		"/*.txt",
+		"/sw.js",
+		"/workbox-*.js",
+		"/_redirects",
+		"/_headers"
+	]
 }
