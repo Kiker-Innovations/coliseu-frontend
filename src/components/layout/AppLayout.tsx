@@ -1,21 +1,27 @@
 import { Outlet } from "react-router-dom";
 import { AppSidebar } from "./AppSidebar";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
+import { RefreshProvider } from "@/contexts/RefreshContext";
+import { PullToRefreshWrapper } from "@/components/ui/pull-to-refresh";
 
 export const AppLayout = () => {
 	return (
-		<SidebarProvider>
-			<div className="min-h-screen flex w-full">
-				<AppSidebar />
-				<div className="flex-1 flex flex-col">
-					<header className="flex h-12 items-center border-b border-border bg-card px-3 sm:h-14 sm:px-4">
-						<SidebarTrigger />
-					</header>
-					<main className="flex-1 p-4 sm:p-5 md:p-6">
-						<Outlet />
-					</main>
+		<RefreshProvider>
+			<SidebarProvider>
+				<div className="min-h-screen flex w-full">
+					<AppSidebar />
+					<div className="flex-1 flex flex-col overflow-hidden">
+						<header className="flex h-12 items-center border-b border-border bg-card px-3 sm:h-14 sm:px-4 shrink-0">
+							<SidebarTrigger />
+						</header>
+						<PullToRefreshWrapper className="flex-1 overflow-y-auto">
+							<main className="flex-1 p-3 sm:p-4 md:p-6">
+								<Outlet />
+							</main>
+						</PullToRefreshWrapper>
+					</div>
 				</div>
-			</div>
-		</SidebarProvider>
+			</SidebarProvider>
+		</RefreshProvider>
 	);
 };

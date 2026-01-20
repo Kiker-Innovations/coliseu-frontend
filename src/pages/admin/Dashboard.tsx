@@ -5,6 +5,7 @@ import { Trophy, TrendingUp, DollarSign, TrendingDown } from "lucide-react";
 import DashboardSkeleton from "@/skeleton/admin/DashboardSkeleton";
 import { toast } from "sonner";
 import { financialService, type FinancialSummary, type ProjectExpense } from "@/services/api";
+import { usePageRefresh } from "@/hooks/use-page-refresh";
 
 export default function AdminDashboard() {
 	const [isLoading, setIsLoading] = useState(true);
@@ -39,6 +40,9 @@ export default function AdminDashboard() {
 		}
 	}, []);
 
+	// Register refresh function for pull-to-refresh
+	usePageRefresh({ onRefresh: loadData });
+
 	useEffect(() => {
 		loadData();
 	}, [loadData]);
@@ -69,34 +73,34 @@ export default function AdminDashboard() {
 	}
 
 	return (
-		<div className="space-y-6">
+		<div className="space-y-4 sm:space-y-6">
 			<div className="flex justify-between items-center">
-				<h1 className="text-3xl font-bold">Painel Administrativo</h1>
+				<h1 className="text-2xl sm:text-3xl font-bold">Painel Administrativo</h1>
 			</div>
 
 			{/* Financial Information - Main Focus */}
 			<Card className="border-2 border-primary shadow-lg">
-				<CardHeader className="bg-primary/5">
-					<CardTitle className="flex items-center gap-2 text-2xl">
-						<DollarSign className="w-8 h-8 text-primary" />
+				<CardHeader className="bg-primary/5 pb-3 sm:pb-4">
+					<CardTitle className="flex items-center gap-2 text-lg sm:text-2xl">
+						<DollarSign className="w-6 h-6 sm:w-8 sm:h-8 text-primary shrink-0" />
 						Informações Financeiras
 					</CardTitle>
 				</CardHeader>
-				<CardContent className="pt-6">
-					<div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-						<div className="p-6 bg-primary/10 rounded-lg border-2 border-primary">
-							<p className="text-sm text-muted-foreground mb-2">Caixa Total do Condomínio</p>
-							<p className="text-3xl font-bold text-primary">
+				<CardContent className="pt-4 sm:pt-6">
+					<div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 mb-4 sm:mb-6">
+						<div className="p-4 sm:p-6 bg-primary/10 rounded-lg border-2 border-primary">
+							<p className="text-xs sm:text-sm text-muted-foreground mb-1 sm:mb-2">Caixa Total</p>
+							<p className="text-2xl sm:text-3xl font-bold text-primary">
 								R$ {totalBudget.toLocaleString("pt-BR")}
 							</p>
-							<p className="text-xs text-muted-foreground mt-1">
-								Saldo anterior + Arrecadação do mês
+							<p className="text-[10px] sm:text-xs text-muted-foreground mt-1">
+								Saldo anterior + Arrecadação
 							</p>
 						</div>
 
-						<div className="p-6 bg-accent/10 rounded-lg border-2 border-accent">
-							<p className="text-sm text-muted-foreground mb-2">Caixa Restante (após despesas)</p>
-							<p className="text-3xl font-bold text-accent">
+						<div className="p-4 sm:p-6 bg-accent/10 rounded-lg border-2 border-accent">
+							<p className="text-xs sm:text-sm text-muted-foreground mb-1 sm:mb-2">Caixa Restante</p>
+							<p className="text-2xl sm:text-3xl font-bold text-accent">
 								R${" "}
 								{remainingBudget.toLocaleString("pt-BR", {
 									maximumFractionDigits: 0,
