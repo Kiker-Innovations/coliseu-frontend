@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
 import { RichTextEditor } from "@/components/ui/RichTextEditor";
 import {
 	Table,
@@ -53,6 +54,7 @@ import {
 	Calendar,
 	Clock,
 	CalendarDays,
+	Package,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -76,6 +78,9 @@ import { amenitiesService, type Amenity } from "@/services/api";
 import { adminService } from "@/services/api";
 import { apartmentsService } from "@/services/api";
 import { bookingsService, type Booking } from "@/services/api";
+import { Calendar as CalendarComponent } from "@/components/ui/calendar";
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
 
 export default function CondominiumInfo() {
 	const [isLoading, setIsLoading] = useState(true);
@@ -98,6 +103,20 @@ export default function CondominiumInfo() {
 	const [buildingId, setBuildingId] = useState<string>("");
 	const [bookings, setBookings] = useState<Booking[]>([]);
 	const [isLoadingBookings, setIsLoadingBookings] = useState(false);
+
+	// Estados para modal de calendário de reservas
+	const [isBookingsCalendarOpen, setIsBookingsCalendarOpen] = useState(false);
+	const [selectedAmenityForBookings, setSelectedAmenityForBookings] = useState<Amenity | null>(null);
+	const [amenityBookings, setAmenityBookings] = useState<Booking[]>([]);
+	const [isLoadingAmenityBookings, setIsLoadingAmenityBookings] = useState(false);
+	const [selectedCalendarDate, setSelectedCalendarDate] = useState<Date | undefined>(undefined);
+	const [bookingDates, setBookingDates] = useState<Map<string, Booking[]>>(new Map());
+
+	// Estados para itens da comodidade
+	const [hasItems, setHasItems] = useState(false);
+	const [amenityItems, setAmenityItems] = useState<{ name: string; quantity: number }[]>([]);
+	const [newItemName, setNewItemName] = useState("");
+	const [newItemQuantity, setNewItemQuantity] = useState<number>(1);
 
 	// Estados para busca de condôminos
 	const [searchTerm, setSearchTerm] = useState("");
@@ -636,6 +655,8 @@ export default function CondominiumInfo() {
 			maxResidents: undefined,
 			maxHours: undefined,
 			bookingType: undefined,
+			openingTime: undefined,
+			closingTime: undefined,
 			status: "ATIVO",
 		},
 	});
@@ -677,6 +698,10 @@ export default function CondominiumInfo() {
 				if (data.maxResidents !== undefined) updateData.maxResidents = data.maxResidents;
 				if (data.maxHours !== undefined) updateData.maxHours = data.maxHours;
 				if (data.bookingType) updateData.bookingType = data.bookingType;
+				if (data.openingTime !== undefined) updateData.openingTime = data.openingTime || undefined;
+				if (data.closingTime !== undefined) updateData.closingTime = data.closingTime || undefined;
+				// Incluir itens se hasItems estiver marcado
+				updateData.items = hasItems && amenityItems.length > 0 ? amenityItems : undefined;
 				if (data.status) updateData.status = data.status;
 
 				try {
@@ -768,6 +793,12 @@ export default function CondominiumInfo() {
 				if (data.maxResidents !== undefined) createData.maxResidents = data.maxResidents;
 				if (data.maxHours !== undefined) createData.maxHours = data.maxHours;
 				if (data.bookingType) createData.bookingType = data.bookingType;
+				if (data.openingTime) createData.openingTime = data.openingTime;
+				if (data.closingTime) createData.closingTime = data.closingTime;
+				// Incluir itens se hasItems estiver marcado
+				if (hasItems && amenityItems.length > 0) {
+					createData.items = amenityItems;
+				}
 
 				try {
 					const response = await amenitiesService.createAmenity(createData);
@@ -830,8 +861,18 @@ export default function CondominiumInfo() {
 			maxResidents: area.maxResidents ?? undefined,
 			maxHours: area.maxHours ?? undefined,
 			bookingType: area.bookingType ?? undefined,
+			openingTime: area.openingTime ?? undefined,
+			closingTime: area.closingTime ?? undefined,
 			status: area.status || "ATIVO",
 		});
+		// Carregar itens da comodidade
+		if (area.items && area.items.length > 0) {
+			setHasItems(true);
+			setAmenityItems(area.items);
+		} else {
+			setHasItems(false);
+			setAmenityItems([]);
+		}
 		setIsAreaDialogOpen(true);
 	};
 
@@ -878,6 +919,89 @@ export default function CondominiumInfo() {
 		setIsAreaDialogOpen(false);
 		setEditingAreaId(null);
 		areaForm.reset();
+		// Limpar estados de itens
+		setHasItems(false);
+		setAmenityItems([]);
+		setNewItemName("");
+		setNewItemQuantity(1);
+	};
+
+	// Funções para gerenciar itens da comodidade
+	const handleAddItem = () => {
+		if (newItemName.trim() && newItemQuantity >= 1) {
+			setAmenityItems([...amenityItems, { name: newItemName.trim(), quantity: newItemQuantity }]);
+			setNewItemName("");
+			setNewItemQuantity(1);
+		}
+	};
+
+	const handleRemoveItem = (index: number) => {
+		setAmenityItems(amenityItems.filter((_, i) => i !== index));
+	};
+
+	const handleUpdateItemQuantity = (index: number, quantity: number) => {
+		if (quantity >= 1) {
+			const updatedItems = [...amenityItems];
+			updatedItems[index].quantity = quantity;
+			setAmenityItems(updatedItems);
+		}
+	};
+
+	// Função para abrir o calendário de reservas de uma comodidade
+	const handleOpenBookingsCalendar = async (amenity: Amenity) => {
+		console.log("Abrindo calendário de reservas para:", amenity.name, amenity._id);
+		setSelectedAmenityForBookings(amenity);
+		setIsBookingsCalendarOpen(true);
+		setSelectedCalendarDate(undefined);
+		setIsLoadingAmenityBookings(true);
+
+		try {
+			// Buscar reservas da comodidade usando endpoint de admin
+			console.log("Buscando reservas...");
+			const response = await bookingsService.getBookingsByBuilding(amenity._id);
+			console.log("Resposta da API:", response);
+
+			if (response.success && response.data) {
+				console.log("Reservas recebidas:", response.data.bookings);
+				// Usar todas as reservas retornadas (PENDENTE, AGENDADO, EM_ANDAMENTO)
+				const filteredBookings = response.data.bookings;
+				console.log("Reservas:", filteredBookings);
+				setAmenityBookings(filteredBookings);
+
+				// Agrupar reservas por data
+				const dateMap = new Map<string, Booking[]>();
+				filteredBookings.forEach((booking) => {
+					const dateStr = format(new Date(booking.startDate), "yyyy-MM-dd");
+					if (!dateMap.has(dateStr)) {
+						dateMap.set(dateStr, []);
+					}
+					dateMap.get(dateStr)!.push(booking);
+				});
+				console.log("Mapa de datas:", dateMap);
+				setBookingDates(dateMap);
+			} else {
+				console.log("Resposta sem sucesso ou sem dados:", response);
+			}
+		} catch (error) {
+			console.error("Erro ao buscar reservas:", error);
+			toast.error("Erro ao carregar reservas");
+		} finally {
+			setIsLoadingAmenityBookings(false);
+		}
+	};
+
+	// Obter reservas do dia selecionado
+	const getBookingsForSelectedDate = (): Booking[] => {
+		if (!selectedCalendarDate) return [];
+		const dateStr = format(selectedCalendarDate, "yyyy-MM-dd");
+		return bookingDates.get(dateStr) || [];
+	};
+
+	// Formatar horário de uma reserva
+	const formatBookingTime = (booking: Booking): string => {
+		const start = new Date(booking.startDate);
+		const end = new Date(booking.endDate);
+		return `${format(start, "HH:mm")} - ${format(end, "HH:mm")}`;
 	};
 
 	if (isLoading) {
@@ -1315,7 +1439,7 @@ export default function CondominiumInfo() {
 												</div>
 											)}
 
-											{areaForm.watch("type") !== "AREA_COMUM" &&
+											{											areaForm.watch("type") !== "AREA_COMUM" &&
 												areaForm.watch("bookingType") === "POR_HORAS" && (
 													<div className="space-y-2">
 														<Label htmlFor="maxHours">Quantidade Máxima de Horas *</Label>
@@ -1340,6 +1464,186 @@ export default function CondominiumInfo() {
 														</p>
 													</div>
 												)}
+
+											<div className="space-y-4">
+												<div className="flex items-center space-x-2">
+													<Checkbox
+														id="is24Hours"
+														checked={
+															areaForm.watch("openingTime") === "00:00" &&
+															areaForm.watch("closingTime") === "23:59"
+														}
+														onCheckedChange={(checked) => {
+															if (checked) {
+																areaForm.setValue("openingTime", "00:00");
+																areaForm.setValue("closingTime", "23:59");
+															} else {
+																areaForm.setValue("openingTime", undefined);
+																areaForm.setValue("closingTime", undefined);
+															}
+														}}
+													/>
+													<Label htmlFor="is24Hours" className="text-sm font-normal cursor-pointer">
+														Funciona 24 horas
+													</Label>
+												</div>
+												<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+													<div className="space-y-2">
+														<Label htmlFor="openingTime">Horário de Abertura</Label>
+														<div className="relative">
+															<Clock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+															<Input
+																id="openingTime"
+																type="time"
+																placeholder="08:00"
+																value={areaForm.watch("openingTime") || ""}
+																onChange={(e) => {
+																	areaForm.setValue("openingTime", e.target.value || undefined);
+																}}
+																className="pl-9"
+															/>
+														</div>
+														{areaForm.formState.errors.openingTime && (
+															<p className="text-sm text-destructive">
+																{areaForm.formState.errors.openingTime.message}
+															</p>
+														)}
+														<p className="text-xs text-muted-foreground">
+															Formato: HH:mm (ex: 08:00)
+														</p>
+													</div>
+													<div className="space-y-2">
+														<Label htmlFor="closingTime">Horário de Fechamento</Label>
+														<div className="relative">
+															<Clock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+															<Input
+																id="closingTime"
+																type="time"
+																placeholder="22:00"
+																value={areaForm.watch("closingTime") || ""}
+																onChange={(e) => {
+																	areaForm.setValue("closingTime", e.target.value || undefined);
+																}}
+																className="pl-9"
+															/>
+														</div>
+														{areaForm.formState.errors.closingTime && (
+															<p className="text-sm text-destructive">
+																{areaForm.formState.errors.closingTime.message}
+															</p>
+														)}
+														<p className="text-xs text-muted-foreground">
+															Formato: HH:mm (ex: 22:00)
+														</p>
+													</div>
+												</div>
+											</div>
+
+											{/* Seção de Itens da Comodidade */}
+											<div className="space-y-4 border rounded-lg p-4 bg-muted/30">
+												<div className="flex items-center justify-between">
+													<div className="flex items-center gap-2">
+														<Package className="w-5 h-5 text-muted-foreground" />
+														<Label className="text-base font-medium">Itens da Comodidade</Label>
+													</div>
+													<div className="flex items-center gap-2">
+														<Checkbox
+															id="hasItems"
+															checked={hasItems}
+															onCheckedChange={(checked) => {
+																setHasItems(checked === true);
+																if (!checked) {
+																	setAmenityItems([]);
+																}
+															}}
+														/>
+														<Label htmlFor="hasItems" className="text-sm cursor-pointer">
+															Esta comodidade possui itens
+														</Label>
+													</div>
+												</div>
+
+												{hasItems && (
+													<div className="space-y-4">
+														{/* Lista de itens existentes */}
+														{amenityItems.length > 0 && (
+															<div className="space-y-2">
+																<Label className="text-sm text-muted-foreground">Itens cadastrados:</Label>
+																<div className="space-y-2">
+																	{amenityItems.map((item, index) => (
+																		<div
+																			key={index}
+																			className="flex items-center gap-3 bg-background p-3 rounded-md border"
+																		>
+																			<span className="flex-1 font-medium">{item.name}</span>
+																			<div className="flex items-center gap-2">
+																				<Label className="text-sm text-muted-foreground">Qtd:</Label>
+																				<Input
+																					type="number"
+																					min={1}
+																					value={item.quantity}
+																					onChange={(e) =>
+																						handleUpdateItemQuantity(index, parseInt(e.target.value) || 1)
+																					}
+																					className="w-20"
+																				/>
+																			</div>
+																			<Button
+																				type="button"
+																				variant="ghost"
+																				size="icon"
+																				onClick={() => handleRemoveItem(index)}
+																				className="text-destructive hover:text-destructive/80"
+																			>
+																				<Trash2 className="w-4 h-4" />
+																			</Button>
+																		</div>
+																	))}
+																</div>
+															</div>
+														)}
+
+														{/* Adicionar novo item */}
+														<div className="space-y-2">
+															<Label className="text-sm text-muted-foreground">Adicionar item:</Label>
+															<div className="flex items-end gap-2">
+																<div className="flex-1 space-y-1">
+																	<Label htmlFor="newItemName" className="text-xs">
+																		Nome do item
+																	</Label>
+																	<Input
+																		id="newItemName"
+																		value={newItemName}
+																		onChange={(e) => setNewItemName(e.target.value)}
+																		placeholder="Ex: Cadeira, Mesa, etc."
+																	/>
+																</div>
+																<div className="w-24 space-y-1">
+																	<Label htmlFor="newItemQuantity" className="text-xs">
+																		Quantidade
+																	</Label>
+																	<Input
+																		id="newItemQuantity"
+																		type="number"
+																		min={1}
+																		value={newItemQuantity}
+																		onChange={(e) => setNewItemQuantity(parseInt(e.target.value) || 1)}
+																	/>
+																</div>
+																<Button
+																	type="button"
+																	variant="outline"
+																	onClick={handleAddItem}
+																	disabled={!newItemName.trim()}
+																>
+																	<Plus className="w-4 h-4 mr-1" />
+																	Adicionar
+																</Button>
+															</div>
+														</div>
+													</div>
+												)}
+											</div>
 
 											<div className="space-y-2">
 												<Label htmlFor="usageRules">Normas de Uso (Opcional)</Label>
@@ -1470,6 +1774,22 @@ export default function CondominiumInfo() {
 																</span>
 															)}
 														</div>
+														{area.openingTime && area.closingTime && (
+															<div className="flex items-center gap-1 mt-2">
+																<Clock className="w-3 h-3 text-muted-foreground" />
+																<span className="text-xs text-muted-foreground">
+																	Horário: {area.openingTime} - {area.closingTime}
+																</span>
+															</div>
+														)}
+														{area.items && area.items.length > 0 && (
+															<div className="flex items-center gap-1 mt-2">
+																<Package className="w-3 h-3 text-muted-foreground" />
+																<span className="text-xs text-muted-foreground">
+																	{area.items.length} {area.items.length === 1 ? "item" : "itens"}
+																</span>
+															</div>
+														)}
 													</div>
 													<div className="flex gap-2">
 														<Select
@@ -1520,6 +1840,16 @@ export default function CondominiumInfo() {
 																<SelectItem value="INATIVO">Inativo</SelectItem>
 															</SelectContent>
 														</Select>
+														{area.bookingType && (
+															<Button
+																size="sm"
+																variant="outline"
+																onClick={() => handleOpenBookingsCalendar(area)}
+																title="Ver reservas agendadas"
+															>
+																<CalendarDays className="w-4 h-4" />
+															</Button>
+														)}
 														<Button
 															size="sm"
 															variant="outline"
@@ -1998,10 +2328,7 @@ export default function CondominiumInfo() {
 
 					{isLoadingResidentDetails ? (
 						<div className="flex items-center justify-center py-12">
-							<div className="text-center space-y-2">
-								<div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
-								<p className="text-sm text-muted-foreground">Carregando detalhes...</p>
-							</div>
+							<div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
 						</div>
 					) : selectedResident ? (
 						<>
@@ -2415,6 +2742,251 @@ export default function CondominiumInfo() {
 					</AlertDialogFooter>
 				</AlertDialogContent>
 			</AlertDialog>
+
+			{/* Modal de Calendário de Reservas */}
+			<Dialog
+				open={isBookingsCalendarOpen}
+				onOpenChange={(open) => {
+					setIsBookingsCalendarOpen(open);
+					if (!open) {
+						setSelectedAmenityForBookings(null);
+						setAmenityBookings([]);
+						setSelectedCalendarDate(undefined);
+						setBookingDates(new Map());
+					}
+				}}
+			>
+				<DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+					<DialogHeader>
+						<DialogTitle className="flex items-center gap-2">
+							<CalendarDays className="w-5 h-5" />
+							Reservas - {selectedAmenityForBookings?.name}
+						</DialogTitle>
+						<DialogDescription>
+							{selectedAmenityForBookings?.bookingType === "POR_HORAS"
+								? "Selecione um dia para ver os horários reservados"
+								: "Visualize os dias com reservas agendadas"}
+						</DialogDescription>
+					</DialogHeader>
+
+					{isLoadingAmenityBookings ? (
+						<div className="flex items-center justify-center h-64">
+							<div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+						</div>
+					) : (
+						<div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+							{/* Calendário */}
+							<div className="space-y-4">
+								<CalendarComponent
+									mode="single"
+									selected={selectedCalendarDate}
+									onSelect={setSelectedCalendarDate}
+									locale={ptBR}
+									modifiers={{
+										hasBooking: (date) => {
+											const dateStr = format(date, "yyyy-MM-dd");
+											return bookingDates.has(dateStr);
+										},
+										hasPendente: (date) => {
+											const dateStr = format(date, "yyyy-MM-dd");
+											const bookings = bookingDates.get(dateStr) || [];
+											return bookings.some((b) => b.status === "PENDENTE");
+										},
+										hasAgendado: (date) => {
+											const dateStr = format(date, "yyyy-MM-dd");
+											const bookings = bookingDates.get(dateStr) || [];
+											return bookings.some((b) => b.status === "AGENDADO");
+										},
+										hasEmAndamento: (date) => {
+											const dateStr = format(date, "yyyy-MM-dd");
+											const bookings = bookingDates.get(dateStr) || [];
+											return bookings.some((b) => b.status === "EM_ANDAMENTO");
+										},
+										hasFinalizado: (date) => {
+											const dateStr = format(date, "yyyy-MM-dd");
+											const bookings = bookingDates.get(dateStr) || [];
+											return bookings.some((b) => b.status === "FINALIZADO");
+										},
+									}}
+									modifiersClassNames={{
+										hasBooking: "bg-blue-100 text-blue-900 font-medium",
+										hasPendente: "bg-yellow-100 text-yellow-900 font-medium border-2 border-yellow-400",
+										hasAgendado: "bg-green-100 text-green-900 font-medium border-2 border-green-400",
+										hasEmAndamento: "bg-orange-100 text-orange-900 font-medium border-2 border-orange-400",
+										hasFinalizado: "bg-gray-100 text-gray-900 font-medium border-2 border-gray-400",
+									}}
+									className="rounded-md border"
+								/>
+
+								{/* Legenda */}
+								<div className="flex flex-wrap gap-4 text-sm">
+									<div className="flex items-center gap-2">
+										<div className="w-4 h-4 bg-yellow-100 border-2 border-yellow-400 rounded"></div>
+										<span>Pendente</span>
+									</div>
+									<div className="flex items-center gap-2">
+										<div className="w-4 h-4 bg-green-100 border-2 border-green-400 rounded"></div>
+										<span>Agendado</span>
+									</div>
+									<div className="flex items-center gap-2">
+										<div className="w-4 h-4 bg-orange-100 border-2 border-orange-400 rounded"></div>
+										<span>Em Andamento</span>
+									</div>
+									<div className="flex items-center gap-2">
+										<div className="w-4 h-4 bg-gray-100 border-2 border-gray-400 rounded"></div>
+										<span>Finalizado</span>
+									</div>
+								</div>
+
+								{/* Total de reservas */}
+								<p className="text-sm text-muted-foreground">
+									Total de reservas: {amenityBookings.length}
+								</p>
+							</div>
+
+							{/* Lista de reservas do dia selecionado */}
+							<div className="space-y-4">
+								<h4 className="font-medium">
+									{selectedCalendarDate
+										? `Reservas em ${format(selectedCalendarDate, "dd 'de' MMMM 'de' yyyy", { locale: ptBR })}`
+										: "Todas as reservas"}
+								</h4>
+
+								{selectedCalendarDate ? (
+									// Mostrar reservas do dia selecionado
+									getBookingsForSelectedDate().length === 0 ? (
+										<p className="text-sm text-muted-foreground py-4">
+											Nenhuma reserva neste dia
+										</p>
+									) : (
+										<div className="space-y-3 max-h-[400px] overflow-y-auto">
+											{getBookingsForSelectedDate()
+												.sort((a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime())
+												.map((booking) => (
+													<Card key={booking._id} className="p-3">
+														<div className="flex items-start justify-between">
+															<div className="space-y-1">
+																{selectedAmenityForBookings?.bookingType === "POR_HORAS" && (
+																	<div className="flex items-center gap-2">
+																		<Clock className="w-4 h-4 text-muted-foreground" />
+																		<span className="font-medium">
+																			{formatBookingTime(booking)}
+																		</span>
+																	</div>
+																)}
+																{selectedAmenityForBookings?.bookingType === "DIARIO" && (
+																	<div className="flex items-center gap-2">
+																		<Calendar className="w-4 h-4 text-muted-foreground" />
+																		<span className="font-medium">Dia inteiro</span>
+																	</div>
+																)}
+																{booking.totalValue > 0 && (
+																	<p className="text-sm text-muted-foreground">
+																		Valor: R${" "}
+																		{booking.totalValue.toLocaleString("pt-BR", {
+																			minimumFractionDigits: 2,
+																			maximumFractionDigits: 2,
+																		})}
+																	</p>
+																)}
+																{booking.observation && (
+																	<p className="text-sm text-muted-foreground">
+																		Obs: {booking.observation}
+																	</p>
+																)}
+															</div>
+														<Badge
+															variant="secondary"
+															className={
+																booking.status === "EM_ANDAMENTO"
+																	? "bg-orange-500 text-white"
+																	: booking.status === "AGENDADO"
+																		? "bg-green-500 text-white"
+																		: booking.status === "PENDENTE"
+																			? "bg-yellow-500 text-white"
+																			: booking.status === "FINALIZADO"
+																				? "bg-gray-500 text-white"
+																				: ""
+															}
+														>
+															{booking.status === "EM_ANDAMENTO"
+																? "Em Andamento"
+																: booking.status === "AGENDADO"
+																	? "Agendado"
+																	: booking.status === "PENDENTE"
+																		? "Pendente"
+																		: booking.status === "FINALIZADO"
+																			? "Finalizado"
+																			: booking.status}
+														</Badge>
+													</div>
+												</Card>
+											))}
+										</div>
+									)
+								) : (
+									// Mostrar todas as reservas quando nenhum dia está selecionado
+									amenityBookings.length === 0 ? (
+										<p className="text-sm text-muted-foreground py-4">
+											Nenhuma reserva encontrada
+										</p>
+									) : (
+										<div className="space-y-3 max-h-[400px] overflow-y-auto">
+											{amenityBookings
+												.sort((a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime())
+												.map((booking) => (
+													<Card key={booking._id} className="p-3">
+														<div className="flex items-start justify-between">
+															<div className="space-y-1">
+																<p className="font-medium">
+																	{format(new Date(booking.startDate), "dd/MM/yyyy", { locale: ptBR })}
+																</p>
+																{selectedAmenityForBookings?.bookingType === "POR_HORAS" && (
+																	<p className="text-sm text-muted-foreground">
+																		{formatBookingTime(booking)}
+																	</p>
+																)}
+																{selectedAmenityForBookings?.bookingType === "DIARIO" && (
+																	<p className="text-sm text-muted-foreground">
+																		Dia inteiro
+																	</p>
+																)}
+															</div>
+															<Badge
+																variant="secondary"
+																className={
+																	booking.status === "EM_ANDAMENTO"
+																		? "bg-orange-500 text-white"
+																		: booking.status === "AGENDADO"
+																			? "bg-green-500 text-white"
+																			: booking.status === "PENDENTE"
+																				? "bg-yellow-500 text-white"
+																				: booking.status === "FINALIZADO"
+																					? "bg-gray-500 text-white"
+																					: ""
+																}
+															>
+																{booking.status === "EM_ANDAMENTO"
+																	? "Em Andamento"
+																	: booking.status === "AGENDADO"
+																		? "Agendado"
+																		: booking.status === "PENDENTE"
+																			? "Pendente"
+																			: booking.status === "FINALIZADO"
+																				? "Finalizado"
+																				: booking.status}
+															</Badge>
+														</div>
+													</Card>
+												))}
+										</div>
+									)
+								)}
+							</div>
+						</div>
+					)}
+				</DialogContent>
+			</Dialog>
 		</div>
 	);
 }

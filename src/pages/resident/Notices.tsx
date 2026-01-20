@@ -253,7 +253,7 @@ const Notices = () => {
 				<DialogContent className="max-w-5xl h-[90vh] flex flex-col">
 					<DialogHeader>
 						{isLoadingDetail ? (
-							<DialogTitle>Carregando detalhes do aviso</DialogTitle>
+							<DialogTitle>Detalhes do Aviso</DialogTitle>
 						) : selectedNoticeDetail ? (
 							<>
 								<DialogTitle className="flex items-center gap-2">
@@ -268,7 +268,7 @@ const Notices = () => {
 					</DialogHeader>
 					{isLoadingDetail ? (
 						<div className="flex items-center justify-center h-full">
-							<p className="text-muted-foreground">Carregando detalhes do aviso...</p>
+							<div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
 						</div>
 					) : selectedNoticeDetail ? (
 						<>

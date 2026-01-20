@@ -8,6 +8,14 @@ import { apiClient } from "./client";
 import type { ApiResponse } from "./types";
 
 /**
+ * Item da comodidade
+ */
+export interface AmenityItem {
+	name: string;
+	quantity: number;
+}
+
+/**
  * Amenity data
  */
 export interface Amenity {
@@ -23,6 +31,9 @@ export interface Amenity {
 	maxHours?: number;
 	usageRules?: string; // HTML content
 	bookingType?: "DIARIO" | "POR_HORAS";
+	openingTime?: string; // HH:mm format (e.g., "08:00")
+	closingTime?: string; // HH:mm format (e.g., "22:00")
+	items?: AmenityItem[]; // Lista de itens da comodidade
 	status?: "ATIVO" | "INATIVO";
 	createdAt?: string;
 	updatedAt?: string;
@@ -83,6 +94,9 @@ class AmenitiesService {
 		maxHours?: number;
 		usageRules?: string;
 		bookingType?: "DIARIO" | "POR_HORAS";
+		openingTime?: string;
+		closingTime?: string;
+		items?: AmenityItem[];
 		status?: "ATIVO" | "INATIVO";
 	}): Promise<ApiResponse<Amenity>> {
 		return apiClient.post<Amenity>(this.basePath, data);
@@ -105,6 +119,9 @@ class AmenitiesService {
 			maxHours?: number;
 			usageRules?: string;
 			bookingType?: "DIARIO" | "POR_HORAS";
+			openingTime?: string;
+			closingTime?: string;
+			items?: AmenityItem[];
 			status?: "ATIVO" | "INATIVO";
 		},
 	): Promise<ApiResponse<Amenity>> {

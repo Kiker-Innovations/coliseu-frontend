@@ -4,7 +4,7 @@
  */
 
 // Client and types
-export { apiClient, ApiClientError } from "./client";
+export { apiClient, ApiClientError, NetworkError } from "./client";
 export type {
 	ApiResponse,
 	ApiError,

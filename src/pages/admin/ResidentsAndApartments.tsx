@@ -38,6 +38,7 @@ import {
 	Home,
 } from "lucide-react";
 import { toast } from "sonner";
+import ResidentsAndApartmentsSkeleton from "@/skeleton/admin/ResidentsAndApartmentsSkeleton";
 import { apartmentsService, adminService, type Apartment } from "@/services/api";
 import { cn } from "@/lib/utils";
 
@@ -316,16 +317,7 @@ export default function ResidentsAndApartments() {
 	};
 
 	if (isLoading) {
-		return (
-			<div className="space-y-6">
-				<div className="flex items-center justify-between">
-					<div>
-						<h1 className="text-3xl font-bold">Condôminos e Apartamentos</h1>
-						<p className="text-muted-foreground">Carregando...</p>
-					</div>
-				</div>
-			</div>
-		);
+		return <ResidentsAndApartmentsSkeleton />;
 	}
 
 	return (
@@ -842,10 +834,7 @@ export default function ResidentsAndApartments() {
 
 					{isLoadingDetails ? (
 						<div className="flex items-center justify-center py-12">
-							<div className="text-center space-y-2">
-								<div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
-								<p className="text-sm text-muted-foreground">Carregando detalhes...</p>
-							</div>
+							<div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
 						</div>
 					) : selectedResident ? (
 						<div className="overflow-y-auto px-6 flex-1 min-h-0">

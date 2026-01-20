@@ -496,7 +496,7 @@ export default function Concierge() {
 						{isLoadingContacts ? (
 							<Card>
 								<CardContent className="py-12 text-center">
-									<p className="text-muted-foreground">Carregando contatos...</p>
+									<div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
 								</CardContent>
 							</Card>
 						) : usefulContacts.length === 0 ? (

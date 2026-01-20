@@ -607,7 +607,7 @@ export default function Notices() {
 				<DialogContent className="max-w-5xl h-[90vh] flex flex-col">
 					{isLoadingDetail ? (
 						<div className="flex items-center justify-center h-full">
-							<p className="text-muted-foreground">Carregando detalhes do aviso...</p>
+							<div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
 						</div>
 					) : selectedNoticeDetail ? (
 						<>

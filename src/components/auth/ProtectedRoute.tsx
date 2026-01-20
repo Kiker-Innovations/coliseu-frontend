@@ -3,11 +3,13 @@
  * Wraps routes that require authentication and specific user types
  */
 
-import React, { useState, useEffect } from "react";
+import type React from "react";
+import { useState, useEffect } from "react";
 import { Navigate, Outlet, useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/hooks/use-auth";
 import type { UserType } from "@/services/auth.service";
 import { ProtectedPageRoute } from "./ProtectedPageRoute";
+import { FullPageSpinner } from "@/components/ui/full-page-spinner";
 
 interface ProtectedRouteProps {
 	allowedUserType: UserType;
@@ -22,14 +24,7 @@ export function ProtectedRoute({ allowedUserType, redirectTo }: ProtectedRoutePr
 
 	// Show loading state while checking authentication
 	if (isLoading) {
-		return (
-			<div className="min-h-screen flex items-center justify-center">
-				<div className="text-center">
-					<div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto" />
-					<p className="mt-4 text-muted-foreground">Verificando autenticação...</p>
-				</div>
-			</div>
-		);
+		return <FullPageSpinner />;
 	}
 
 	// Not authenticated - redirect to login
@@ -130,7 +125,7 @@ export function ProtectedStatusRoute({ children }: { children: React.ReactNode }
 
 			// Verificar se o token expirou (5 minutos)
 			if (storedTime) {
-				const tokenAge = Date.now() - parseInt(storedTime, 10);
+				const tokenAge = Date.now() - Number.parseInt(storedTime, 10);
 				const fiveMinutes = 5 * 60 * 1000;
 
 				if (tokenAge > fiveMinutes) {
@@ -152,14 +147,7 @@ export function ProtectedStatusRoute({ children }: { children: React.ReactNode }
 
 	// Mostrar loading durante validação
 	if (isValidating) {
-		return (
-			<div className="min-h-screen flex items-center justify-center bg-background">
-				<div className="text-center">
-					<div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto" />
-					<p className="mt-4 text-muted-foreground">Verificando acesso...</p>
-				</div>
-			</div>
-		);
+		return <FullPageSpinner />;
 	}
 
 	// Se não autorizado, não renderiza nada (já redirecionou)

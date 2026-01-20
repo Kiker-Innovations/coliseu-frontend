@@ -11,6 +11,7 @@ import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/use-auth";
 import { adminService } from "@/services/api";
+import ProfileSkeleton from "@/skeleton/admin/ProfileSkeleton";
 
 // Schema de validação para dados do perfil
 const profileSchema = z.object({
@@ -198,19 +199,7 @@ export default function AdminProfile() {
 	};
 
 	if (isLoading) {
-		return (
-			<div className="space-y-6">
-				<div className="flex items-center gap-4">
-					<Button variant="ghost" size="icon" onClick={() => navigate(-1)} className="shrink-0">
-						<ArrowLeft className="h-4 w-4" />
-					</Button>
-					<div>
-						<h1 className="text-3xl font-bold">Meu Perfil</h1>
-						<p className="text-muted-foreground">Carregando...</p>
-					</div>
-				</div>
-			</div>
-		);
+		return <ProfileSkeleton />;
 	}
 
 	return (

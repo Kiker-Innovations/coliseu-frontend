@@ -5,6 +5,8 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { Suspense, lazy } from "react";
 import AuthProvider from "./contexts/AuthContext";
+import { NetworkProvider } from "./contexts/NetworkContext";
+import { FullPageSpinner } from "@/components/ui/full-page-spinner";
 import {
 	ProtectedResidentRoute,
 	ProtectedConciergeRoute,
@@ -80,14 +82,9 @@ const App = () => (
 			<Sonner />
 			<InstallPrompt />
 			<BrowserRouter>
-				<AuthProvider>
-					<Suspense
-						fallback={
-							<div className="flex min-h-[50svh] items-center justify-center text-sm text-muted-foreground">
-								Carregando...
-							</div>
-						}
-					>
+				<NetworkProvider>
+					<AuthProvider>
+					<Suspense fallback={<FullPageSpinner />}>
 						<Routes>
 							<Route path="/" element={<Login />} />
 
@@ -401,6 +398,7 @@ const App = () => (
 						</Routes>
 					</Suspense>
 				</AuthProvider>
+				</NetworkProvider>
 			</BrowserRouter>
 		</TooltipProvider>
 	</QueryClientProvider>

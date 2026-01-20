@@ -7,6 +7,7 @@ import React from "react";
 import { Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/hooks/use-auth";
 import { authService } from "@/services/auth.service";
+import { FullPageSpinner } from "@/components/ui/full-page-spinner";
 
 interface ProtectedPageRouteProps {
 	children: React.ReactNode;
@@ -124,14 +125,7 @@ export function ProtectedPageRoute({ children }: ProtectedPageRouteProps) {
 
 	// Mostrar loading durante verificação
 	if (isLoading) {
-		return (
-			<div className="min-h-screen flex items-center justify-center">
-				<div className="text-center">
-					<div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto" />
-					<p className="mt-4 text-muted-foreground">Verificando acesso...</p>
-				</div>
-			</div>
-		);
+		return <FullPageSpinner />;
 	}
 
 	// Se não estiver autenticado, redirecionar para login
