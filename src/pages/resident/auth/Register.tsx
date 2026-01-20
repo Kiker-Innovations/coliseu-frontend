@@ -209,7 +209,7 @@ export default function Register() {
 								<SelectTrigger className="h-12">
 									<SelectValue
 										placeholder={
-											isLoadingBuildings ? "Carregando prédios..." : "Selecione o prédio"
+											isLoadingBuildings ? "..." : "Selecione o prédio"
 										}
 									/>
 								</SelectTrigger>
@@ -239,7 +239,7 @@ export default function Register() {
 											!selectedBuildingId
 												? "Selecione primeiro o prédio"
 												: isLoadingApartments
-													? "Carregando apartamentos..."
+													? "..."
 													: "Selecione o apartamento"
 										}
 									/>

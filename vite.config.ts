@@ -88,10 +88,27 @@ export default defineConfig(() => ({
               },
             },
           },
+          {
+            // API cache - NetworkFirst with fallback to cache
+            urlPattern: /\/api\//,
+            handler: "NetworkFirst",
+            options: {
+              cacheName: "coliseu-api-cache",
+              expiration: {
+                maxEntries: 100,
+                maxAgeSeconds: 60 * 5, // 5 minutes
+              },
+              networkTimeoutSeconds: 10,
+              cacheableResponse: {
+                statuses: [0, 200],
+              },
+            },
+          },
         ],
       },
       devOptions: {
         enabled: true,
+        suppressWarnings: true,
       },
     }),
   ],

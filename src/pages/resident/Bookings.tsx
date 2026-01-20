@@ -55,12 +55,15 @@ import { z } from "zod";
 import {
 	amenitiesService,
 	bookingsService,
+	NetworkError,
 	type Amenity,
 	type Booking,
 	type CreateBookingRequest,
 	type GetBookingsParams,
 } from "@/services/api";
 import { useAuth } from "@/hooks/use-auth";
+import BookingsSkeleton from "@/skeleton/resident/BookingsSkeleton";
+import { NetworkErrorState } from "@/components/network/NetworkErrorState";
 
 const bookingSchema = z
 	.object({
@@ -107,7 +110,7 @@ function BookingDetails({
 	getStatusBadge: (status: string) => React.ReactNode;
 	onCancel: (bookingId: string) => void;
 }) {
-	const [amenityName, setAmenityName] = useState<string>("Carregando...");
+	const [amenityName, setAmenityName] = useState<string>("...");
 	const [amenityData, setAmenityData] = useState<Amenity | null>(null);
 
 	useEffect(() => {
@@ -398,7 +401,7 @@ function BookingRow({
 	onViewBooking: (booking: Booking) => void;
 	getStatusBadge: (status: string) => React.ReactNode;
 }) {
-	const [amenityName, setAmenityName] = useState<string>("Carregando...");
+	const [amenityName, setAmenityName] = useState<string>("...");
 	const [amenityData, setAmenityData] = useState<Amenity | null>(null);
 
 	useEffect(() => {
@@ -583,6 +586,7 @@ function BookingRow({
 export default function Bookings() {
 	const { user } = useAuth();
 	const [isLoading, setIsLoading] = useState(true);
+	const [networkError, setNetworkError] = useState<Error | null>(null);
 	const [amenities, setAmenities] = useState<Amenity[]>([]);
 	const [bookings, setBookings] = useState<Booking[]>([]);
 	const [selectedAmenity, setSelectedAmenity] = useState<Amenity | null>(null);
@@ -683,13 +687,20 @@ export default function Bookings() {
 
 	// Removido loadAvailableSlots - não mais necessário com a nova API
 
-	useEffect(() => {
-		const loadData = async () => {
+	const loadData = useCallback(async () => {
+		try {
 			setIsLoading(true);
+			setNetworkError(null);
 			await Promise.all([loadAmenities(), loadBookings()]);
+		} catch (error) {
+			if (error instanceof NetworkError) {
+				setNetworkError(error);
+			} else {
+				toast.error("Erro ao carregar dados");
+			}
+		} finally {
 			setIsLoading(false);
-		};
-		loadData();
+		}
 	}, [loadAmenities, loadBookings]);
 
 	const loadAvailability = useCallback(async (amenityId: string, amenityType?: string) => {
@@ -751,9 +762,9 @@ export default function Bookings() {
 
 				if (response.success && response.data) {
 					const availabilityMap = new Map<string, boolean>();
-					response.data.days.forEach((day) => {
+					for (const day of response.data.days) {
 						availabilityMap.set(day.date, day.available);
-					});
+					}
 					setAvailability(availabilityMap);
 				}
 			}
@@ -778,9 +789,9 @@ export default function Bookings() {
 
 			if (response.success && response.data) {
 				const hoursMap = new Map<number, boolean>();
-				response.data.hours.forEach((hour) => {
+				for (const hour of response.data.hours) {
 					hoursMap.set(hour.hour, hour.available);
-				});
+				}
 				setHoursAvailability(hoursMap);
 				setDayAvailable(response.data.dayAvailable);
 			}
@@ -791,6 +802,10 @@ export default function Bookings() {
 			setIsLoadingHoursAvailability(false);
 		}
 	}, []);
+
+	useEffect(() => {
+		loadData();
+	}, [loadData]);
 
 	const handleSelectAmenity = (amenity: Amenity) => {
 		// Verificar se a comodidade permite reserva
@@ -897,8 +912,8 @@ export default function Bookings() {
 				}
 
 				// Validar que hora fim seja maior que hora início
-				const startHour = parseInt(startTimeMatch[1]);
-				const endHour = parseInt(endTimeMatch[1]);
+				const startHour = Number.parseInt(startTimeMatch[1]);
+				const endHour = Number.parseInt(endTimeMatch[1]);
 
 				if (endHour <= startHour) {
 					toast.error("Hora de término deve ser maior que hora de início");
@@ -1040,8 +1055,8 @@ export default function Bookings() {
 		try {
 			// Se já está no formato YYYY-MM-DD, converte diretamente
 			if (dateString.match(/^\d{4}-\d{2}-\d{2}$/)) {
-				const date = new Date(dateString + "T00:00:00");
-				if (isNaN(date.getTime())) {
+				const date = new Date(`${dateString}T00:00:00`);
+				if (Number.isNaN(date.getTime())) {
 					return "-";
 				}
 				return date.toLocaleDateString("pt-BR");
@@ -1049,7 +1064,7 @@ export default function Bookings() {
 
 			// Tenta converter como Date ISO
 			const date = new Date(dateString);
-			if (isNaN(date.getTime())) {
+			if (Number.isNaN(date.getTime())) {
 				return "-";
 			}
 			return date.toLocaleDateString("pt-BR");
@@ -1060,16 +1075,17 @@ export default function Bookings() {
 	};
 
 	if (isLoading) {
+		return <BookingsSkeleton />;
+	}
+
+	if (networkError) {
 		return (
 			<div className="space-y-6">
-				<div className="animate-pulse space-y-4">
-					<div className="h-8 bg-muted rounded w-1/4"></div>
-					<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-						{[1, 2, 3].map((i) => (
-							<div key={i} className="h-32 bg-muted rounded"></div>
-						))}
-					</div>
+				<div>
+					<h1 className="text-3xl font-bold">Reservas</h1>
+					<p className="text-muted-foreground">Reserve comodidades do condomínio</p>
 				</div>
+				<NetworkErrorState error={networkError} onRetry={loadData} />
 			</div>
 		);
 	}
@@ -1174,7 +1190,10 @@ export default function Bookings() {
 											{/* Botões de Ação - sempre no fundo do card */}
 											<div
 												className="flex gap-2 pt-3 border-t mt-4"
-												onClick={(e) => e.stopPropagation()}
+												onClick={(e) => {
+													e.preventDefault();
+													e.stopPropagation();
+												}}
 											>
 												{canBook && (
 													<Button

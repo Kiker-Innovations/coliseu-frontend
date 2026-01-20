@@ -1,13 +1,14 @@
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Phone, Loader2, MessageCircle, User } from "lucide-react";
+import { Phone, MessageCircle, User } from "lucide-react";
 import { toast } from "sonner";
 import {
 	getUsefulContacts,
 	type UsefulContact,
 	ApiClientError,
 } from "@/services/api";
+import ContactsSkeleton from "@/skeleton/concierge/ContactsSkeleton";
 
 export default function Contacts() {
 	const [contacts, setContacts] = useState<UsefulContact[]>([]);
@@ -78,24 +79,7 @@ export default function Contacts() {
 	};
 
 	if (isLoading) {
-		return (
-			<div className="space-y-6">
-				<div>
-					<h1 className="text-3xl font-bold">Contatos Úteis</h1>
-					<p className="text-muted-foreground mt-1">
-						Visualize os contatos úteis cadastrados pelo administrador
-					</p>
-				</div>
-				<Card>
-					<CardContent className="py-12">
-						<div className="flex flex-col items-center justify-center">
-							<Loader2 className="w-8 h-8 animate-spin text-primary mb-4" />
-							<p className="text-muted-foreground">Carregando contatos...</p>
-						</div>
-					</CardContent>
-				</Card>
-			</div>
-		);
+		return <ContactsSkeleton />;
 	}
 
 	return (

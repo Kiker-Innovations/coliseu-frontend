@@ -540,7 +540,7 @@ export default function StatusTimeline() {
 												<SelectTrigger className="h-12">
 													<SelectValue
 														placeholder={
-															isLoadingBuildings ? "Carregando prédios..." : "Selecione o prédio"
+															isLoadingBuildings ? "..." : "Selecione o prédio"
 														}
 													/>
 												</SelectTrigger>
@@ -569,7 +569,7 @@ export default function StatusTimeline() {
 															!formData.buildingId
 																? "Selecione primeiro o prédio"
 																: isLoadingApartments
-																	? "Carregando apartamentos..."
+																	? "..."
 																	: "Selecione o apartamento"
 														}
 													/>

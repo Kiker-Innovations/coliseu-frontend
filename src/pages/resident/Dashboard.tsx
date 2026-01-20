@@ -4,16 +4,19 @@ import { Progress } from "@/components/ui/progress";
 import { Trophy, TrendingUp } from "lucide-react";
 import DashboardSkeleton from "@/skeleton/resident/DashboardSkeleton";
 import { toast } from "sonner";
-import { financialService, type FinancialSummary, type ProjectExpense } from "@/services/api";
+import { financialService, NetworkError, type FinancialSummary, type ProjectExpense } from "@/services/api";
+import { NetworkErrorState } from "@/components/network/NetworkErrorState";
 
 export default function Dashboard() {
 	const [isLoading, setIsLoading] = useState(true);
+	const [networkError, setNetworkError] = useState<Error | null>(null);
 	const [financialSummary, setFinancialSummary] = useState<FinancialSummary | null>(null);
 	const [projectsProgress, setProjectsProgress] = useState<ProjectExpense[]>([]);
 
 	const loadData = useCallback(async () => {
 		try {
 			setIsLoading(true);
+			setNetworkError(null);
 
 			// First check if month changed
 			await financialService.checkMonth();
@@ -31,8 +34,12 @@ export default function Dashboard() {
 			if (projectsResponse.success && projectsResponse.data) {
 				setProjectsProgress(projectsResponse.data);
 			}
-		} catch (error: any) {
-			toast.error(error.message || "Erro ao carregar dados");
+		} catch (error: unknown) {
+			if (error instanceof NetworkError) {
+				setNetworkError(error);
+			} else if (error instanceof Error) {
+				toast.error(error.message || "Erro ao carregar dados");
+			}
 			console.error("Erro ao carregar dados:", error);
 		} finally {
 			setIsLoading(false);
@@ -73,6 +80,17 @@ export default function Dashboard() {
 
 	if (isLoading) {
 		return <DashboardSkeleton />;
+	}
+
+	if (networkError) {
+		return (
+			<div className="space-y-6">
+				<div className="flex justify-between items-center">
+					<h1 className="text-3xl font-bold">Painel Principal</h1>
+				</div>
+				<NetworkErrorState error={networkError} onRetry={loadData} />
+			</div>
+		);
 	}
 
 	return (

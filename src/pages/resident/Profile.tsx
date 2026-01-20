@@ -28,6 +28,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { residentsService } from "@/services/api";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { CameraCapture } from "@/components/ui/camera-capture";
+import ProfileSkeleton from "@/skeleton/resident/ProfileSkeleton";
 
 // Schema de validação para dados do perfil
 const profileSchema = z.object({
@@ -467,19 +468,7 @@ export default function Profile() {
 	};
 
 	if (isLoading) {
-		return (
-			<div className="space-y-6">
-				<div className="flex items-center gap-4">
-					<Button variant="ghost" size="icon" onClick={() => navigate(-1)} className="shrink-0">
-						<ArrowLeft className="h-4 w-4" />
-					</Button>
-					<div>
-						<h1 className="text-3xl font-bold">Meu Perfil</h1>
-						<p className="text-muted-foreground">Carregando...</p>
-					</div>
-				</div>
-			</div>
-		);
+		return <ProfileSkeleton />;
 	}
 
 	return (

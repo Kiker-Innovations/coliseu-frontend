@@ -1,11 +1,22 @@
 /**
  * API Client
- * Base HTTP client with interceptors and error handling
+ * Base HTTP client with interceptors, error handling, retry mechanism and caching
  * Prepared for JWT authentication
  */
 
 import { API_CONFIG, AUTH_STORAGE_KEYS } from "@/config/api.config";
 import type { ApiResponse, ApiError, RequestConfig } from "./types";
+import { cacheService } from "@/services/network/cacheService";
+import { NETWORK_MESSAGES } from "@/services/network/networkMessages";
+
+/**
+ * Retry configuration
+ */
+const RETRY_CONFIG = {
+	maxAttempts: 3,
+	baseDelay: 1000, // 1 second
+	retryableErrors: ["NETWORK_ERROR", "TIMEOUT"],
+} as const;
 
 /**
  * Custom error class for API errors
@@ -21,8 +32,84 @@ export class ApiClientError extends Error {
 }
 
 /**
+ * Custom error class for network errors
+ */
+export class NetworkError extends Error {
+	public isNetworkError = true;
+	public isTimeout = false;
+	public isOffline = false;
+
+	constructor(message: string, options?: { isTimeout?: boolean; isOffline?: boolean }) {
+		super(message);
+		this.name = "NetworkError";
+		this.isTimeout = options?.isTimeout ?? false;
+		this.isOffline = options?.isOffline ?? false;
+	}
+
+	/**
+	 * Get user-friendly message
+	 */
+	getUserMessage(): string {
+		if (this.isOffline) {
+			return NETWORK_MESSAGES.OFFLINE;
+		}
+		if (this.isTimeout) {
+			return NETWORK_MESSAGES.TIMEOUT;
+		}
+		return NETWORK_MESSAGES.TEMPORARY_FAILURE;
+	}
+}
+
+/**
+ * Sleep utility for retry backoff
+ */
+function sleep(ms: number): Promise<void> {
+	return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/**
+ * Calculate exponential backoff delay
+ */
+function getBackoffDelay(attempt: number): number {
+	return RETRY_CONFIG.baseDelay * Math.pow(2, attempt - 1);
+}
+
+/**
+ * Check if we should retry the request
+ * Only retries GET requests to avoid side effects
+ */
+function shouldRetry(error: unknown, attempt: number, allowRetry: boolean): boolean {
+	// Don't retry if retry is not allowed (POST, PUT, PATCH, DELETE)
+	if (!allowRetry) {
+		return false;
+	}
+
+	// Don't retry if we've exceeded max attempts
+	if (attempt >= RETRY_CONFIG.maxAttempts) {
+		return false;
+	}
+
+	// Don't retry if user is offline
+	if (typeof navigator !== "undefined" && !navigator.onLine) {
+		return false;
+	}
+
+	// Retry on network errors
+	if (error instanceof NetworkError) {
+		return true;
+	}
+
+	// Don't retry on API errors (4xx, 5xx with response)
+	if (error instanceof ApiClientError) {
+		return false;
+	}
+
+	return false;
+}
+
+/**
  * API Client Class
- * Handles all HTTP requests with automatic token injection and error handling
+ * Handles all HTTP requests with automatic token injection, error handling, retry and caching
  */
 class ApiClient {
 	private baseURL: string;
@@ -34,35 +121,29 @@ class ApiClient {
 		this.timeout = API_CONFIG.timeout;
 
 		// Initialize token from storage on construction
-		// This ensures the token is available even if setAuthToken wasn't called
 		this.initializeTokenFromStorage();
 	}
 
 	/**
 	 * Initialize token from storage
-	 * Ensures token is available even if setAuthToken wasn't called explicitly
 	 */
 	private initializeTokenFromStorage(): void {
 		const token = this.getAuthToken();
 		if (token) {
-			// Token already exists in storage, ensure it's in both places
 			this.setAuthToken(token);
 		}
 	}
 
 	/**
 	 * Get authentication token from storage
-	 * Checks both localStorage and sessionStorage based on user's "remember me" preference
 	 */
 	private getAuthToken(): string | null {
-		// Try multiple sources to ensure we get the token
 		const token =
-			this.token || // First check in-memory token
+			this.token ||
 			localStorage.getItem(AUTH_STORAGE_KEYS.accessToken) ||
 			sessionStorage.getItem(AUTH_STORAGE_KEYS.accessToken) ||
 			null;
 
-		// If token found but not in memory, update it
 		if (token && !this.token) {
 			this.token = token;
 		}
@@ -72,13 +153,11 @@ class ApiClient {
 
 	/**
 	 * Build complete URL with query parameters
-	 * Supports arrays for multiple values with the same key (e.g., status=ATIVO&status=PROGRAMADO)
 	 */
 	private buildURL(
 		endpoint: string,
 		params?: Record<string, string | number | boolean | string[] | number[]>,
 	): string {
-		// Se o endpoint já tem query string, não processar params e retornar direto
 		if (endpoint.includes("?")) {
 			return `${this.baseURL}${endpoint}`;
 		}
@@ -88,7 +167,6 @@ class ApiClient {
 		if (params && Object.keys(params).length > 0) {
 			for (const [key, value] of Object.entries(params)) {
 				if (Array.isArray(value)) {
-					// For arrays, append each value as a separate parameter
 					for (const item of value) {
 						url.searchParams.append(key, String(item));
 					}
@@ -107,17 +185,13 @@ class ApiClient {
 	private buildHeaders(customHeaders?: HeadersInit): Headers {
 		const headers = new Headers(customHeaders);
 
-		// Set Content-Type if not already set
 		if (!headers.has("Content-Type")) {
 			headers.set("Content-Type", "application/json");
 		}
 
-		// Always refresh token from storage before building headers
-		// This ensures we have the latest token
 		const token = this.getAuthToken();
 		if (token) {
 			headers.set("Authorization", `Bearer ${token}`);
-		} else {
 		}
 
 		return headers;
@@ -136,7 +210,6 @@ class ApiClient {
 			if (isJSON) {
 				data = await response.json();
 			} else {
-				// Handle non-JSON responses
 				const text = await response.text();
 				data = {
 					success: response.ok,
@@ -153,7 +226,6 @@ class ApiClient {
 		}
 
 		if (!response.ok) {
-			// Log error details for debugging
 			console.error("API Error Response:", {
 				status: response.status,
 				statusText: response.statusText,
@@ -168,13 +240,16 @@ class ApiClient {
 
 	/**
 	 * Execute HTTP request with timeout
+	 * Retry is only allowed for GET requests to avoid side effects
 	 */
-	private async executeRequest<T>(url: string, config: RequestConfig): Promise<ApiResponse<T>> {
+	private async executeRequest<T>(
+		url: string,
+		config: RequestConfig,
+		options: { allowRetry: boolean } = { allowRetry: false },
+		attempt: number = 1,
+	): Promise<ApiResponse<T>> {
 		const controller = new AbortController();
 		const timeoutId = setTimeout(() => controller.abort(), config.timeout || this.timeout);
-
-		// Log request details for debugging
-		const token = this.getAuthToken();
 
 		try {
 			const response = await fetch(url, {
@@ -187,58 +262,118 @@ class ApiClient {
 		} catch (error) {
 			clearTimeout(timeoutId);
 
+			// If it's already an ApiClientError, don't wrap it
 			if (error instanceof ApiClientError) {
 				throw error;
 			}
 
+			// Convert to NetworkError
+			let networkError: NetworkError;
+
 			if (error instanceof Error) {
 				if (error.name === "AbortError") {
-					throw new Error("Request timeout");
+					networkError = new NetworkError(NETWORK_MESSAGES.TIMEOUT, { isTimeout: true });
+				} else if (!navigator.onLine) {
+					networkError = new NetworkError(NETWORK_MESSAGES.OFFLINE, { isOffline: true });
+				} else {
+					networkError = new NetworkError(NETWORK_MESSAGES.TEMPORARY_FAILURE);
 				}
-				throw new Error(`Network error: ${error.message}`);
+			} else {
+				networkError = new NetworkError(NETWORK_MESSAGES.GENERIC_ERROR);
 			}
 
-			throw new Error("Unknown error occurred");
+			// Check if we should retry (only for GET requests)
+			if (shouldRetry(networkError, attempt, options.allowRetry)) {
+				const delay = getBackoffDelay(attempt);
+				console.log(`Retrying request (attempt ${attempt + 1}/${RETRY_CONFIG.maxAttempts}) after ${delay}ms...`);
+				await sleep(delay);
+				return this.executeRequest<T>(url, config, options, attempt + 1);
+			}
+
+			throw networkError;
 		}
 	}
 
 	/**
 	 * Generic request method
+	 * Only GET requests are allowed to retry automatically
 	 */
-	private async request<T>(endpoint: string, config: RequestConfig = {}): Promise<ApiResponse<T>> {
+	private async request<T>(
+		endpoint: string,
+		config: RequestConfig = {},
+		options: { allowRetry: boolean } = { allowRetry: false },
+	): Promise<ApiResponse<T>> {
 		const { params, headers: customHeaders, ...fetchConfig } = config;
 		const url = this.buildURL(endpoint, params);
 		const headers = this.buildHeaders(customHeaders);
 
-		// Log headers for debugging (without exposing full token)
-		const authHeader = headers.get("Authorization");
-
-		return this.executeRequest<T>(url, {
-			...fetchConfig,
-			headers,
-		});
+		return this.executeRequest<T>(
+			url,
+			{
+				...fetchConfig,
+				headers,
+			},
+			options,
+		);
 	}
 
 	/**
-	 * GET request
+	 * GET request with optional caching and automatic retry
+	 *
+	 * @param endpoint - API endpoint
+	 * @param config - Request configuration
+	 * @param cacheOptions - Cache options (set to false to disable cache for this request)
 	 */
-	async get<T>(endpoint: string, config?: RequestConfig): Promise<ApiResponse<T>> {
-		return this.request<T>(endpoint, {
-			...config,
-			method: "GET",
-		});
+	async get<T>(
+		endpoint: string,
+		config?: RequestConfig,
+		cacheOptions?: { enabled?: boolean; ttl?: number } | false,
+	): Promise<ApiResponse<T>> {
+		// Determine if caching is enabled
+		const cacheEnabled = cacheOptions !== false && cacheOptions?.enabled !== false;
+		const cacheTtl = typeof cacheOptions === "object" ? cacheOptions.ttl : undefined;
+
+		// Try to get from cache first (only if online check fails or as fallback)
+		const cachedData = cacheEnabled
+			? cacheService.get<ApiResponse<T>>(endpoint, config?.params as Record<string, unknown>)
+			: null;
+
+		try {
+			// Always try to fetch fresh data when online
+			// GET requests are allowed to retry automatically
+			const response = await this.request<T>(
+				endpoint,
+				{
+					...config,
+					method: "GET",
+				},
+				{ allowRetry: true },
+			);
+
+			// Update cache with fresh data
+			if (cacheEnabled && response.success) {
+				cacheService.set(endpoint, response, config?.params as Record<string, unknown>, cacheTtl);
+			}
+
+			return response;
+		} catch (error) {
+			// If we have cached data and it's a network error, return cached data
+			if (cachedData && error instanceof NetworkError) {
+				return cachedData;
+			}
+
+			// Otherwise, re-throw the error
+			throw error;
+		}
 	}
 
 	/**
 	 * POST request
 	 */
 	async post<T>(endpoint: string, data?: unknown, config?: RequestConfig): Promise<ApiResponse<T>> {
-		// Ensure token is synchronized before making request
 		const token = this.getAuthToken();
 		if (!token) {
 			console.error("No authentication token found for POST request to:", endpoint);
-			console.error("localStorage token:", localStorage.getItem(AUTH_STORAGE_KEYS.accessToken));
-			console.error("sessionStorage token:", sessionStorage.getItem(AUTH_STORAGE_KEYS.accessToken));
 		}
 		return this.request<T>(endpoint, {
 			...config,
@@ -255,7 +390,6 @@ class ApiClient {
 		formData: FormData,
 		config?: RequestConfig,
 	): Promise<ApiResponse<T>> {
-		// Remove Content-Type header to let browser set it with boundary
 		const headers = new Headers(config?.headers);
 		headers.delete("Content-Type");
 
@@ -310,8 +444,6 @@ class ApiClient {
 
 	/**
 	 * Set authentication token
-	 * For future JWT implementation
-	 * Saves to both localStorage and sessionStorage to ensure it's available
 	 */
 	setAuthToken(token: string): void {
 		localStorage.setItem(AUTH_STORAGE_KEYS.accessToken, token);
@@ -322,14 +454,30 @@ class ApiClient {
 	 * Clear authentication token
 	 */
 	clearAuthToken(): void {
-		// Clear in-memory token
 		this.token = null;
-
-		// Clear from both storages for consistency
 		localStorage.removeItem(AUTH_STORAGE_KEYS.accessToken);
 		localStorage.removeItem(AUTH_STORAGE_KEYS.refreshToken);
 		sessionStorage.removeItem(AUTH_STORAGE_KEYS.accessToken);
 		sessionStorage.removeItem(AUTH_STORAGE_KEYS.refreshToken);
+
+		// Also clear API cache when logging out
+		cacheService.clear();
+	}
+
+	/**
+	 * Clear all API cache
+	 * Useful for testing or forcing fresh data
+	 */
+	clearCache(): void {
+		cacheService.clear();
+	}
+
+	/**
+	 * Clear cache for specific endpoint
+	 * Useful for clearing cache after mutations
+	 */
+	clearCacheByEndpoint(endpoint: string): void {
+		cacheService.clearByPrefix(endpoint);
 	}
 }
 

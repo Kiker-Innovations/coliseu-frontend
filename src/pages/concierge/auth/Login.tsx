@@ -20,6 +20,7 @@ import { toast } from "sonner";
 import { loginSchema, type LoginSchema } from "@/schemas/concierge/login.schema";
 import coliseuIcon from "@/assets/coliseu-icon.png";
 import { buildingsService, type Building } from "@/services/api/buildings.service";
+import LoginSkeleton from "@/skeleton/concierge/auth/LoginSkeleton";
 
 export default function ConciergeLogin() {
 	const navigate = useNavigate();
@@ -97,34 +98,12 @@ export default function ConciergeLogin() {
 
 	// Show loading state while auth is loading or page is not ready
 	if (isAuthLoading || !isPageReady) {
-		return (
-			<div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 via-background to-accent/5 p-4">
-				<Card className="w-full max-w-md border-2 border-primary/20 shadow-xl">
-					<CardContent className="p-8">
-						<div className="flex flex-col items-center justify-center space-y-4">
-							<div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
-							<p className="text-sm text-muted-foreground">Carregando...</p>
-						</div>
-					</CardContent>
-				</Card>
-			</div>
-		);
+		return <LoginSkeleton />;
 	}
 
 	// Don't render login page if already authenticated
 	if (isAuthenticated && userType === "concierge") {
-		return (
-			<div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 via-background to-accent/5 p-4">
-				<Card className="w-full max-w-md border-2 border-primary/20 shadow-xl">
-					<CardContent className="p-8">
-						<div className="flex flex-col items-center justify-center space-y-4">
-							<div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
-							<p className="text-sm text-muted-foreground">Redirecionando...</p>
-						</div>
-					</CardContent>
-				</Card>
-			</div>
-		);
+		return <LoginSkeleton />;
 	}
 
 	return (
@@ -156,7 +135,7 @@ export default function ConciergeLogin() {
 								<SelectTrigger>
 									<SelectValue
 										placeholder={
-											isLoadingBuildings ? "Carregando condomínios..." : "Selecione o condomínio"
+											isLoadingBuildings ? "..." : "Selecione o condomínio"
 										}
 									/>
 								</SelectTrigger>
@@ -169,7 +148,7 @@ export default function ConciergeLogin() {
 										))
 									) : (
 										<SelectItem value="" disabled>
-											{isLoadingBuildings ? "Carregando..." : "Nenhum condomínio disponível"}
+											{isLoadingBuildings ? "..." : "Nenhum condomínio disponível"}
 										</SelectItem>
 									)}
 								</SelectContent>
