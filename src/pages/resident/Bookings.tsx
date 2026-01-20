@@ -42,6 +42,7 @@ import {
 	Search,
 	QrCode,
 	RefreshCw,
+	Info,
 } from "lucide-react";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -290,7 +291,19 @@ function BookingDetails({
 				<>
 					{amenityData.fineValue && amenityData.fineValue > 0 && (
 						<div className="pt-4 border-t">
-							<Label className="text-muted-foreground">Multa por Atraso</Label>
+							<div className="flex items-center gap-1">
+								<Label className="text-muted-foreground">Multa por Atraso</Label>
+								<Popover>
+									<PopoverTrigger asChild>
+										<button type="button" className="inline-flex">
+											<Info className="w-4 h-4 text-muted-foreground cursor-pointer hover:text-primary" />
+										</button>
+									</PopoverTrigger>
+									<PopoverContent className="w-80">
+										<p className="text-sm">Este valor só será cobrado caso você não devolva o espaço no horário combinado. Se cumprir o horário, não haverá cobrança adicional.</p>
+									</PopoverContent>
+								</Popover>
+							</div>
 							<p className="text-sm font-medium text-destructive mt-1">
 								R${" "}
 								{amenityData.fineValue.toLocaleString("pt-BR", {
@@ -303,7 +316,19 @@ function BookingDetails({
 
 					{amenityData.nonComplianceFine && amenityData.nonComplianceFine > 0 && (
 						<div className="pt-4 border-t">
-							<Label className="text-muted-foreground">Multa por Descumprimento de Normas</Label>
+							<div className="flex items-center gap-1">
+								<Label className="text-muted-foreground">Multa por Descumprimento de Normas</Label>
+								<Popover>
+									<PopoverTrigger asChild>
+										<button type="button" className="inline-flex">
+											<Info className="w-4 h-4 text-muted-foreground cursor-pointer hover:text-primary" />
+										</button>
+									</PopoverTrigger>
+									<PopoverContent className="w-80">
+										<p className="text-sm">Este valor só será cobrado caso as normas de uso da comodidade sejam descumpridas. Seguindo as regras, não haverá cobrança adicional.</p>
+									</PopoverContent>
+								</Popover>
+							</div>
 							<p className="text-sm font-medium text-destructive mt-1">
 								R${" "}
 								{amenityData.nonComplianceFine.toLocaleString("pt-BR", {
@@ -574,6 +599,11 @@ export default function Bookings() {
 	const [acceptedTerms, setAcceptedTerms] = useState(false);
 	const [startTime, setStartTime] = useState<string>("");
 	const [endTime, setEndTime] = useState<string>("");
+	const [availability, setAvailability] = useState<Map<string, boolean>>(new Map());
+	const [isLoadingAvailability, setIsLoadingAvailability] = useState(false);
+	const [hoursAvailability, setHoursAvailability] = useState<Map<number, boolean>>(new Map());
+	const [dayAvailable, setDayAvailable] = useState<boolean | null>(null);
+	const [isLoadingHoursAvailability, setIsLoadingHoursAvailability] = useState(false);
 
 	const bookingForm = useForm<BookingFormData>({
 		resolver: zodResolver(bookingSchema),
@@ -662,6 +692,106 @@ export default function Bookings() {
 		loadData();
 	}, [loadAmenities, loadBookings]);
 
+	const loadAvailability = useCallback(async (amenityId: string, amenityType?: string) => {
+		if (!amenityId) return;
+
+		setIsLoadingAvailability(true);
+		try {
+			// Para POR_HORAS, usar disponibilidade de horas por dia
+			// Para DIARIO, usar disponibilidade de dias
+			if (amenityType === "POR_HORAS") {
+				// Buscar disponibilidade para os próximos 60 dias
+				// Para POR_HORAS, verificar se cada dia tem pelo menos uma hora disponível
+				const today = new Date();
+				const startDate = format(today, "yyyy-MM-dd");
+				const endDate = new Date(today);
+				endDate.setDate(endDate.getDate() + 60);
+				
+				const availabilityMap = new Map<string, boolean>();
+				
+				// Buscar disponibilidade de horas para cada dia
+				const promises: Promise<void>[] = [];
+				const currentDate = new Date(today);
+				
+				for (let i = 0; i < 60; i++) {
+					const dateStr = format(currentDate, "yyyy-MM-dd");
+					
+					promises.push(
+						bookingsService.getHoursAvailability({
+							amenityId,
+							date: dateStr,
+						}).then((response) => {
+							if (response.success && response.data) {
+								// Um dia está disponível se tem pelo menos uma hora disponível
+								availabilityMap.set(dateStr, response.data.dayAvailable);
+							}
+						}).catch((error) => {
+							console.error(`Erro ao carregar disponibilidade para ${dateStr}:`, error);
+						})
+					);
+					
+					currentDate.setDate(currentDate.getDate() + 1);
+				}
+				
+				await Promise.all(promises);
+				setAvailability(availabilityMap);
+			} else {
+				// Para DIARIO, usar disponibilidade de dias
+				const today = new Date();
+				const startDate = format(today, "yyyy-MM-dd");
+				const endDate = new Date(today);
+				endDate.setDate(endDate.getDate() + 60);
+				const endDateStr = format(endDate, "yyyy-MM-dd");
+
+				const response = await bookingsService.getAvailability({
+					amenityId,
+					startDate,
+					endDate: endDateStr,
+				});
+
+				if (response.success && response.data) {
+					const availabilityMap = new Map<string, boolean>();
+					response.data.days.forEach((day) => {
+						availabilityMap.set(day.date, day.available);
+					});
+					setAvailability(availabilityMap);
+				}
+			}
+		} catch (error) {
+			console.error("Erro ao carregar disponibilidade:", error);
+			// Não mostrar erro ao usuário, apenas logar
+		} finally {
+			setIsLoadingAvailability(false);
+		}
+	}, []);
+
+	const loadHoursAvailability = useCallback(async (amenityId: string, date: Date) => {
+		if (!amenityId || !date) return;
+
+		setIsLoadingHoursAvailability(true);
+		try {
+			const dateStr = format(date, "yyyy-MM-dd");
+			const response = await bookingsService.getHoursAvailability({
+				amenityId,
+				date: dateStr,
+			});
+
+			if (response.success && response.data) {
+				const hoursMap = new Map<number, boolean>();
+				response.data.hours.forEach((hour) => {
+					hoursMap.set(hour.hour, hour.available);
+				});
+				setHoursAvailability(hoursMap);
+				setDayAvailable(response.data.dayAvailable);
+			}
+		} catch (error) {
+			console.error("Erro ao carregar disponibilidade de horas:", error);
+			// Não mostrar erro ao usuário, apenas logar
+		} finally {
+			setIsLoadingHoursAvailability(false);
+		}
+	}, []);
+
 	const handleSelectAmenity = (amenity: Amenity) => {
 		// Verificar se a comodidade permite reserva
 		// AREA_COMUM não permite reserva, apenas COMODIDADE com bookingType
@@ -682,6 +812,9 @@ export default function Bookings() {
 		setSelectedDate(undefined);
 		setStartTime("");
 		setEndTime("");
+		setAvailability(new Map());
+		setHoursAvailability(new Map());
+		setDayAvailable(null);
 		bookingForm.reset({
 			amenityId: amenity._id,
 			date: "",
@@ -692,13 +825,25 @@ export default function Bookings() {
 			observation: "",
 			acceptedTerms: false,
 		});
+
+		// Buscar disponibilidade para a amenity selecionada
+		loadAvailability(amenity._id, amenity.bookingType);
 	};
 
 	const handleDateChange = (date: Date | undefined) => {
 		setSelectedDate(date);
+		setStartTime("");
+		setEndTime("");
+		setHoursAvailability(new Map());
+		setDayAvailable(null);
 		if (date) {
 			const dateStr = format(date, "yyyy-MM-dd");
 			bookingForm.setValue("date", dateStr);
+			
+			// Se for POR_HORAS, buscar disponibilidade de horas para o dia selecionado
+			if (selectedAmenity?.bookingType === "POR_HORAS" && selectedAmenity?._id) {
+				loadHoursAvailability(selectedAmenity._id, date);
+			}
 		}
 	};
 
@@ -969,54 +1114,66 @@ export default function Bookings() {
 												<span className="line-clamp-2">{amenity.name}</span>
 											</CardTitle>
 										</CardHeader>
-										<CardContent className="flex-1 flex flex-col space-y-3">
-											<div className="flex flex-wrap items-center gap-2">
-												{amenity.type && (
-													<Badge variant="secondary" className="text-xs">
-														{amenity.type === "AREA_COMUM" ? "Área Comum" : "Comodidade"}
-													</Badge>
+										<CardContent className="flex-1 flex flex-col">
+											<div className="flex-1 space-y-3">
+												<div className="flex flex-wrap items-center gap-2">
+													{amenity.type && (
+														<Badge variant="secondary" className="text-xs">
+															{amenity.type === "AREA_COMUM" ? "Área Comum" : "Comodidade"}
+														</Badge>
+													)}
+													{amenity.bookingType && (
+														<Badge variant="outline" className="text-xs">
+															{amenity.bookingType === "POR_HORAS"
+																? "Por Horas"
+																: amenity.bookingType === "DIARIO"
+																	? "Reserva Diária"
+																	: amenity.bookingType}
+														</Badge>
+													)}
+												</div>
+
+												{amenity.type === "AREA_COMUM" ? (
+													<div className="pt-2 border-t">
+														<p className="text-sm text-muted-foreground italic">
+															Não é necessário reserva
+														</p>
+													</div>
+												) : amenity.value && amenity.value > 0 ? (
+													<div className="pt-2 border-t">
+														<p className="text-xs text-muted-foreground mb-1">Valor</p>
+														<p className="text-lg font-bold text-primary">
+															R${" "}
+															{amenity.value.toLocaleString("pt-BR", {
+																minimumFractionDigits: 2,
+																maximumFractionDigits: 2,
+															})}
+															<span className="text-sm font-normal text-muted-foreground">
+																{amenity.bookingType === "POR_HORAS" ? "/hora" : "/dia"}
+															</span>
+														</p>
+													</div>
+												) : (
+													<div className="pt-2 border-t">
+														<p className="text-xs text-muted-foreground mb-1">Valor</p>
+														<p className="text-sm text-muted-foreground">Gratuito</p>
+													</div>
 												)}
-												{amenity.bookingType && (
-													<Badge variant="outline" className="text-xs">
-														{amenity.bookingType === "POR_HORAS"
-															? "Por Horas"
-															: amenity.bookingType === "DIARIO"
-																? "Reserva Diária"
-																: amenity.bookingType}
-													</Badge>
+
+												{amenity.openingTime && amenity.closingTime && (
+													<div className="pt-2 border-t">
+														<p className="text-xs text-muted-foreground mb-1">Horário de Funcionamento</p>
+														<p className="text-sm font-medium flex items-center gap-1">
+															<Clock className="w-3 h-3" />
+															{amenity.openingTime} - {amenity.closingTime}
+														</p>
+													</div>
 												)}
 											</div>
 
-											{amenity.type === "AREA_COMUM" ? (
-												<div className="pt-2 border-t">
-													<p className="text-sm text-muted-foreground italic">
-														Não é necessário reserva
-													</p>
-												</div>
-											) : amenity.value && amenity.value > 0 ? (
-												<div className="pt-2 border-t">
-													<p className="text-xs text-muted-foreground mb-1">Valor</p>
-													<p className="text-lg font-bold text-primary">
-														R${" "}
-														{amenity.value.toLocaleString("pt-BR", {
-															minimumFractionDigits: 2,
-															maximumFractionDigits: 2,
-														})}
-														<span className="text-sm font-normal text-muted-foreground">
-															{amenity.bookingType === "POR_HORAS" ? "/hora" : "/dia"}
-														</span>
-													</p>
-												</div>
-											) : (
-												<div className="pt-2 border-t">
-													<p className="text-xs text-muted-foreground mb-1">Valor</p>
-													<p className="text-sm text-muted-foreground">-</p>
-												</div>
-											)}
-
-											{/* Botões de Ação */}
+											{/* Botões de Ação - sempre no fundo do card */}
 											<div
-												className="flex gap-2 pt-3 border-t mt-auto"
+												className="flex gap-2 pt-3 border-t mt-4"
 												onClick={(e) => e.stopPropagation()}
 											>
 												{canBook && (
@@ -1094,17 +1251,19 @@ export default function Bookings() {
 									</TableRow>
 								</TableHeader>
 								<TableBody>
-									{(bookings || []).map((booking, index) => (
-										<BookingRow
-											key={booking._id || `booking-${index}`}
-											booking={booking}
-											amenities={amenities}
-											amenityCache={amenityCache}
-											setAmenityCache={setAmenityCache}
-											onViewBooking={handleViewBooking}
-											getStatusBadge={getStatusBadge}
-										/>
-									))}
+									{(bookings || [])
+										.sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime())
+										.map((booking, index) => (
+											<BookingRow
+												key={booking._id || `booking-${index}`}
+												booking={booking}
+												amenities={amenities}
+												amenityCache={amenityCache}
+												setAmenityCache={setAmenityCache}
+												onViewBooking={handleViewBooking}
+												getStatusBadge={getStatusBadge}
+											/>
+										))}
 								</TableBody>
 							</Table>
 						</div>
@@ -1187,13 +1346,26 @@ export default function Bookings() {
 											</Button>
 										</PopoverTrigger>
 										<PopoverContent className="w-auto p-0" align="start">
+											{isLoadingAvailability && (
+												<div className="p-4 text-sm text-muted-foreground">
+													Carregando disponibilidade...
+												</div>
+											)}
 											<Calendar
 												mode="single"
 												selected={selectedDate}
 												onSelect={(date) => {
 													if (date) {
-														setSelectedDate(date);
-														bookingForm.setValue("date", format(date, "yyyy-MM-dd"));
+														const dateStr = format(date, "yyyy-MM-dd");
+														const isAvailable = availability.get(dateStr);
+														
+														// Permitir seleção apenas se estiver disponível
+														if (availability.has(dateStr) && isAvailable === false) {
+															toast.error("Este dia não está disponível para reserva");
+															return;
+														}
+														
+														handleDateChange(date);
 													}
 												}}
 												disabled={(date) => {
@@ -1201,10 +1373,52 @@ export default function Bookings() {
 													today.setHours(0, 0, 0, 0);
 													const dateToCheck = new Date(date);
 													dateToCheck.setHours(0, 0, 0, 0);
-													return dateToCheck < today;
+													
+													// Desabilitar datas passadas
+													if (dateToCheck < today) {
+														return true;
+													}
+													
+													// Desabilitar datas não disponíveis (apenas se tivermos informação de disponibilidade)
+													const dateStr = format(date, "yyyy-MM-dd");
+													const isAvailable = availability.get(dateStr);
+													if (availability.has(dateStr) && isAvailable === false) {
+														return true;
+													}
+													
+													return false;
+												}}
+												modifiers={{
+													unavailable: (date) => {
+														const dateStr = format(date, "yyyy-MM-dd");
+														return availability.has(dateStr) && availability.get(dateStr) === false;
+													},
+													available: (date) => {
+														const dateStr = format(date, "yyyy-MM-dd");
+														return availability.has(dateStr) && availability.get(dateStr) === true;
+													},
+												}}
+												modifiersClassNames={{
+													unavailable: "bg-red-200 text-red-900 font-medium border-2 border-red-400",
+													available: "bg-green-200 text-green-900 font-medium border-2 border-green-400",
+												}}
+												classNames={{
+													day_disabled: "text-muted-foreground opacity-50 bg-red-200",
 												}}
 												initialFocus
 											/>
+											{availability.size > 0 && (
+												<div className="p-3 border-t text-xs text-muted-foreground flex items-center justify-between gap-4">
+													<div className="flex items-center gap-2">
+														<div className="w-3 h-3 bg-green-200 border-2 border-green-400 rounded"></div>
+														<span className="font-medium">Disponível</span>
+													</div>
+													<div className="flex items-center gap-2">
+														<div className="w-3 h-3 bg-red-200 border-2 border-red-400 rounded"></div>
+														<span className="font-medium">Indisponível</span>
+													</div>
+												</div>
+											)}
 										</PopoverContent>
 									</Popover>
 									<input type="hidden" {...bookingForm.register("date")} />
@@ -1247,6 +1461,15 @@ export default function Bookings() {
 													{selectedDate ? format(selectedDate, "PPP", { locale: ptBR }) : "-"}
 												</p>
 											</div>
+											{selectedAmenity?.openingTime && selectedAmenity?.closingTime && (
+												<div>
+													<Label className="text-muted-foreground">Horário de Funcionamento</Label>
+													<p className="font-medium flex items-center gap-1">
+														<Clock className="w-4 h-4" />
+														{selectedAmenity.openingTime} - {selectedAmenity.closingTime}
+													</p>
+												</div>
+											)}
 											<div className="grid grid-cols-2 gap-4">
 												<div className="space-y-2">
 													<Label htmlFor="startTime">Hora de Início *</Label>
@@ -1255,10 +1478,39 @@ export default function Bookings() {
 														onValueChange={(value) => {
 															setStartTime(value);
 															bookingForm.setValue("startTime", value);
-															// Resetar endTime se for menor que startTime
-															if (endTime && value >= endTime) {
-																setEndTime("");
-																bookingForm.setValue("endTime", "");
+															// Resetar endTime se for menor que startTime ou se a hora inicial não estiver disponível
+															const startHour = parseInt(value.split(":")[0]);
+															const isStartAvailable = hoursAvailability.has(startHour) 
+																? hoursAvailability.get(startHour) === true
+																: true;
+															
+															if (!isStartAvailable) {
+																toast.error("Esta hora não está disponível");
+																return;
+															}
+															
+															if (endTime) {
+																const endHour = parseInt(endTime.split(":")[0]);
+																if (value >= endTime || endHour <= startHour) {
+																	setEndTime("");
+																	bookingForm.setValue("endTime", "");
+																} else {
+																	// Validar que o intervalo ainda está válido
+																	let allAvailable = true;
+																	for (let h = startHour; h <= endHour; h++) {
+																		const isAvailable = hoursAvailability.has(h) 
+																			? hoursAvailability.get(h) === true
+																			: true;
+																		if (!isAvailable) {
+																			allAvailable = false;
+																			break;
+																		}
+																	}
+																	if (!allAvailable) {
+																		setEndTime("");
+																		bookingForm.setValue("endTime", "");
+																	}
+																}
 															}
 														}}
 													>
@@ -1275,14 +1527,29 @@ export default function Bookings() {
 																	: false;
 																const currentHour = new Date().getHours();
 																const isPast = isToday && i < currentHour;
+																const isAvailable = hoursAvailability.has(i) 
+																	? hoursAvailability.get(i) === true
+																	: true; // Se não tiver informação, considera disponível
+																const isUnavailable = hoursAvailability.has(i) 
+																	&& hoursAvailability.get(i) === false;
+																
 																return (
 																	<SelectItem
 																		key={timeValue}
 																		value={timeValue}
-																		disabled={isPast}
-																		className={isPast ? "text-muted-foreground opacity-50" : ""}
+																		disabled={isPast || isUnavailable}
+																		className={
+																			isUnavailable 
+																				? "bg-red-100 text-red-900 font-medium border border-red-400 opacity-50" 
+																				: isAvailable
+																					? "bg-green-50 text-green-900"
+																					: isPast 
+																						? "text-muted-foreground opacity-50" 
+																						: ""
+																		}
 																	>
 																		{timeValue}
+																		{isUnavailable && " (Indisponível)"}
 																	</SelectItem>
 																);
 															})}
@@ -1316,17 +1583,47 @@ export default function Bookings() {
 																const endHour = i;
 																const maxHours = selectedAmenity?.maxHours || 24;
 																const hoursDiff = endHour - startHour;
+																
+																// Verificar se todas as horas do intervalo estão disponíveis
+																let allHoursAvailable = true;
+																for (let h = startHour; h <= endHour; h++) {
+																	const isAvailable = hoursAvailability.has(h) 
+																		? hoursAvailability.get(h) === true
+																		: true; // Se não tiver informação, considera disponível
+																	if (!isAvailable) {
+																		allHoursAvailable = false;
+																		break;
+																	}
+																}
+																
+																const isAvailable = hoursAvailability.has(i) 
+																	? hoursAvailability.get(i) === true
+																	: true;
+																const isUnavailable = hoursAvailability.has(i) 
+																	&& hoursAvailability.get(i) === false;
+																
 																const isValid =
-																	endHour > startHour && hoursDiff <= maxHours;
+																	endHour > startHour && 
+																	hoursDiff <= maxHours && 
+																	allHoursAvailable;
+																
 																return (
 																	<SelectItem
 																		key={timeValue}
 																		value={timeValue}
-																		disabled={!isValid}
-																		className={!isValid ? "text-muted-foreground opacity-50" : ""}
+																		disabled={!isValid || isUnavailable}
+																		className={
+																			!isValid || isUnavailable || !allHoursAvailable
+																				? "bg-red-100 text-red-900 font-medium border border-red-400 opacity-50" 
+																				: isAvailable
+																					? "bg-green-50 text-green-900"
+																					: "text-muted-foreground opacity-50"
+																		}
 																	>
 																		{timeValue}
 																		{hoursDiff > maxHours && ` (limite: ${maxHours}h)`}
+																		{!allHoursAvailable && !isUnavailable && " (horário indisponível no meio)"}
+																		{isUnavailable && " (Indisponível)"}
 																	</SelectItem>
 																);
 															})}
@@ -1366,6 +1663,20 @@ export default function Bookings() {
 														return;
 													}
 
+													// Validar que todas as horas do intervalo estão disponíveis
+													const startHour = parseInt(startTime.split(":")[0]);
+													const endHour = parseInt(endTime.split(":")[0]);
+													
+													for (let h = startHour; h <= endHour; h++) {
+														const isAvailable = hoursAvailability.has(h) 
+															? hoursAvailability.get(h) === true
+															: true; // Se não tiver informação, considera disponível
+														if (!isAvailable) {
+															toast.error(`O horário ${h.toString().padStart(2, "0")}:00 está indisponível. Por favor, escolha um intervalo sem horários indisponíveis.`);
+															return;
+														}
+													}
+
 													if (selectedAmenity?.usageRules) {
 														setBookingStep(3);
 													} else {
@@ -1391,6 +1702,15 @@ export default function Bookings() {
 													{selectedDate ? format(selectedDate, "PPP", { locale: ptBR }) : "-"}
 												</p>
 											</div>
+											{selectedAmenity?.openingTime && selectedAmenity?.closingTime && (
+												<div>
+													<Label className="text-muted-foreground">Horário de Funcionamento</Label>
+													<p className="font-medium flex items-center gap-1">
+														<Clock className="w-4 h-4" />
+														{selectedAmenity.openingTime} - {selectedAmenity.closingTime}
+													</p>
+												</div>
+											)}
 											<div className="space-y-2">
 												<Label htmlFor="observation">Observação (opcional)</Label>
 												<Textarea
@@ -1555,6 +1875,15 @@ export default function Bookings() {
 										<p className="text-sm font-medium mt-1">{amenityToView.maxResidents}</p>
 									</div>
 								)}
+								{amenityToView.openingTime && amenityToView.closingTime && (
+									<div>
+										<Label className="text-muted-foreground">Horário de Funcionamento</Label>
+										<p className="text-sm font-medium mt-1 flex items-center gap-1">
+											<Clock className="w-4 h-4" />
+											{amenityToView.openingTime} - {amenityToView.closingTime}
+										</p>
+									</div>
+								)}
 							</div>
 
 							{amenityToView.value && amenityToView.value > 0 && (
@@ -1575,7 +1904,19 @@ export default function Bookings() {
 
 							{amenityToView.fineValue && amenityToView.fineValue > 0 && (
 								<div className="pt-2 border-t">
-									<Label className="text-muted-foreground">Multa por Atraso</Label>
+									<div className="flex items-center gap-1">
+										<Label className="text-muted-foreground">Multa por Atraso</Label>
+										<Popover>
+											<PopoverTrigger asChild>
+												<button type="button" className="inline-flex">
+													<Info className="w-4 h-4 text-muted-foreground cursor-pointer hover:text-primary" />
+												</button>
+											</PopoverTrigger>
+											<PopoverContent className="w-80">
+												<p className="text-sm">Este valor só será cobrado caso você não devolva o espaço no horário combinado. Se cumprir o horário, não haverá cobrança adicional.</p>
+											</PopoverContent>
+										</Popover>
+									</div>
 									<p className="text-lg font-medium text-destructive mt-1">
 										R${" "}
 										{amenityToView.fineValue.toLocaleString("pt-BR", {
@@ -1588,9 +1929,21 @@ export default function Bookings() {
 
 							{amenityToView.nonComplianceFine && amenityToView.nonComplianceFine > 0 && (
 								<div className="pt-2 border-t">
-									<Label className="text-muted-foreground">
-										Multa por Descumprimento de Normas
-									</Label>
+									<div className="flex items-center gap-1">
+										<Label className="text-muted-foreground">
+											Multa por Descumprimento de Normas
+										</Label>
+										<Popover>
+											<PopoverTrigger asChild>
+												<button type="button" className="inline-flex">
+													<Info className="w-4 h-4 text-muted-foreground cursor-pointer hover:text-primary" />
+												</button>
+											</PopoverTrigger>
+											<PopoverContent className="w-80">
+												<p className="text-sm">Este valor só será cobrado caso as normas de uso da comodidade sejam descumpridas. Seguindo as regras, não haverá cobrança adicional.</p>
+											</PopoverContent>
+										</Popover>
+									</div>
 									<p className="text-lg font-medium text-destructive mt-1">
 										R${" "}
 										{amenityToView.nonComplianceFine.toLocaleString("pt-BR", {
@@ -1608,6 +1961,25 @@ export default function Bookings() {
 										className="text-sm mt-1 prose prose-sm max-w-none"
 										dangerouslySetInnerHTML={{ __html: amenityToView.usageRules }}
 									/>
+								</div>
+							)}
+
+							{amenityToView.items && amenityToView.items.length > 0 && (
+								<div className="pt-2 border-t">
+									<Label className="text-muted-foreground">Itens Disponíveis</Label>
+									<div className="mt-2 space-y-2">
+										{amenityToView.items.map((item, index) => (
+											<div
+												key={index}
+												className="flex items-center justify-between bg-muted/50 rounded-md px-3 py-2"
+											>
+												<span className="text-sm font-medium">{item.name}</span>
+												<Badge variant="secondary" className="text-xs">
+													{item.quantity}x
+												</Badge>
+											</div>
+										))}
+									</div>
 								</div>
 							)}
 

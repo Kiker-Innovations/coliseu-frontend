@@ -112,19 +112,95 @@ class BookingsService {
 
 	/**
 	 * Get bookings by building (Admin only)
-	 * GET /v1/bookings/admin/building
+	 * GET /v1/bookings/admin/building?amenityId=xxx
 	 * Returns all bookings for the building, excluding FINALIZADO and CANCELADO
+	 * @param amenityId - Optional: filter by specific amenity
 	 */
-	async getBookingsByBuilding(): Promise<
+	async getBookingsByBuilding(amenityId?: string): Promise<
 		ApiResponse<{
 			bookings: Booking[];
 			total: number;
 		}>
 	> {
+		const queryParams: Record<string, string> = {};
+		if (amenityId) {
+			queryParams.amenityId = amenityId;
+		}
+
 		return apiClient.get<{
 			bookings: Booking[];
 			total: number;
-		}>(`${this.basePath}/admin/building`);
+		}>(`${this.basePath}/admin/building`, { params: queryParams });
+	}
+
+	/**
+	 * Get booking availability
+	 * GET /v1/bookings/availability?amenityId=xxx&startDate=2024-01-01&endDate=2024-01-31
+	 */
+	async getAvailability(params: {
+		amenityId: string;
+		startDate: string; // YYYY-MM-DD
+		endDate: string; // YYYY-MM-DD
+	}): Promise<
+		ApiResponse<{
+			amenityId: string;
+			startDate: string;
+			endDate: string;
+			days: Array<{
+				date: string; // YYYY-MM-DD
+				available: boolean;
+			}>;
+		}>
+	> {
+		const queryParams: Record<string, string> = {
+			amenityId: params.amenityId,
+			startDate: params.startDate,
+			endDate: params.endDate,
+		};
+
+		return apiClient.get<{
+			amenityId: string;
+			startDate: string;
+			endDate: string;
+			days: Array<{
+				date: string;
+				available: boolean;
+			}>;
+		}>(`${this.basePath}/availability`, { params: queryParams });
+	}
+
+	/**
+	 * Get booking hours availability
+	 * GET /v1/bookings/availability/hours?amenityId=xxx&date=2024-01-15
+	 */
+	async getHoursAvailability(params: {
+		amenityId: string;
+		date: string; // YYYY-MM-DD
+	}): Promise<
+		ApiResponse<{
+			amenityId: string;
+			date: string;
+			dayAvailable: boolean;
+			hours: Array<{
+				hour: number; // 0-23
+				available: boolean;
+			}>;
+		}>
+	> {
+		const queryParams: Record<string, string> = {
+			amenityId: params.amenityId,
+			date: params.date,
+		};
+
+		return apiClient.get<{
+			amenityId: string;
+			date: string;
+			dayAvailable: boolean;
+			hours: Array<{
+				hour: number;
+				available: boolean;
+			}>;
+		}>(`${this.basePath}/availability/hours`, { params: queryParams });
 	}
 }
 
