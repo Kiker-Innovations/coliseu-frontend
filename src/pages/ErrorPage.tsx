@@ -85,18 +85,12 @@ export default function ErrorPage() {
 		<div className="min-h-screen flex items-center justify-center bg-background p-4">
 			<Card className="w-full max-w-md border-destructive/30">
 				<CardContent className="pt-8 pb-8 px-6 text-center">
-					{/* Error Icon */}
 					<div className="relative mb-6">
 						{errorInfo.code && (
-							<div className="text-[100px] sm:text-[120px] font-black text-destructive/10 leading-none select-none">
+							<div className="text-[100px] sm:text-[120px] font-black text-destructive/70 leading-none select-none">
 								{errorInfo.code}
 							</div>
 						)}
-						<div className={`${errorInfo.code ? 'absolute inset-0' : ''} flex items-center justify-center`}>
-							<div className="w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-destructive/10 flex items-center justify-center">
-								<AlertTriangle className="w-10 h-10 sm:w-12 sm:h-12 text-destructive" />
-							</div>
-						</div>
 					</div>
 
 					<h1 className="text-2xl sm:text-3xl font-bold mb-2 text-destructive">
