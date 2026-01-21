@@ -11,7 +11,7 @@ export const AppLayout = () => {
 			<div className="min-h-screen flex w-full">
 				<AppSidebar />
 					<div className="flex-1 flex flex-col overflow-hidden">
-						<header className="flex h-12 items-center border-b border-border bg-card px-3 sm:h-14 sm:px-4 shrink-0">
+						<header className="sticky top-0 z-10 flex h-12 items-center border-b border-border bg-card px-3 sm:h-14 sm:px-4 shrink-0">
 						<SidebarTrigger />
 					</header>
 						<PullToRefreshWrapper className="flex-1 overflow-y-auto">
