@@ -21,7 +21,7 @@ export default function FinesSkeleton() {
 										<Skeleton className="h-4 w-4 sm:h-5 sm:w-5 rounded" />
 										<Skeleton className="h-5 sm:h-6 flex-1 max-w-[60%]" />
 										<Skeleton className="h-5 sm:h-6 w-16 sm:w-20 rounded-full" />
-									</div>
+			</div>
 									<Skeleton className="h-4 w-full max-w-[80%]" />
 									<Skeleton className="h-3 sm:h-4 w-32 sm:w-40" />
 								</div>

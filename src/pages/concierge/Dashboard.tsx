@@ -32,49 +32,49 @@ export default function ConciergeDashboard() {
 	const [visitsOpen, setVisitsOpen] = useState(true);
 
 	const loadData = useCallback(async () => {
-		try {
-			setIsLoading(true);
-			const [pendingResponse, recentVisitsResponse] = await Promise.all([
-				packageService.getPackages({ status: "PENDENTE" }),
-				visitsService.getRecentVisits(3),
-			]);
+			try {
+				setIsLoading(true);
+				const [pendingResponse, recentVisitsResponse] = await Promise.all([
+					packageService.getPackages({ status: "PENDENTE" }),
+					visitsService.getRecentVisits(3),
+				]);
 
-			const pending = pendingResponse.data || [];
+				const pending = pendingResponse.data || [];
 
-			// Map pending packages
-			const pendingMapped: PackageData[] = pending.map((pkg) => ({
-				id: pkg._id,
-				recipientName: pkg.ownerName,
-				description: pkg.description,
-				apartmentNumber: pkg.apartmentNumber,
-				apartmentFloor: pkg.apartmentFloor,
-				apartmentBlock: pkg.apartmentBlock,
-				arrivalDate: pkg.receiverDate,
-			}));
+				// Map pending packages
+				const pendingMapped: PackageData[] = pending.map((pkg) => ({
+					id: pkg._id,
+					recipientName: pkg.ownerName,
+					description: pkg.description,
+					apartmentNumber: pkg.apartmentNumber,
+					apartmentFloor: pkg.apartmentFloor,
+					apartmentBlock: pkg.apartmentBlock,
+					arrivalDate: pkg.receiverDate,
+				}));
 
-			// Calculate apartment with most packages
-			const apartmentCounts: { [key: string]: number } = {};
-			for (const pkg of pendingMapped) {
-				apartmentCounts[pkg.apartmentNumber] = (apartmentCounts[pkg.apartmentNumber] || 0) + 1;
+				// Calculate apartment with most packages
+				const apartmentCounts: { [key: string]: number } = {};
+				for (const pkg of pendingMapped) {
+					apartmentCounts[pkg.apartmentNumber] = (apartmentCounts[pkg.apartmentNumber] || 0) + 1;
+				}
+
+				const sortedApartments = Object.entries(apartmentCounts).sort((a, b) => b[1] - a[1]);
+
+				if (sortedApartments.length > 0) {
+					const [apartment, count] = sortedApartments[0];
+					setApartmentWithMostPackages({
+						apartment,
+						packageCount: count,
+					});
+				}
+
+				setPendingPackages(pendingMapped);
+				setRecentVisits(recentVisitsResponse.data || []);
+			} catch (error: any) {
+				toast.error(error.message || "Erro ao carregar dados do dashboard");
+			} finally {
+				setIsLoading(false);
 			}
-
-			const sortedApartments = Object.entries(apartmentCounts).sort((a, b) => b[1] - a[1]);
-
-			if (sortedApartments.length > 0) {
-				const [apartment, count] = sortedApartments[0];
-				setApartmentWithMostPackages({
-					apartment,
-					packageCount: count,
-				});
-			}
-
-			setPendingPackages(pendingMapped);
-			setRecentVisits(recentVisitsResponse.data || []);
-		} catch (error: any) {
-			toast.error(error.message || "Erro ao carregar dados do dashboard");
-		} finally {
-			setIsLoading(false);
-		}
 	}, []);
 
 	// Register refresh function for pull-to-refresh

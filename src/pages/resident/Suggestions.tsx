@@ -77,7 +77,7 @@ export default function Suggestions() {
 
 	// Load all data
 	const loadData = useCallback(async () => {
-		try {
+			try {
 			setIsLoading(true);
 			
 			const [seasonsResponse, suggestionsResponse] = await Promise.all([
@@ -87,7 +87,7 @@ export default function Suggestions() {
 
 			if (seasonsResponse.success && seasonsResponse.data) {
 				const sortedSeasons = [...seasonsResponse.data].sort((a, b) => b.seasonNumber - a.seasonNumber);
-				setSeasons(sortedSeasons);
+					setSeasons(sortedSeasons);
 
 				// Select the active season or the most recent one
 				if (!selectedSeasonId) {
@@ -102,17 +102,17 @@ export default function Suggestions() {
 
 			if (suggestionsResponse.success && suggestionsResponse.data) {
 				setSuggestions(suggestionsResponse.data);
-			}
-		} catch (error) {
+				}
+			} catch (error) {
 			console.error("Erro ao carregar dados:", error);
-			if (error instanceof ApiClientError) {
+				if (error instanceof ApiClientError) {
 				toast.error(error.response.message || "Erro ao carregar dados");
-			} else {
+				} else {
 				toast.error("Erro ao carregar dados");
+				}
+			} finally {
+				setIsLoading(false);
 			}
-		} finally {
-			setIsLoading(false);
-		}
 	}, [selectedSeasonId]);
 
 	// Register refresh function for pull-to-refresh

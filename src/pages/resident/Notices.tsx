@@ -285,97 +285,97 @@ const Notices = () => {
 						</div>
 					) : selectedNoticeDetail ? (
 						<ResponsiveModalBody className="flex-1 overflow-y-auto space-y-4">
-							{/* Informações do Aviso */}
-							<Card>
+								{/* Informações do Aviso */}
+								<Card>
 								<CardHeader className="pb-2 sm:pb-3">
 									<CardTitle className="text-base sm:text-lg">Informações</CardTitle>
-								</CardHeader>
+									</CardHeader>
 								<CardContent className="space-y-3 sm:space-y-4">
-									<div>
+										<div>
 										<Label className="text-xs sm:text-sm font-semibold">Título</Label>
 										<p className="text-sm sm:text-base text-muted-foreground mt-1">
-											{selectedNoticeDetail.title}
-										</p>
-									</div>
+												{selectedNoticeDetail.title}
+											</p>
+										</div>
 
-									<div>
+										<div>
 										<Label className="text-xs sm:text-sm font-semibold">Conteúdo</Label>
-										<div
+											<div
 											className="mt-1 prose prose-sm max-w-none prose-headings:text-foreground prose-p:text-foreground text-sm sm:text-base"
-											dangerouslySetInnerHTML={{ __html: selectedNoticeDetail.content }}
-										/>
-									</div>
+												dangerouslySetInnerHTML={{ __html: selectedNoticeDetail.content }}
+											/>
+										</div>
 
 									<div className="grid grid-cols-2 gap-3 sm:gap-4">
-										<div>
+											<div>
 											<Label className="text-xs sm:text-sm font-semibold">Status</Label>
-											<div className="mt-1">
-												<Badge
-													variant={
-														selectedNoticeDetail.status === "ATIVO" ? "default" : "secondary"
-													}
+												<div className="mt-1">
+													<Badge
+														variant={
+															selectedNoticeDetail.status === "ATIVO" ? "default" : "secondary"
+														}
 													className="text-[10px] sm:text-xs"
-												>
-													{selectedNoticeDetail.status}
-												</Badge>
+													>
+														{selectedNoticeDetail.status}
+													</Badge>
+												</div>
+											</div>
+
+											<div>
+											<Label className="text-xs sm:text-sm font-semibold">Criado em</Label>
+											<p className="text-xs sm:text-sm text-muted-foreground mt-1">
+												{new Date(selectedNoticeDetail.createdAt).toLocaleDateString("pt-BR")}
+												</p>
 											</div>
 										</div>
 
 										<div>
-											<Label className="text-xs sm:text-sm font-semibold">Criado em</Label>
-											<p className="text-xs sm:text-sm text-muted-foreground mt-1">
-												{new Date(selectedNoticeDetail.createdAt).toLocaleDateString("pt-BR")}
-											</p>
-										</div>
-									</div>
-
-									<div>
 										<Label className="text-xs sm:text-sm font-semibold">Arquivo</Label>
 										<p className="text-xs sm:text-sm text-muted-foreground mt-1 flex items-center gap-2">
 											<FileText className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" />
 											<span className="truncate">{selectedNoticeDetail.fileName}</span>
-										</p>
-									</div>
-								</CardContent>
-							</Card>
+											</p>
+										</div>
+									</CardContent>
+								</Card>
 
-							{/* Visualização do Arquivo */}
-							<Card>
+								{/* Visualização do Arquivo */}
+								<Card>
 								<CardHeader className="pb-2 sm:pb-3">
 									<div className="flex items-center justify-between gap-2">
 										<CardTitle className="text-base sm:text-lg">Arquivo</CardTitle>
-										<Button
-											variant="outline"
-											size="sm"
-											onClick={() => handleDownload(selectedNoticeDetail)}
+											<Button
+												variant="outline"
+												size="sm"
+												onClick={() => handleDownload(selectedNoticeDetail)}
 											className="h-8 sm:h-9 text-xs sm:text-sm"
-										>
+											>
 											<Download className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-1.5 sm:mr-2" />
-											Baixar
-										</Button>
-									</div>
-								</CardHeader>
-								<CardContent>
+												Baixar
+											</Button>
+										</div>
+									</CardHeader>
+									<CardContent>
 									<div 
 										className="border rounded-lg overflow-hidden" 
 										style={{ height: "min(400px, 50vh)" }}
 									>
-										{selectedNoticeDetail.mimeType.startsWith("image/") ? (
-											<img
-												src={selectedNoticeDetail.url}
-												alt={selectedNoticeDetail.title}
-												className="w-full h-full object-contain"
-											/>
-										) : (
-											<iframe
-												src={selectedNoticeDetail.url}
-												className="w-full h-full"
-												title={selectedNoticeDetail.title}
-											/>
-										)}
-									</div>
-								</CardContent>
-							</Card>
+											{selectedNoticeDetail.mimeType.startsWith("image/") ? (
+												<img
+													src={selectedNoticeDetail.url}
+													alt={selectedNoticeDetail.title}
+													className="w-full h-full object-contain"
+												/>
+											) : (
+												<iframe
+													src={selectedNoticeDetail.url}
+													className="w-full h-full"
+													title={selectedNoticeDetail.title}
+												/>
+											)}
+										</div>
+									</CardContent>
+								</Card>
 						</ResponsiveModalBody>
 					) : (
 						<div className="flex items-center justify-center h-full">

@@ -69,13 +69,8 @@ const NotFound = () => {
 				<CardContent className="pt-8 pb-8 px-6 text-center">
 					{/* Animated 404 */}
 					<div className="relative mb-6">
-						<div className="text-[120px] sm:text-[150px] font-black text-primary/10 leading-none select-none">
+						<div className="text-[120px] sm:text-[150px] font-black text-primary/70 leading-none select-none">
 							404
-						</div>
-						<div className="absolute inset-0 flex items-center justify-center">
-							<div className="w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-primary/10 flex items-center justify-center animate-pulse">
-								<Search className="w-10 h-10 sm:w-12 sm:h-12 text-primary" />
-							</div>
 						</div>
 					</div>
 
@@ -143,7 +138,7 @@ const NotFound = () => {
 								Ajuda
 							</Button>
 						</div>
-					</div>
+			</div>
 				</CardContent>
 			</Card>
 		</div>
