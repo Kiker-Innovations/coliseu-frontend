@@ -143,7 +143,7 @@ const NotFound = () => {
 								Ajuda
 							</Button>
 						</div>
-					</div>
+			</div>
 				</CardContent>
 			</Card>
 		</div>

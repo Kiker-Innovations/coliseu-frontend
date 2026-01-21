@@ -18,7 +18,7 @@ export default function SuggestionsSkeleton() {
 
 			{/* Cards */}
 			<div className="grid gap-3 sm:gap-4">
-				{[...Array(3)].map((_, i) => (
+					{[...Array(3)].map((_, i) => (
 					<Card key={i} className="overflow-hidden">
 						<CardHeader className="pb-2 sm:pb-3">
 							<div className="flex justify-between items-start gap-2">
@@ -33,8 +33,8 @@ export default function SuggestionsSkeleton() {
 							<Skeleton className="h-4 w-full" />
 							<Skeleton className="h-4 w-full" />
 							<Skeleton className="h-4 w-3/4" />
-						</CardContent>
-					</Card>
+				</CardContent>
+			</Card>
 				))}
 			</div>
 		</div>

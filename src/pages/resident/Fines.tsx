@@ -76,42 +76,42 @@ export default function Fines() {
 
 	const mapFines = useCallback((finesData: Fine[]): FineDisplay[] => {
 		return finesData.map((fine: Fine) => {
-			let status: "pending" | "contested" | "paid" | "cancelled";
-			switch (fine.status) {
-				case "EM_REVISAO":
-					status = "contested";
-					break;
-				case "PENDENTE":
-					status = "pending";
-					break;
-				case "PAGO":
-					status = "paid";
-					break;
-				case "CANCELADA":
-					status = "cancelled";
-					break;
-				default:
-					status = "pending";
-			}
+					let status: "pending" | "contested" | "paid" | "cancelled";
+					switch (fine.status) {
+						case "EM_REVISAO":
+							status = "contested";
+							break;
+						case "PENDENTE":
+							status = "pending";
+							break;
+						case "PAGO":
+							status = "paid";
+							break;
+						case "CANCELADA":
+							status = "cancelled";
+							break;
+						default:
+							status = "pending";
+					}
 
-			const wasAppealRejected =
-				fine.status === "PENDENTE" && fine.confirmedAt && fine.contextedAt;
+					const wasAppealRejected =
+						fine.status === "PENDENTE" && fine.confirmedAt && fine.contextedAt;
 
-			return {
-				id: fine._id,
-				title: fine.fineName || fine.description || "Multa sem descrição",
-				description: fine.fineDescription || fine.description || "",
-				value: fine.value,
-				issueDate: fine.occurrenceDate || fine.createdAt,
-				status,
-				canContest: status === "pending" && !wasAppealRejected,
-				contestedAt: status === "contested" ? fine.contextedAt : undefined,
-				rejectedAt: wasAppealRejected ? fine.confirmedAt : undefined,
-				paidAt: fine.paidAt,
-				cancelledAt: fine.canceledAt,
-				cancelReason: fine.canceledNote,
-			};
-		});
+					return {
+						id: fine._id,
+						title: fine.fineName || fine.description || "Multa sem descrição",
+						description: fine.fineDescription || fine.description || "",
+						value: fine.value,
+						issueDate: fine.occurrenceDate || fine.createdAt,
+						status,
+						canContest: status === "pending" && !wasAppealRejected,
+						contestedAt: status === "contested" ? fine.contextedAt : undefined,
+						rejectedAt: wasAppealRejected ? fine.confirmedAt : undefined,
+						paidAt: fine.paidAt,
+						cancelledAt: fine.canceledAt,
+						cancelReason: fine.canceledNote,
+					};
+				});
 	}, []);
 
 	const loadData = useCallback(async () => {
@@ -119,12 +119,12 @@ export default function Fines() {
 			setIsLoading(true);
 			const finesData = await infractionsService.getMyFines();
 			setFines(mapFines(finesData));
-		} catch (error: any) {
-			console.error("Erro ao carregar multas:", error);
-			toast.error(error.message || "Erro ao carregar multas. Tente novamente.");
-		} finally {
-			setIsLoading(false);
-		}
+			} catch (error: any) {
+				console.error("Erro ao carregar multas:", error);
+				toast.error(error.message || "Erro ao carregar multas. Tente novamente.");
+			} finally {
+				setIsLoading(false);
+			}
 	}, [mapFines]);
 
 	// Register refresh function for pull-to-refresh
@@ -385,7 +385,7 @@ export default function Fines() {
 												<Clock className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" />
 												<span className="truncate">
 													Contestação em{" "}
-													{fine.contestedAt && new Date(fine.contestedAt).toLocaleDateString("pt-BR")}
+												{fine.contestedAt && new Date(fine.contestedAt).toLocaleDateString("pt-BR")}
 												</span>
 											</div>
 											<Button
@@ -520,64 +520,64 @@ export default function Fines() {
 
 					{selectedFine && (
 						<ResponsiveModalBody>
-							<div className="space-y-4">
-								{/* Fine Info */}
+						<div className="space-y-4">
+							{/* Fine Info */}
 								<div className="p-3 sm:p-4 rounded-lg bg-destructive/10 border border-destructive/20">
 									<h3 className="font-semibold text-xs sm:text-sm text-destructive mb-1">
-										Multa a ser contestada
-									</h3>
+									Multa a ser contestada
+								</h3>
 									<p className="font-medium text-sm sm:text-base">{selectedFine.title}</p>
 									<p className="text-xl sm:text-2xl font-bold text-destructive mt-2">
-										R$ {selectedFine.value.toLocaleString("pt-BR")}
-									</p>
-								</div>
+									R$ {selectedFine.value.toLocaleString("pt-BR")}
+								</p>
+							</div>
 
-								<form onSubmit={form.handleSubmit(onSubmitContest)} className="space-y-4">
-									<div className="space-y-2">
+							<form onSubmit={form.handleSubmit(onSubmitContest)} className="space-y-4">
+								<div className="space-y-2">
 										<Label htmlFor="description" className="text-sm">
 											Descrição da Contestação *
 										</Label>
-										<Textarea
-											id="description"
+									<Textarea
+										id="description"
 											placeholder="Explique detalhadamente por que você está contestando..."
 											rows={4}
-											{...form.register("description")}
+										{...form.register("description")}
 											className="text-base"
-										/>
-										{form.formState.errors.description && (
+									/>
+									{form.formState.errors.description && (
 											<p className="text-xs sm:text-sm text-destructive">
-												{form.formState.errors.description.message}
-											</p>
-										)}
-									</div>
+											{form.formState.errors.description.message}
+										</p>
+									)}
+								</div>
 
-									<div className="space-y-2">
+								<div className="space-y-2">
 										<Label htmlFor="attachment" className="text-sm">
 											Anexos *
 										</Label>
-										<p className="text-xs text-muted-foreground">
+									<p className="text-xs text-muted-foreground">
 											Adicione fotos ou documentos
-										</p>
-										<div className="flex items-center gap-2">
-											<Input
-												id="attachment"
-												type="file"
-												onChange={handleFileChange}
-												className="hidden"
-												accept="image/*,.pdf,.doc,.docx"
-											/>
-											<Button
-												type="button"
-												variant="outline"
-												onClick={() => document.getElementById("attachment")?.click()}
+									</p>
+									<div className="flex items-center gap-2">
+										<Input
+											id="attachment"
+											type="file"
+											onChange={handleFileChange}
+											className="hidden"
+											accept="image/*,.pdf,.doc,.docx"
+										/>
+										<Button
+											type="button"
+											variant="outline"
+											onClick={() => document.getElementById("attachment")?.click()}
 												className="flex-1 h-10 text-sm"
-											>
-												<Upload className="w-4 h-4 mr-2" />
+										>
+											<Upload className="w-4 h-4 mr-2" />
 												<span className="truncate">
-													{selectedFile ? selectedFile.name : "Selecionar arquivo"}
+											{selectedFile ? selectedFile.name : "Selecionar arquivo"}
 												</span>
-											</Button>
-											{selectedFile && (
+										</Button>
+										{selectedFile && (
 												<Button 
 													type="button" 
 													variant="ghost" 
@@ -585,22 +585,22 @@ export default function Fines() {
 													onClick={handleRemoveFile}
 													className="shrink-0"
 												>
-													<X className="w-4 h-4" />
-												</Button>
-											)}
-										</div>
+												<X className="w-4 h-4" />
+											</Button>
+										)}
 									</div>
+								</div>
 
 									<ResponsiveModalFooter className="flex-col-reverse sm:flex-row gap-2 sm:gap-4 pt-4 border-t">
-										<Button
-											type="button"
-											variant="outline"
-											onClick={handleCloseContestDialog}
-											disabled={form.formState.isSubmitting}
+									<Button
+										type="button"
+										variant="outline"
+										onClick={handleCloseContestDialog}
+										disabled={form.formState.isSubmitting}
 											className="w-full sm:w-auto"
-										>
-											Cancelar
-										</Button>
+									>
+										Cancelar
+									</Button>
 										<Button 
 											type="submit" 
 											className="w-full sm:flex-1" 
@@ -609,8 +609,8 @@ export default function Fines() {
 											{form.formState.isSubmitting ? "Enviando..." : "Enviar Contestação"}
 										</Button>
 									</ResponsiveModalFooter>
-								</form>
-							</div>
+							</form>
+						</div>
 						</ResponsiveModalBody>
 					)}
 				</ResponsiveModalContent>
@@ -636,55 +636,55 @@ export default function Fines() {
 					</ResponsiveModalHeader>
 					{fineToPay ? (
 						<ResponsiveModalBody>
-							<div className="space-y-4">
-								{/* QR Code */}
-								<div className="flex flex-col items-center gap-3">
+						<div className="space-y-4">
+							{/* QR Code */}
+							<div className="flex flex-col items-center gap-3">
 									<div className="flex items-center justify-center p-4 bg-white rounded-lg border-2 border-dashed border-primary/20 w-full max-w-[240px] sm:max-w-[280px] mx-auto">
-										<div className="flex flex-col items-center gap-2 w-full">
+									<div className="flex flex-col items-center gap-2 w-full">
 											<QrCode className="w-32 h-32 sm:w-40 sm:h-40 text-primary" />
 											<p className="text-[10px] sm:text-xs text-muted-foreground text-center break-all px-2">
-												{generateFakeQRCode(fineToPay)}
-											</p>
+											{generateFakeQRCode(fineToPay)}
+										</p>
 										</div>
 									</div>
-								</div>
+							</div>
 
-								{/* Informações do Pagamento */}
+							{/* Informações do Pagamento */}
 								<div className="space-y-2 p-3 bg-muted rounded-lg text-sm">
-									<div className="flex justify-between items-center">
+								<div className="flex justify-between items-center">
 										<span className="text-muted-foreground">Valor</span>
 										<span className="text-lg sm:text-xl font-bold text-primary">
-											R${" "}
-											{fineToPay.value.toLocaleString("pt-BR", {
-												minimumFractionDigits: 2,
-											})}
-										</span>
-									</div>
+										R${" "}
+										{fineToPay.value.toLocaleString("pt-BR", {
+											minimumFractionDigits: 2,
+										})}
+									</span>
+								</div>
 									<div className="flex justify-between items-center pt-2 border-t text-xs sm:text-sm">
 										<span className="text-muted-foreground">Multa</span>
 										<span className="font-medium text-right max-w-[60%] truncate">
-											{fineToPay.title}
-										</span>
-									</div>
+										{fineToPay.title}
+									</span>
 								</div>
+							</div>
 
-								{/* Instruções */}
-								<div className="space-y-2 p-3 bg-blue-50 dark:bg-blue-950/20 rounded-lg">
+							{/* Instruções */}
+							<div className="space-y-2 p-3 bg-blue-50 dark:bg-blue-950/20 rounded-lg">
 									<p className="text-xs sm:text-sm font-medium text-blue-900 dark:text-blue-100">
 										Como pagar:
 									</p>
 									<ol className="text-[10px] sm:text-xs text-blue-800 dark:text-blue-200 space-y-1 list-decimal list-inside">
-										<li>Abra o app do seu banco</li>
-										<li>Escolha a opção PIX</li>
+									<li>Abra o app do seu banco</li>
+									<li>Escolha a opção PIX</li>
 										<li>Escaneie o QR code</li>
-										<li>Confirme o pagamento</li>
-									</ol>
-								</div>
-
-								<Button variant="outline" onClick={handleClosePaymentDialog} className="w-full">
-									Fechar
-								</Button>
+									<li>Confirme o pagamento</li>
+								</ol>
 							</div>
+
+							<Button variant="outline" onClick={handleClosePaymentDialog} className="w-full">
+								Fechar
+							</Button>
+						</div>
 						</ResponsiveModalBody>
 					) : (
 						<div className="flex items-center justify-center py-8">
@@ -709,66 +709,66 @@ export default function Fines() {
 
 					{appealData ? (
 						<ResponsiveModalBody>
-							<div className="space-y-4">
-								{/* Data da Contestação */}
-								<div className="p-3 bg-muted rounded-lg">
+						<div className="space-y-4">
+							{/* Data da Contestação */}
+							<div className="p-3 bg-muted rounded-lg">
 									<p className="text-xs sm:text-sm text-muted-foreground">
 										Enviada em{" "}
-										{new Date(appealData.createdAt).toLocaleString("pt-BR", {
-											day: "2-digit",
-											month: "2-digit",
-											year: "numeric",
-											hour: "2-digit",
-											minute: "2-digit",
-										})}
-									</p>
-								</div>
+									{new Date(appealData.createdAt).toLocaleString("pt-BR", {
+										day: "2-digit",
+										month: "2-digit",
+										year: "numeric",
+										hour: "2-digit",
+										minute: "2-digit",
+									})}
+								</p>
+							</div>
 
 								{/* Texto */}
-								<div className="space-y-2">
+							<div className="space-y-2">
 									<Label className="text-sm">Descrição</Label>
 									<div className="p-3 sm:p-4 bg-muted rounded-lg border min-h-[100px] sm:min-h-[150px]">
 										<p className="text-xs sm:text-sm whitespace-pre-wrap">
 											{appealData.text}
 										</p>
-									</div>
 								</div>
+							</div>
 
 								{/* Arquivo */}
-								<div className="space-y-2">
+							<div className="space-y-2">
 									<Label className="text-sm">Arquivo Anexado</Label>
 									<div className="p-3 sm:p-4 bg-muted rounded-lg border">
 										<div className="flex items-center justify-between gap-2">
 											<div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0">
 												<FileText className="w-4 h-4 sm:w-5 sm:h-5 text-muted-foreground shrink-0" />
-												<div className="flex-1 min-w-0">
+											<div className="flex-1 min-w-0">
 													<p className="text-xs sm:text-sm font-medium truncate">
 														{appealData.fileName}
 													</p>
 													<p className="text-[10px] sm:text-xs text-muted-foreground">
-														{(appealData.fileSize / 1024).toFixed(2)} KB
-													</p>
-												</div>
+													{(appealData.fileSize / 1024).toFixed(2)} KB
+												</p>
 											</div>
-											<Button
-												variant="outline"
-												size="sm"
-												asChild
+										</div>
+										<Button
+											variant="outline"
+											size="sm"
+											asChild
 												className="h-8 sm:h-9 text-xs sm:text-sm shrink-0"
-											>
-												<a href={appealData.url} target="_blank" rel="noopener noreferrer">
+										>
+											<a href={appealData.url} target="_blank" rel="noopener noreferrer">
 													<Download className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-1.5" />
 													Abrir
-												</a>
-											</Button>
-										</div>
+											</a>
+										</Button>
 									</div>
 								</div>
-
-								<Button variant="outline" onClick={handleCloseAppealDialog} className="w-full">
-									Fechar
-								</Button>
 							</div>
+
+							<Button variant="outline" onClick={handleCloseAppealDialog} className="w-full">
+								Fechar
+							</Button>
+						</div>
 						</ResponsiveModalBody>
 					) : (
 						<div className="flex items-center justify-center py-8">

@@ -7,21 +7,21 @@ import { PullToRefreshWrapper } from "@/components/ui/pull-to-refresh";
 export const AppLayout = () => {
 	return (
 		<RefreshProvider>
-			<SidebarProvider>
-				<div className="min-h-screen flex w-full">
-					<AppSidebar />
+		<SidebarProvider>
+			<div className="min-h-screen flex w-full">
+				<AppSidebar />
 					<div className="flex-1 flex flex-col overflow-hidden">
 						<header className="flex h-12 items-center border-b border-border bg-card px-3 sm:h-14 sm:px-4 shrink-0">
-							<SidebarTrigger />
-						</header>
+						<SidebarTrigger />
+					</header>
 						<PullToRefreshWrapper className="flex-1 overflow-y-auto">
 							<main className="flex-1 p-3 sm:p-4 md:p-6">
-								<Outlet />
-							</main>
+						<Outlet />
+					</main>
 						</PullToRefreshWrapper>
-					</div>
 				</div>
-			</SidebarProvider>
+			</div>
+		</SidebarProvider>
 		</RefreshProvider>
 	);
 };
