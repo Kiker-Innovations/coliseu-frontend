@@ -24,7 +24,6 @@ import {
 	type Season,
 	type ResidentSuggestion,
 } from "@/services/api";
-import { usePageRefresh } from "@/hooks/use-page-refresh";
 
 export default function Suggestions() {
 	const [isLoading, setIsLoading] = useState(true);
@@ -114,12 +113,6 @@ export default function Suggestions() {
 				setIsLoading(false);
 			}
 	}, [selectedSeasonId]);
-
-	// Register refresh function for pull-to-refresh
-	usePageRefresh({
-		onRefresh: loadData,
-		enabled: !isCreating && !editingId,
-	});
 
 	// Load data on mount
 	useEffect(() => {
