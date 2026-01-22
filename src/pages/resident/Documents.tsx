@@ -6,7 +6,6 @@ import { Download, FileText, Eye, HardDrive, Calendar } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { documentsService, ApiClientError, type Document } from "@/services/api";
-import { usePageRefresh } from "@/hooks/use-page-refresh";
 import {
 	ResponsiveModal,
 	ResponsiveModalContent,
@@ -50,9 +49,6 @@ const Documents = () => {
 			setIsLoading(false);
 		}
 	}, []);
-
-	// Register refresh function for pull-to-refresh
-	usePageRefresh({ onRefresh: loadDocuments });
 
 	useEffect(() => {
 		loadDocuments();

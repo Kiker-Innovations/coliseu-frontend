@@ -27,7 +27,6 @@ import { toast } from "sonner";
 import { contestFineSchema, type ContestFineSchema } from "@/schemas/resident/fines.schema";
 import FinesSkeleton from "@/skeleton/resident/FinesSkeleton";
 import { infractionsService, type Fine } from "@/services/api/infractions.service";
-import { usePageRefresh } from "@/hooks/use-page-refresh";
 import {
 	ResponsiveModal,
 	ResponsiveModalContent,
@@ -126,12 +125,6 @@ export default function Fines() {
 				setIsLoading(false);
 			}
 	}, [mapFines]);
-
-	// Register refresh function for pull-to-refresh
-	usePageRefresh({
-		onRefresh: loadData,
-		enabled: !isContestDialogOpen && !isPaymentDialogOpen && !isAppealDialogOpen,
-	});
 
 	useEffect(() => {
 		loadData();

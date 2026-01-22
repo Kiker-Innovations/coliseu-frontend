@@ -6,7 +6,6 @@ import DashboardSkeleton from "@/skeleton/resident/DashboardSkeleton";
 import { toast } from "sonner";
 import { financialService, NetworkError, type FinancialSummary, type ProjectExpense } from "@/services/api";
 import { NetworkErrorState } from "@/components/network/NetworkErrorState";
-import { usePageRefresh } from "@/hooks/use-page-refresh";
 
 export default function Dashboard() {
 	const [isLoading, setIsLoading] = useState(true);
@@ -46,9 +45,6 @@ export default function Dashboard() {
 			setIsLoading(false);
 		}
 	}, []);
-
-	// Register refresh function for pull-to-refresh
-	usePageRefresh({ onRefresh: loadData });
 
 	useEffect(() => {
 		loadData();

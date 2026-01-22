@@ -8,7 +8,6 @@ import { toast } from "sonner";
 import { noticesService, ApiClientError, type Notice, type NoticeDetail } from "@/services/api";
 import NoticesSkeleton from "@/skeleton/resident/NoticesSkeleton";
 import { Pagination, PaginationContent, PaginationItem } from "@/components/ui/pagination";
-import { usePageRefresh } from "@/hooks/use-page-refresh";
 import {
 	ResponsiveModal,
 	ResponsiveModalContent,
@@ -52,12 +51,6 @@ const Notices = () => {
 			setIsLoading(false);
 		}
 	}, [page, limit]);
-
-	// Register refresh function for pull-to-refresh
-	usePageRefresh({
-		onRefresh: loadNotices,
-		enabled: !isViewDialogOpen,
-	});
 
 	useEffect(() => {
 		loadNotices();

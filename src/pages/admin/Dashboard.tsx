@@ -5,7 +5,6 @@ import { Trophy, TrendingUp, DollarSign, TrendingDown } from "lucide-react";
 import DashboardSkeleton from "@/skeleton/admin/DashboardSkeleton";
 import { toast } from "sonner";
 import { financialService, type FinancialSummary, type ProjectExpense } from "@/services/api";
-import { usePageRefresh } from "@/hooks/use-page-refresh";
 
 export default function AdminDashboard() {
 	const [isLoading, setIsLoading] = useState(true);
@@ -39,9 +38,6 @@ export default function AdminDashboard() {
 			setIsLoading(false);
 		}
 	}, []);
-
-	// Register refresh function for pull-to-refresh
-	usePageRefresh({ onRefresh: loadData });
 
 	useEffect(() => {
 		loadData();

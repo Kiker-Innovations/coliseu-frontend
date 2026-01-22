@@ -7,7 +7,6 @@ import { Package, User, ExternalLink, UserCheck, Calendar, Inbox, ChevronDown } 
 import DashboardSkeleton from "@/skeleton/concierge/DashboardSkeleton";
 import { toast } from "sonner";
 import { packageService, visitsService, type RecentVisit } from "@/services/api";
-import { usePageRefresh } from "@/hooks/use-page-refresh";
 
 interface PackageData {
 	id: string;
@@ -76,9 +75,6 @@ export default function ConciergeDashboard() {
 				setIsLoading(false);
 			}
 	}, []);
-
-	// Register refresh function for pull-to-refresh
-	usePageRefresh({ onRefresh: loadData });
 
 	useEffect(() => {
 		loadData();
