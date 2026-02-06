@@ -31,6 +31,12 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import {
+	Accordion,
+	AccordionContent,
+	AccordionItem,
+	AccordionTrigger,
+} from "@/components/ui/accordion";
+import {
 	Calendar as CalendarIcon,
 	Clock,
 	MapPin,
@@ -292,55 +298,88 @@ function BookingDetails({
 
 			{amenityData && (
 				<>
-					{amenityData.fineValue && amenityData.fineValue > 0 && (
+					{(amenityData.fineValue && amenityData.fineValue > 0) ||
+					(amenityData.nonComplianceFine && amenityData.nonComplianceFine > 0) ? (
 						<div className="pt-4 border-t">
-							<div className="flex items-center gap-1">
-								<Label className="text-muted-foreground">Multa por Atraso</Label>
-								<Popover>
-									<PopoverTrigger asChild>
-										<button type="button" className="inline-flex">
-											<Info className="w-4 h-4 text-muted-foreground cursor-pointer hover:text-primary" />
-										</button>
-									</PopoverTrigger>
-									<PopoverContent className="w-80">
-										<p className="text-sm">Este valor só será cobrado caso você não devolva o espaço no horário combinado. Se cumprir o horário, não haverá cobrança adicional.</p>
-									</PopoverContent>
-								</Popover>
-							</div>
-							<p className="text-sm font-medium text-destructive mt-1">
-								R${" "}
-								{amenityData.fineValue.toLocaleString("pt-BR", {
-									minimumFractionDigits: 2,
-									maximumFractionDigits: 2,
-								})}
-							</p>
-						</div>
-					)}
+							<Accordion type="multiple" defaultValue={[]} className="w-full">
+								{amenityData.fineValue && amenityData.fineValue > 0 && (
+									<AccordionItem value="fineValue">
+										<AccordionTrigger className="text-sm">
+											<div className="flex items-center gap-1">
+												<Label className="text-muted-foreground">Multa por Atraso</Label>
+												<Popover>
+													<PopoverTrigger asChild>
+														<button
+															type="button"
+															className="inline-flex"
+															onClick={(e) => e.stopPropagation()}
+														>
+															<Info className="w-4 h-4 text-muted-foreground cursor-pointer hover:text-primary" />
+														</button>
+													</PopoverTrigger>
+													<PopoverContent className="w-80">
+														<p className="text-sm">
+															Este valor só será cobrado caso você não devolva o espaço no
+															horário combinado. Se cumprir o horário, não haverá cobrança
+															adicional.
+														</p>
+													</PopoverContent>
+												</Popover>
+											</div>
+										</AccordionTrigger>
+										<AccordionContent>
+											<p className="text-sm font-medium text-destructive">
+												R${" "}
+												{amenityData.fineValue.toLocaleString("pt-BR", {
+													minimumFractionDigits: 2,
+													maximumFractionDigits: 2,
+												})}
+											</p>
+										</AccordionContent>
+									</AccordionItem>
+								)}
 
-					{amenityData.nonComplianceFine && amenityData.nonComplianceFine > 0 && (
-						<div className="pt-4 border-t">
-							<div className="flex items-center gap-1">
-								<Label className="text-muted-foreground">Multa por Descumprimento de Normas</Label>
-								<Popover>
-									<PopoverTrigger asChild>
-										<button type="button" className="inline-flex">
-											<Info className="w-4 h-4 text-muted-foreground cursor-pointer hover:text-primary" />
-										</button>
-									</PopoverTrigger>
-									<PopoverContent className="w-80">
-										<p className="text-sm">Este valor só será cobrado caso as normas de uso da comodidade sejam descumpridas. Seguindo as regras, não haverá cobrança adicional.</p>
-									</PopoverContent>
-								</Popover>
-							</div>
-							<p className="text-sm font-medium text-destructive mt-1">
-								R${" "}
-								{amenityData.nonComplianceFine.toLocaleString("pt-BR", {
-									minimumFractionDigits: 2,
-									maximumFractionDigits: 2,
-								})}
-							</p>
+								{amenityData.nonComplianceFine && amenityData.nonComplianceFine > 0 && (
+									<AccordionItem value="nonComplianceFine">
+										<AccordionTrigger className="text-sm">
+											<div className="flex items-center gap-1">
+												<Label className="text-muted-foreground">
+													Multa por Descumprimento de Normas
+												</Label>
+												<Popover>
+													<PopoverTrigger asChild>
+														<button
+															type="button"
+															className="inline-flex"
+															onClick={(e) => e.stopPropagation()}
+														>
+															<Info className="w-4 h-4 text-muted-foreground cursor-pointer hover:text-primary" />
+														</button>
+													</PopoverTrigger>
+													<PopoverContent className="w-80">
+														<p className="text-sm">
+															Este valor só será cobrado caso as normas de uso da comodidade
+															sejam descumpridas. Seguindo as regras, não haverá cobrança
+															adicional.
+														</p>
+													</PopoverContent>
+												</Popover>
+											</div>
+										</AccordionTrigger>
+										<AccordionContent>
+											<p className="text-sm font-medium text-destructive">
+												R${" "}
+												{amenityData.nonComplianceFine.toLocaleString("pt-BR", {
+													minimumFractionDigits: 2,
+													maximumFractionDigits: 2,
+												})}
+											</p>
+										</AccordionContent>
+									</AccordionItem>
+								)}
+							</Accordion>
 						</div>
-					)}
+					) : null}
 
 					{amenityData.usageRules && (
 						<div className="pt-4 border-t">
@@ -382,6 +421,216 @@ function BookingDetails({
 				)}
 			</div>
 		</div>
+	);
+}
+
+// Componente para renderizar um card de reserva (mobile)
+function BookingCard({
+	booking,
+	amenities,
+	amenityCache,
+	setAmenityCache,
+	onViewBooking,
+	getStatusBadge,
+}: {
+	booking: Booking;
+	amenities: Amenity[];
+	amenityCache: Map<string, Amenity>;
+	setAmenityCache: React.Dispatch<React.SetStateAction<Map<string, Amenity>>>;
+	onViewBooking: (booking: Booking) => void;
+	getStatusBadge: (status: string) => React.ReactNode;
+}) {
+	const [amenityName, setAmenityName] = useState<string>("...");
+	const [amenityData, setAmenityData] = useState<Amenity | null>(null);
+
+	useEffect(() => {
+		const loadAmenityName = async () => {
+			if (!booking.amenityId || booking.amenityId === "undefined") {
+				setAmenityName("Comodidade não encontrada");
+				return;
+			}
+
+			let amenity = amenities.find((a) => a._id === booking.amenityId);
+
+			if (!amenity) {
+				amenity = amenityCache.get(booking.amenityId);
+			}
+
+			if (amenity) {
+				setAmenityName(amenity.name);
+				setAmenityData(amenity);
+				return;
+			}
+
+			try {
+				const fetchedAmenity = await amenitiesService.getAmenityById(booking.amenityId);
+				if (fetchedAmenity) {
+					setAmenityName(fetchedAmenity.name);
+					setAmenityData(fetchedAmenity);
+					setAmenityCache((prev) => new Map(prev).set(booking.amenityId, fetchedAmenity));
+				} else {
+					setAmenityName("Comodidade não encontrada");
+					setAmenityData(null);
+				}
+			} catch (error) {
+				console.error("Erro ao buscar comodidade:", error);
+				setAmenityName("Comodidade não encontrada");
+				setAmenityData(null);
+			}
+		};
+
+		loadAmenityName();
+	}, [booking.amenityId, amenities, amenityCache, setAmenityCache]);
+
+	const formatDate = (dateString: string): string => {
+		if (!dateString) return "-";
+
+		try {
+			if (dateString.match(/^\d{4}-\d{2}-\d{2}$/)) {
+				const date = new Date(dateString + "T00:00:00");
+				if (isNaN(date.getTime())) {
+					return "-";
+				}
+				return date.toLocaleDateString("pt-BR");
+			}
+
+			const date = new Date(dateString);
+			if (isNaN(date.getTime())) {
+				return "-";
+			}
+			return date.toLocaleDateString("pt-BR");
+		} catch (error) {
+			console.error("Erro ao formatar data:", error);
+			return "-";
+		}
+	};
+
+	const formatTime = (dateString: string): string => {
+		if (!dateString) return "-";
+
+		try {
+			const date = new Date(dateString);
+			if (isNaN(date.getTime())) {
+				return "-";
+			}
+			return date.toLocaleTimeString("pt-BR", {
+				hour: "2-digit",
+				minute: "2-digit",
+			});
+		} catch (error) {
+			console.error("Erro ao formatar hora:", error);
+			return "-";
+		}
+	};
+
+	return (
+		<Card 
+			className="cursor-pointer hover:shadow-lg transition-all duration-300 border-2 hover:border-primary/20 group overflow-hidden relative"
+			onClick={() => onViewBooking(booking)}
+		>
+			{/* Gradiente sutil no topo */}
+			<div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-primary/20 via-primary/40 to-primary/20 opacity-0 group-hover:opacity-100 transition-opacity" />
+			
+			<CardHeader className="pb-4 pt-5">
+				<div className="flex items-start justify-between gap-3">
+					<div className="flex items-start gap-3 flex-1 min-w-0">
+						<div className="p-2 rounded-lg bg-primary/10 group-hover:bg-primary/20 transition-colors flex-shrink-0">
+							<MapPin className="w-5 h-5 text-primary" />
+						</div>
+						<div className="flex-1 min-w-0">
+							<CardTitle className="text-lg font-bold line-clamp-2 group-hover:text-primary transition-colors">
+								{amenityName}
+							</CardTitle>
+						</div>
+					</div>
+					<div className="flex-shrink-0">{getStatusBadge(booking.status)}</div>
+				</div>
+			</CardHeader>
+			<CardContent className="space-y-4 pt-0">
+				<div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+					<div className="space-y-1">
+						<Label className="text-muted-foreground text-xs font-medium flex items-center gap-1">
+							<CalendarIcon className="w-3 h-3" />
+							Data Início
+						</Label>
+						<p className="font-semibold text-sm break-words">
+							{formatDate(booking.startDate)}
+							{amenityData?.bookingType === "POR_HORAS" && booking.startDate && (
+								<span className="ml-2 text-xs text-muted-foreground font-normal block sm:inline">
+									({formatTime(booking.startDate)})
+								</span>
+							)}
+						</p>
+					</div>
+					<div className="space-y-1">
+						<Label className="text-muted-foreground text-xs font-medium flex items-center gap-1">
+							<CalendarIcon className="w-3 h-3" />
+							Data Fim
+						</Label>
+						<p className="font-semibold text-sm break-words">
+							{booking.endDate ? (
+								<>
+									{formatDate(booking.endDate)}
+									{amenityData?.bookingType === "POR_HORAS" && (
+										<span className="ml-2 text-xs text-muted-foreground font-normal block sm:inline">
+											({formatTime(booking.endDate)})
+										</span>
+									)}
+								</>
+							) : (
+								<span className="text-muted-foreground">-</span>
+							)}
+						</p>
+					</div>
+				</div>
+				
+				{booking.totalValue > 0 && (
+					<div className="pt-3 border-t">
+						<Label className="text-muted-foreground text-xs font-medium">Valor Total</Label>
+						<p className="text-xl font-bold text-primary mt-1">
+							R${" "}
+							{booking.totalValue.toLocaleString("pt-BR", {
+								minimumFractionDigits: 2,
+								maximumFractionDigits: 2,
+							})}
+						</p>
+					</div>
+				)}
+				
+				<div className="flex flex-col sm:flex-row gap-2 pt-2" onClick={(e) => e.stopPropagation()}>
+					{booking.totalValue > 0 && booking.paymentUrl && booking.status === "PENDENTE" && (
+						<Button
+							size="sm"
+							variant="default"
+							type="button"
+							className="w-full sm:flex-1 font-semibold shadow-sm hover:shadow-md transition-shadow"
+							onClick={(e) => {
+								e.preventDefault();
+								e.stopPropagation();
+								window.open(booking.paymentUrl!, '_blank');
+							}}
+						>
+							<QrCode className="w-4 h-4 mr-1.5" />
+							Pagar
+						</Button>
+					)}
+					<Button
+						size="sm"
+						variant="outline"
+						type="button"
+						className="w-full sm:flex-1 font-semibold hover:bg-primary hover:text-primary-foreground transition-colors"
+						onClick={(e) => {
+							e.preventDefault();
+							e.stopPropagation();
+							onViewBooking(booking);
+						}}
+					>
+						<Info className="w-4 h-4 mr-1.5" />
+						Detalhes
+					</Button>
+				</div>
+			</CardContent>
+		</Card>
 	);
 }
 
@@ -494,7 +743,7 @@ function BookingRow({
 
 	return (
 		<TableRow
-			className="cursor-pointer"
+			className="cursor-pointer hover:bg-primary/5 transition-colors group"
 			onClick={(e) => {
 				// Não abrir modal se clicar em um botão
 				if ((e.target as HTMLElement).closest("button")) {
@@ -503,65 +752,75 @@ function BookingRow({
 				onViewBooking(booking);
 			}}
 		>
-			<TableCell className="font-medium">{amenityName}</TableCell>
-			<TableCell>
-				{formatDate(booking.startDate)}
-				{amenityData?.bookingType === "POR_HORAS" && booking.startDate && (
-					<span className="ml-2 text-sm text-muted-foreground">
-						({formatTime(booking.startDate)})
-					</span>
-				)}
+			<TableCell className="font-semibold overflow-hidden">
+				<div className="flex items-center gap-2 min-w-0">
+					<div className="p-1.5 rounded-md bg-primary/10 group-hover:bg-primary/20 transition-colors flex-shrink-0">
+						<MapPin className="w-4 h-4 text-primary" />
+					</div>
+					<span className="group-hover:text-primary transition-colors truncate block min-w-0">{amenityName}</span>
+				</div>
 			</TableCell>
-			<TableCell>
-				{booking.endDate ? (
-					<>
-						{formatDate(booking.endDate)}
-						{amenityData?.bookingType === "POR_HORAS" && (
-							<span className="ml-2 text-sm text-muted-foreground">
-								({formatTime(booking.endDate)})
+			<TableCell className="overflow-hidden">
+				<div className="flex items-center gap-1.5 min-w-0">
+					<CalendarIcon className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+					<div className="min-w-0 overflow-hidden">
+						<div className="font-medium truncate">{formatDate(booking.startDate)}</div>
+						{amenityData?.bookingType === "POR_HORAS" && booking.startDate && (
+							<span className="text-xs text-muted-foreground block truncate">
+								{formatTime(booking.startDate)}
 							</span>
 						)}
-					</>
+					</div>
+				</div>
+			</TableCell>
+			<TableCell className="overflow-hidden">
+				{booking.endDate ? (
+					<div className="flex items-center gap-1.5 min-w-0">
+						<CalendarIcon className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+						<div className="min-w-0 overflow-hidden">
+							<div className="font-medium truncate">{formatDate(booking.endDate)}</div>
+							{amenityData?.bookingType === "POR_HORAS" && (
+								<span className="text-xs text-muted-foreground block truncate">
+									{formatTime(booking.endDate)}
+								</span>
+							)}
+						</div>
+					</div>
 				) : (
-					"-"
+					<span className="text-muted-foreground">-</span>
 				)}
 			</TableCell>
-			<TableCell>
-				{amenityData?.bookingType && (
-					<Badge variant="outline" className="text-xs mr-2">
-						{amenityData.bookingType === "POR_HORAS"
-							? "Por Horas"
-							: amenityData.bookingType === "DIARIO"
-								? "Diária"
-								: amenityData.bookingType}
-					</Badge>
-				)}
-			</TableCell>
-			<TableCell>
-				{booking.totalValue > 0
-					? `R$ ${booking.totalValue.toLocaleString("pt-BR", {
+			<TableCell className="overflow-hidden">
+				{booking.totalValue > 0 ? (
+					<span className="font-bold text-primary whitespace-nowrap">
+						R$ {booking.totalValue.toLocaleString("pt-BR", {
 							minimumFractionDigits: 2,
 							maximumFractionDigits: 2,
-						})}`
-					: "-"}
+						})}
+					</span>
+				) : (
+					<span className="text-muted-foreground">-</span>
+				)}
 			</TableCell>
-			<TableCell>{getStatusBadge(booking.status)}</TableCell>
-			<TableCell onClick={(e) => e.stopPropagation()}>
-				<div className="flex gap-2">
+			<TableCell className="overflow-hidden">
+				<div className="whitespace-nowrap">{getStatusBadge(booking.status)}</div>
+			</TableCell>
+			<TableCell onClick={(e) => e.stopPropagation()} className="overflow-visible">
+				<div className="flex gap-1.5 items-center">
 					{/* Botão Pagar - aparece quando tem paymentUrl e status PENDENTE */}
 					{booking.totalValue > 0 && booking.paymentUrl && booking.status === "PENDENTE" && (
 						<Button
 							size="sm"
 							variant="default"
 							type="button"
-							className="bg-primary text-primary-foreground"
+							className="bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm hover:shadow-md transition-all text-xs px-2 h-7"
 							onClick={(e) => {
 								e.preventDefault();
 								e.stopPropagation();
 								window.open(booking.paymentUrl!, '_blank');
 							}}
 						>
-							<QrCode className="w-4 h-4 mr-1" />
+							<QrCode className="w-3 h-3 mr-1" />
 							Pagar
 						</Button>
 					)}
@@ -569,13 +828,15 @@ function BookingRow({
 						size="sm"
 						variant="outline"
 						type="button"
+						className="hover:bg-primary hover:text-primary-foreground transition-colors text-xs px-2 h-7"
 						onClick={(e) => {
 							e.preventDefault();
 							e.stopPropagation();
 							onViewBooking(booking);
 						}}
 					>
-						Ver Detalhes
+						<Info className="w-3 h-3 mr-1" />
+						Detalhes
 					</Button>
 				</div>
 			</TableCell>
@@ -608,6 +869,7 @@ export default function Bookings() {
 	const [hoursAvailability, setHoursAvailability] = useState<Map<number, boolean>>(new Map());
 	const [dayAvailable, setDayAvailable] = useState<boolean | null>(null);
 	const [isLoadingHoursAvailability, setIsLoadingHoursAvailability] = useState(false);
+	const [isCalendarOpen, setIsCalendarOpen] = useState(false);
 
 	const bookingForm = useForm<BookingFormData>({
 		resolver: zodResolver(bookingSchema),
@@ -830,6 +1092,7 @@ export default function Bookings() {
 		setAvailability(new Map());
 		setHoursAvailability(new Map());
 		setDayAvailable(null);
+		setIsCalendarOpen(false);
 		bookingForm.reset({
 			amenityId: amenity._id,
 			date: "",
@@ -1013,27 +1276,27 @@ export default function Bookings() {
 		switch (status) {
 			case "AGENDADO":
 				return (
-					<Badge variant="default" className="bg-green-500">
+					<Badge variant="default" className="bg-green-500 hover:bg-green-600 text-white font-semibold shadow-sm">
 						<CheckCircle className="w-3 h-3 mr-1" />
 						Agendado
 					</Badge>
 				);
 			case "PENDENTE":
 				return (
-					<Badge variant="secondary">
+					<Badge variant="secondary" className="bg-amber-100 text-amber-800 hover:bg-amber-200 font-semibold shadow-sm border border-amber-200">
 						<AlertCircle className="w-3 h-3 mr-1" />
 						Pendente
 					</Badge>
 				);
 			case "CANCELADO":
 				return (
-					<Badge variant="outline">
+					<Badge variant="outline" className="bg-gray-100 text-gray-600 hover:bg-gray-200 font-semibold border-gray-300">
 						<XCircle className="w-3 h-3 mr-1" />
 						Cancelado
 					</Badge>
 				);
 			default:
-				return <Badge>{status}</Badge>;
+				return <Badge className="font-semibold">{status}</Badge>;
 		}
 	};
 
@@ -1164,9 +1427,6 @@ export default function Bookings() {
 																minimumFractionDigits: 2,
 																maximumFractionDigits: 2,
 															})}
-															<span className="text-sm font-normal text-muted-foreground">
-																{amenity.bookingType === "POR_HORAS" ? "/hora" : "/dia"}
-															</span>
 														</p>
 													</div>
 												) : (
@@ -1232,8 +1492,12 @@ export default function Bookings() {
 				</TabsContent>
 
 				<TabsContent value="bookings" className="space-y-6">
-					<div className="flex items-center justify-between">
-						<h2 className="text-2xl font-bold">Minhas Reservas</h2>
+					<div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-2 border-b">
+						<div>
+							<p className="text-sm text-muted-foreground mt-1">
+								{bookings?.length || 0} {bookings?.length === 1 ? "reserva encontrada" : "reservas encontradas"}
+							</p>
+						</div>
 						<Button
 							type="button"
 							variant="outline"
@@ -1244,48 +1508,71 @@ export default function Bookings() {
 								toast.success("Reservas atualizadas");
 							}}
 							disabled={isLoading}
+							className="w-full sm:w-auto shadow-sm hover:shadow-md transition-shadow"
 						>
 							<RefreshCw className={`w-4 h-4 mr-2 ${isLoading ? "animate-spin" : ""}`} />
 							Atualizar
 						</Button>
 					</div>
 					{!bookings || bookings.length === 0 ? (
-						<Card>
-							<CardContent className="flex items-center justify-center h-32">
-								<p className="text-muted-foreground">Nenhuma reserva encontrada</p>
+						<Card className="border-dashed">
+							<CardContent className="flex flex-col items-center justify-center h-48">
+								<div className="p-4 rounded-full bg-muted mb-4">
+									<CalendarIcon className="w-8 h-8 text-muted-foreground" />
+								</div>
+								<p className="text-lg font-semibold text-muted-foreground">Nenhuma reserva encontrada</p>
+								<p className="text-sm text-muted-foreground mt-1">Suas reservas aparecerão aqui</p>
 							</CardContent>
 						</Card>
 					) : (
-						<div className="rounded-md border">
-							<Table>
-								<TableHeader>
-									<TableRow>
-										<TableHead>Comodidade</TableHead>
-										<TableHead>Data Início</TableHead>
-										<TableHead>Data Fim</TableHead>
-										<TableHead>Tipo</TableHead>
-										<TableHead>Valor</TableHead>
-										<TableHead>Status</TableHead>
-										<TableHead>Ações</TableHead>
-									</TableRow>
-								</TableHeader>
-								<TableBody>
-									{(bookings || [])
-										.sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime())
-										.map((booking, index) => (
-											<BookingRow
-												key={booking._id || `booking-${index}`}
-												booking={booking}
-												amenities={amenities}
-												amenityCache={amenityCache}
-												setAmenityCache={setAmenityCache}
-												onViewBooking={handleViewBooking}
-												getStatusBadge={getStatusBadge}
-											/>
-										))}
-								</TableBody>
-							</Table>
-						</div>
+						<>
+							{/* Versão Desktop - Tabela */}
+							<div className="hidden md:block rounded-lg border shadow-sm overflow-hidden">
+								<Table className="w-full table-fixed">
+									<TableHeader className="bg-muted/50">
+										<TableRow className="hover:bg-transparent">
+											<TableHead className="font-semibold w-[25%]">Comodidade</TableHead>
+											<TableHead className="font-semibold w-[18%]">Data Início</TableHead>
+											<TableHead className="font-semibold w-[18%]">Data Fim</TableHead>
+											<TableHead className="font-semibold w-[12%]">Valor</TableHead>
+											<TableHead className="font-semibold w-[12%]">Status</TableHead>
+											<TableHead className="font-semibold w-[15%]">Ações</TableHead>
+										</TableRow>
+									</TableHeader>
+										<TableBody>
+											{(bookings || [])
+												.sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime())
+												.map((booking, index) => (
+													<BookingRow
+														key={booking._id || `booking-${index}`}
+														booking={booking}
+														amenities={amenities}
+														amenityCache={amenityCache}
+														setAmenityCache={setAmenityCache}
+														onViewBooking={handleViewBooking}
+														getStatusBadge={getStatusBadge}
+													/>
+												))}
+										</TableBody>
+									</Table>
+							</div>
+							{/* Versão Mobile - Cards */}
+							<div className="md:hidden space-y-4">
+								{(bookings || [])
+									.sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime())
+									.map((booking, index) => (
+										<BookingCard
+											key={booking._id || `booking-${index}`}
+											booking={booking}
+											amenities={amenities}
+											amenityCache={amenityCache}
+											setAmenityCache={setAmenityCache}
+											onViewBooking={handleViewBooking}
+											getStatusBadge={getStatusBadge}
+										/>
+									))}
+							</div>
+						</>
 					)}
 				</TabsContent>
 			</Tabs>
@@ -1303,6 +1590,7 @@ export default function Bookings() {
 						setEndTime("");
 						setBookingStep(1);
 						setAcceptedTerms(false);
+						setIsCalendarOpen(false);
 					}
 				}}
 			>
@@ -1349,7 +1637,7 @@ export default function Bookings() {
 							<div className="space-y-4">
 								<div className="space-y-2">
 									<Label>Escolha o dia</Label>
-									<Popover>
+									<Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
 										<PopoverTrigger asChild>
 											<Button
 												variant="outline"
@@ -1385,6 +1673,8 @@ export default function Bookings() {
 														}
 														
 														handleDateChange(date);
+														// Fechar o calendário após selecionar a data
+														setIsCalendarOpen(false);
 													}
 												}}
 												disabled={(date) => {
@@ -1914,64 +2204,92 @@ export default function Bookings() {
 											minimumFractionDigits: 2,
 											maximumFractionDigits: 2,
 										})}
-										<span className="text-sm font-normal text-muted-foreground">
-											{amenityToView.bookingType === "POR_HORAS" ? "/hora" : "/dia"}
-										</span>
 									</p>
 								</div>
 							)}
 
-							{amenityToView.fineValue && amenityToView.fineValue > 0 && (
+							{(amenityToView.fineValue && amenityToView.fineValue > 0) ||
+							(amenityToView.nonComplianceFine && amenityToView.nonComplianceFine > 0) ? (
 								<div className="pt-2 border-t">
-									<div className="flex items-center gap-1">
-										<Label className="text-muted-foreground">Multa por Atraso</Label>
-										<Popover>
-											<PopoverTrigger asChild>
-												<button type="button" className="inline-flex">
-													<Info className="w-4 h-4 text-muted-foreground cursor-pointer hover:text-primary" />
-												</button>
-											</PopoverTrigger>
-											<PopoverContent className="w-80">
-												<p className="text-sm">Este valor só será cobrado caso você não devolva o espaço no horário combinado. Se cumprir o horário, não haverá cobrança adicional.</p>
-											</PopoverContent>
-										</Popover>
-									</div>
-									<p className="text-lg font-medium text-destructive mt-1">
-										R${" "}
-										{amenityToView.fineValue.toLocaleString("pt-BR", {
-											minimumFractionDigits: 2,
-											maximumFractionDigits: 2,
-										})}
-									</p>
-								</div>
-							)}
+									<Accordion type="multiple" defaultValue={[]} className="w-full">
+										{amenityToView.fineValue && amenityToView.fineValue > 0 && (
+											<AccordionItem value="fineValue">
+												<AccordionTrigger className="text-sm">
+													<div className="flex items-center gap-1">
+														<Label className="text-muted-foreground">Multa por Atraso</Label>
+														<Popover>
+															<PopoverTrigger asChild>
+																<button
+																	type="button"
+																	className="inline-flex"
+																	onClick={(e) => e.stopPropagation()}
+																>
+																	<Info className="w-4 h-4 text-muted-foreground cursor-pointer hover:text-primary" />
+																</button>
+															</PopoverTrigger>
+															<PopoverContent className="w-80">
+																<p className="text-sm">
+																	Este valor só será cobrado caso você não devolva o espaço no
+																	horário combinado. Se cumprir o horário, não haverá cobrança
+																	adicional.
+																</p>
+															</PopoverContent>
+														</Popover>
+													</div>
+												</AccordionTrigger>
+												<AccordionContent>
+													<p className="text-lg font-medium text-destructive">
+														R${" "}
+														{amenityToView.fineValue.toLocaleString("pt-BR", {
+															minimumFractionDigits: 2,
+															maximumFractionDigits: 2,
+														})}
+													</p>
+												</AccordionContent>
+											</AccordionItem>
+										)}
 
-							{amenityToView.nonComplianceFine && amenityToView.nonComplianceFine > 0 && (
-								<div className="pt-2 border-t">
-									<div className="flex items-center gap-1">
-										<Label className="text-muted-foreground">
-											Multa por Descumprimento de Normas
-										</Label>
-										<Popover>
-											<PopoverTrigger asChild>
-												<button type="button" className="inline-flex">
-													<Info className="w-4 h-4 text-muted-foreground cursor-pointer hover:text-primary" />
-												</button>
-											</PopoverTrigger>
-											<PopoverContent className="w-80">
-												<p className="text-sm">Este valor só será cobrado caso as normas de uso da comodidade sejam descumpridas. Seguindo as regras, não haverá cobrança adicional.</p>
-											</PopoverContent>
-										</Popover>
-									</div>
-									<p className="text-lg font-medium text-destructive mt-1">
-										R${" "}
-										{amenityToView.nonComplianceFine.toLocaleString("pt-BR", {
-											minimumFractionDigits: 2,
-											maximumFractionDigits: 2,
-										})}
-									</p>
+										{amenityToView.nonComplianceFine && amenityToView.nonComplianceFine > 0 && (
+											<AccordionItem value="nonComplianceFine">
+												<AccordionTrigger className="text-sm">
+													<div className="flex items-center gap-1">
+														<Label className="text-muted-foreground">
+															Multa por Descumprimento de Normas
+														</Label>
+														<Popover>
+															<PopoverTrigger asChild>
+																<button
+																	type="button"
+																	className="inline-flex"
+																	onClick={(e) => e.stopPropagation()}
+																>
+																	<Info className="w-4 h-4 text-muted-foreground cursor-pointer hover:text-primary" />
+																</button>
+															</PopoverTrigger>
+															<PopoverContent className="w-80">
+																<p className="text-sm">
+																	Este valor só será cobrado caso as normas de uso da comodidade
+																	sejam descumpridas. Seguindo as regras, não haverá cobrança
+																	adicional.
+																</p>
+															</PopoverContent>
+														</Popover>
+													</div>
+												</AccordionTrigger>
+												<AccordionContent>
+													<p className="text-lg font-medium text-destructive">
+														R${" "}
+														{amenityToView.nonComplianceFine.toLocaleString("pt-BR", {
+															minimumFractionDigits: 2,
+															maximumFractionDigits: 2,
+														})}
+													</p>
+												</AccordionContent>
+											</AccordionItem>
+										)}
+									</Accordion>
 								</div>
-							)}
+							) : null}
 
 							{amenityToView.usageRules && (
 								<div className="pt-2 border-t">

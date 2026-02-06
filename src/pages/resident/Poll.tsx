@@ -642,39 +642,39 @@ export default function Poll() {
 	}
 
 	return (
-		<div className="space-y-6">
+		<div className="space-y-4 sm:space-y-6">
 			<div className="flex justify-between items-center">
 				<div>
-					<h1 className="text-3xl font-bold">Enquetes</h1>
-					<p className="text-muted-foreground mt-1">
+					<h1 className="text-2xl sm:text-3xl font-bold">Enquetes</h1>
+					<p className="text-sm sm:text-base text-muted-foreground mt-1">
 						Vote nas enquetes do condomínio - 1 voto por apartamento
 					</p>
 				</div>
 			</div>
 
 			{/* Poll Stats */}
-			<div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+			<div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
 				<Card>
-					<CardContent className="pt-6">
+					<CardContent className="pt-4 sm:pt-6">
 						<div className="text-center">
-							<p className="text-sm text-muted-foreground mb-2">Enquetes Ativas</p>
-							<p className="text-4xl font-bold text-green-600">{activePolls.length}</p>
+							<p className="text-xs sm:text-sm text-muted-foreground mb-2">Enquetes Ativas</p>
+							<p className="text-3xl sm:text-4xl font-bold text-green-600">{activePolls.length}</p>
 						</div>
 					</CardContent>
 				</Card>
 				<Card>
-					<CardContent className="pt-6">
+					<CardContent className="pt-4 sm:pt-6">
 						<div className="text-center">
-							<p className="text-sm text-muted-foreground mb-2">Enquetes Finalizadas</p>
-							<p className="text-4xl font-bold text-gray-500">{closedPolls.length}</p>
+							<p className="text-xs sm:text-sm text-muted-foreground mb-2">Enquetes Finalizadas</p>
+							<p className="text-3xl sm:text-4xl font-bold text-gray-500">{closedPolls.length}</p>
 						</div>
 					</CardContent>
 				</Card>
 				<Card>
-					<CardContent className="pt-6">
+					<CardContent className="pt-4 sm:pt-6">
 						<div className="text-center">
-							<p className="text-sm text-muted-foreground mb-2">Suas Participações</p>
-							<p className="text-4xl font-bold text-accent">
+							<p className="text-xs sm:text-sm text-muted-foreground mb-2">Suas Participações</p>
+							<p className="text-3xl sm:text-4xl font-bold text-accent">
 								{
 									allPolls.filter((p) => {
 										const pollId = p.id || p._id;
@@ -688,15 +688,19 @@ export default function Poll() {
 			</div>
 
 			{/* Polls Tabs */}
-			<Tabs defaultValue="active" className="space-y-6">
+			<Tabs defaultValue="active" className="space-y-4 sm:space-y-6">
 				<TabsList className="grid w-full max-w-md grid-cols-2">
-					<TabsTrigger value="active" className="gap-2">
-						<PlayCircle className="w-4 h-4" />
-						Ativas ({activePolls.length})
+					<TabsTrigger value="active" className="gap-1 sm:gap-2 text-xs sm:text-sm">
+						<PlayCircle className="w-3 h-3 sm:w-4 sm:h-4" />
+						<span className="hidden xs:inline">Ativas</span>
+						<span className="xs:hidden">Ativas</span>
+						<span className="ml-1">({activePolls.length})</span>
 					</TabsTrigger>
-					<TabsTrigger value="finished" className="gap-2">
-						<History className="w-4 h-4" />
-						Finalizadas ({closedPolls.length})
+					<TabsTrigger value="finished" className="gap-1 sm:gap-2 text-xs sm:text-sm">
+						<History className="w-3 h-3 sm:w-4 sm:h-4" />
+						<span className="hidden xs:inline">Finalizadas</span>
+						<span className="xs:hidden">Final.</span>
+						<span className="ml-1">({closedPolls.length})</span>
 					</TabsTrigger>
 				</TabsList>
 
@@ -733,42 +737,44 @@ export default function Poll() {
 									}`}
 								>
 									<CardHeader>
-										<div className="flex justify-between items-start gap-4">
-											<div className="flex-1">
-												<div className="flex items-start justify-between gap-3 mb-3">
-													<CardTitle className="text-xl flex-1">{poll.description}</CardTitle>
-													<div className="flex items-center gap-2">
+										<div className="flex flex-col sm:flex-row justify-between items-start gap-3 sm:gap-4">
+											<div className="flex-1 w-full">
+												<div className="flex flex-col sm:flex-row items-start justify-between gap-2 sm:gap-3 mb-3">
+													<CardTitle className="text-lg sm:text-xl flex-1 break-words">{poll.description}</CardTitle>
+													<div className="flex flex-wrap items-center gap-2 self-start sm:self-auto">
 														{hasVotedInPoll && (
 															<Badge
 																variant="outline"
-																className="bg-accent/10 text-accent border-accent"
+																className="bg-accent/10 text-accent border-accent text-xs px-2 py-0.5"
 															>
 																<CheckCircle2 className="w-3 h-3 mr-1" />
-																Você votou
+																<span className="hidden sm:inline">Você votou</span>
+																<span className="sm:hidden">Votou</span>
 															</Badge>
 														)}
 														<Badge
-															className={`${pollStatus.color} text-white flex items-center gap-1.5 px-3 py-1`}
+															className={`${pollStatus.color} text-white flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-0.5 sm:py-1 text-xs`}
 														>
-															<StatusIcon className="w-3.5 h-3.5" />
-															{pollStatus.label}
+															<StatusIcon className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+															<span className="hidden sm:inline">{pollStatus.label}</span>
+															<span className="sm:hidden">{pollStatus.label.split(' ')[0]}</span>
 														</Badge>
 													</div>
 												</div>
 
-												<div className="flex items-center gap-1 text-sm text-muted-foreground mb-3">
-													<Users className="w-4 h-4" />
+												<div className="flex items-center gap-1 text-xs sm:text-sm text-muted-foreground mb-3">
+													<Users className="w-3 h-3 sm:w-4 sm:h-4" />
 													<span className="font-semibold">{poll.votes}</span>
 													<span>voto{poll.votes !== 1 ? "s" : ""}</span>
 												</div>
 
 												{/* Date Info - lado a lado */}
-												<div className="grid grid-cols-2 gap-3">
-													<div className="flex items-center gap-2 p-3 rounded-lg border">
-														<Calendar className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+												<div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3">
+													<div className="flex items-center gap-2 p-2 sm:p-3 rounded-lg border">
+														<Calendar className="w-3 h-3 sm:w-4 sm:h-4 text-muted-foreground flex-shrink-0" />
 														<div className="flex-1 min-w-0">
 															<p className="text-xs text-muted-foreground">Início</p>
-															<p className="font-medium text-sm truncate">
+															<p className="font-medium text-xs sm:text-sm truncate">
 																{new Date(poll.startDate).toLocaleDateString("pt-BR", {
 																	day: "2-digit",
 																	month: "short",
@@ -779,11 +785,11 @@ export default function Poll() {
 															</p>
 														</div>
 													</div>
-													<div className="flex items-center gap-2 p-3 rounded-lg border">
-														<Clock className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+													<div className="flex items-center gap-2 p-2 sm:p-3 rounded-lg border">
+														<Clock className="w-3 h-3 sm:w-4 sm:h-4 text-muted-foreground flex-shrink-0" />
 														<div className="flex-1 min-w-0">
 															<p className="text-xs text-muted-foreground">Término</p>
-															<p className="font-medium text-sm truncate">
+															<p className="font-medium text-xs sm:text-sm truncate">
 																{new Date(poll.endDate).toLocaleDateString("pt-BR", {
 																	day: "2-digit",
 																	month: "short",
@@ -810,14 +816,14 @@ export default function Poll() {
 														const wasVoted = confirmedVotes[pollId] === optionId;
 														return (
 															<div key={`option-${optionId}`} className="space-y-1">
-																<div className="flex justify-between text-sm">
-																	<span className={`font-medium ${wasVoted ? "text-accent" : ""}`}>
+																<div className="flex flex-col sm:flex-row justify-between gap-1 sm:gap-0 text-xs sm:text-sm">
+																	<span className={`font-medium break-words ${wasVoted ? "text-accent" : ""}`}>
 																		{option.description}
 																		{wasVoted && (
 																			<span className="ml-2 text-accent">(Seu voto)</span>
 																		)}
 																	</span>
-																	<span className="text-muted-foreground">
+																	<span className="text-muted-foreground whitespace-nowrap">
 																		{option.votes} votos ({option.percent}%)
 																	</span>
 																</div>
@@ -826,11 +832,12 @@ export default function Poll() {
 														);
 													})}
 												</div>
-												<div className="flex gap-2">
+												<div className="flex flex-col sm:flex-row gap-2">
 													<Button
 														onClick={() => handleChangeVote(pollId)}
 														variant="outline"
-														className="flex-1"
+														className="flex-1 text-sm sm:text-base"
+														size="sm"
 													>
 														Trocar Voto
 													</Button>
@@ -954,7 +961,7 @@ export default function Poll() {
 											(!hasVotedInPoll || isChangingVote[pollId]) && (
 												<>
 													<div className="mb-4">
-														<p className="text-sm font-medium mb-3">
+														<p className="text-xs sm:text-sm font-medium mb-3">
 															{isChangingVote[pollId]
 																? "Selecione uma nova opção:"
 																: "Selecione uma opção:"}
@@ -988,7 +995,7 @@ export default function Poll() {
 																	return (
 																		<div
 																			key={optionValue}
-																			className={`flex items-center space-x-3 p-3 rounded-lg border transition-colors ${
+																			className={`flex items-center space-x-2 sm:space-x-3 p-2 sm:p-3 rounded-lg border transition-colors ${
 																				isCurrentlySelected
 																					? "border-accent bg-accent/5"
 																					: "hover:bg-accent/5"
@@ -997,10 +1004,11 @@ export default function Poll() {
 																			<RadioGroupItem
 																				value={optionValue}
 																				id={`${pollId}-${optionValue}`}
+																				className="flex-shrink-0"
 																			/>
 																			<Label
 																				htmlFor={`${pollId}-${optionValue}`}
-																				className="flex-1 cursor-pointer"
+																				className="flex-1 cursor-pointer text-sm sm:text-base break-words"
 																			>
 																				{option.description}
 																			</Label>
@@ -1010,12 +1018,13 @@ export default function Poll() {
 															</div>
 														</RadioGroup>
 													</div>
-													<div className="flex gap-2">
+													<div className="flex flex-col sm:flex-row gap-2">
 														{isChangingVote[pollId] && (
 															<Button
 																onClick={() => handleCancelChangeVote(pollId)}
 																variant="outline"
-																className="flex-1"
+																className="flex-1 text-sm sm:text-base"
+																size="sm"
 															>
 																Cancelar
 															</Button>
@@ -1026,7 +1035,8 @@ export default function Poll() {
 																isVoting[pollId] ||
 																(tempSelections[pollId] === undefined && !isChangingVote[pollId])
 															}
-															className={isChangingVote[pollId] ? "flex-1" : "w-full"}
+															className={`${isChangingVote[pollId] ? "flex-1" : "w-full"} text-sm sm:text-base`}
+															size="sm"
 														>
 															{isVoting[pollId]
 																? "Processando..."
@@ -1046,7 +1056,7 @@ export default function Poll() {
 											pollStatus.status === "fora_periodo" ||
 											pollStatus.status === "encerrada") && (
 											<div
-												className={`p-4 rounded-lg border-2 ${
+												className={`p-3 sm:p-4 rounded-lg border-2 ${
 													pollStatus.status === "aguardando"
 														? "bg-blue-50 border-blue-200"
 														: pollStatus.status === "fora_periodo"
@@ -1054,9 +1064,9 @@ export default function Poll() {
 															: "bg-gray-50 border-gray-200"
 												}`}
 											>
-												<div className="flex items-start gap-3">
+												<div className="flex items-start gap-2 sm:gap-3">
 													<StatusIcon
-														className={`w-5 h-5 mt-0.5 ${
+														className={`w-4 h-4 sm:w-5 sm:h-5 mt-0.5 flex-shrink-0 ${
 															pollStatus.status === "aguardando"
 																? "text-blue-600"
 																: pollStatus.status === "fora_periodo"
@@ -1064,9 +1074,9 @@ export default function Poll() {
 																	: "text-gray-600"
 														}`}
 													/>
-													<div className="flex-1">
+													<div className="flex-1 min-w-0">
 														<p
-															className={`font-semibold mb-1 ${
+															className={`font-semibold mb-1 text-sm sm:text-base ${
 																pollStatus.status === "aguardando"
 																	? "text-blue-900"
 																	: pollStatus.status === "fora_periodo"
@@ -1081,7 +1091,7 @@ export default function Poll() {
 																	: "Enquete encerrada"}
 														</p>
 														<p
-															className={`text-sm ${
+															className={`text-xs sm:text-sm break-words ${
 																pollStatus.status === "aguardando"
 																	? "text-blue-700"
 																	: pollStatus.status === "fora_periodo"
@@ -1122,9 +1132,9 @@ export default function Poll() {
 															tempSelections[pollId] === optionId;
 														return (
 															<div key={`option-${optionId}`} className="space-y-1">
-																<div className="flex justify-between text-sm">
+																<div className="flex flex-col sm:flex-row justify-between gap-1 sm:gap-0 text-xs sm:text-sm">
 																	<span
-																		className={`font-medium ${
+																		className={`font-medium break-words ${
 																			isSelected && hasVotedInPoll ? "text-accent" : ""
 																		}`}
 																	>
@@ -1133,7 +1143,7 @@ export default function Poll() {
 																			<span className="ml-2 text-accent">(Seu voto)</span>
 																		)}
 																	</span>
-																	<span className="text-muted-foreground">
+																	<span className="text-muted-foreground whitespace-nowrap">
 																		{option.votes} votos ({option.percent}%)
 																	</span>
 																</div>
@@ -1165,29 +1175,29 @@ export default function Poll() {
 							return (
 								<Card key={pollId} className="border-2 border-gray-200 bg-gray-50/30">
 									<CardHeader>
-										<div className="flex justify-between items-start gap-4">
-											<div className="flex-1">
-												<div className="flex items-start justify-between gap-3 mb-3">
-													<CardTitle className="text-xl flex-1">{poll.description}</CardTitle>
-													<Badge className="bg-gray-500 text-white flex items-center gap-1.5 px-3 py-1">
-														<Lock className="w-3.5 h-3.5" />
+										<div className="flex flex-col sm:flex-row justify-between items-start gap-3 sm:gap-4">
+											<div className="flex-1 w-full">
+												<div className="flex flex-col sm:flex-row items-start justify-between gap-2 sm:gap-3 mb-3">
+													<CardTitle className="text-lg sm:text-xl flex-1 break-words">{poll.description}</CardTitle>
+													<Badge className="bg-gray-500 text-white flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-0.5 sm:py-1 text-xs self-start sm:self-auto">
+														<Lock className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
 														Finalizada
 													</Badge>
 												</div>
 
-												<div className="flex items-center gap-1 text-sm text-muted-foreground mb-3">
-													<Users className="w-4 h-4" />
+												<div className="flex items-center gap-1 text-xs sm:text-sm text-muted-foreground mb-3">
+													<Users className="w-3 h-3 sm:w-4 sm:h-4" />
 													<span className="font-semibold">{poll.votes}</span>
 													<span>voto{poll.votes !== 1 ? "s" : ""}</span>
 												</div>
 
 												{/* Date Info */}
-												<div className="grid grid-cols-2 gap-3">
-													<div className="flex items-center gap-2 p-3 rounded-lg border bg-white">
-														<Calendar className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+												<div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3">
+													<div className="flex items-center gap-2 p-2 sm:p-3 rounded-lg border bg-white">
+														<Calendar className="w-3 h-3 sm:w-4 sm:h-4 text-muted-foreground flex-shrink-0" />
 														<div className="flex-1 min-w-0">
 															<p className="text-xs text-muted-foreground">Início</p>
-															<p className="font-medium text-sm truncate">
+															<p className="font-medium text-xs sm:text-sm truncate">
 																{new Date(poll.startDate).toLocaleString("pt-BR", {
 																	day: "2-digit",
 																	month: "2-digit",
@@ -1198,11 +1208,11 @@ export default function Poll() {
 															</p>
 														</div>
 													</div>
-													<div className="flex items-center gap-2 p-3 rounded-lg border bg-white">
-														<Clock className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+													<div className="flex items-center gap-2 p-2 sm:p-3 rounded-lg border bg-white">
+														<Clock className="w-3 h-3 sm:w-4 sm:h-4 text-muted-foreground flex-shrink-0" />
 														<div className="flex-1 min-w-0">
 															<p className="text-xs text-muted-foreground">Término</p>
-															<p className="font-medium text-sm truncate">
+															<p className="font-medium text-xs sm:text-sm truncate">
 																{new Date(poll.endDate).toLocaleString("pt-BR", {
 																	day: "2-digit",
 																	month: "2-digit",
@@ -1225,9 +1235,9 @@ export default function Poll() {
 													option.id !== undefined && option.id !== null ? option.id : idx;
 												return (
 													<div key={`option-${optionId}`} className="space-y-1">
-														<div className="flex justify-between text-sm">
-															<span className="font-medium">{option.description}</span>
-															<span className="text-muted-foreground">
+														<div className="flex flex-col sm:flex-row justify-between gap-1 sm:gap-0 text-xs sm:text-sm">
+															<span className="font-medium break-words">{option.description}</span>
+															<span className="text-muted-foreground whitespace-nowrap">
 																{option.votes} votos ({option.percent}%)
 															</span>
 														</div>

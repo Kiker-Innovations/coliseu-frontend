@@ -34,6 +34,7 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { conciergeSchema, type ConciergeSchema } from "@/schemas/admin/concierge.schema";
 import ConciergeSkeleton from "@/skeleton/admin/ConciergeSkeleton";
+import { formatNameToCamelCase } from "@/lib/utils";
 import { UserPlus, Edit, Trash2, RefreshCw, KeyRound, Copy, Shield, Eye, Phone, Plus, X } from "lucide-react";
 import {
 	registerConcierge,
@@ -425,7 +426,7 @@ export default function Concierge() {
 											<div className="flex-1">
 												<CardTitle className="flex items-center gap-2">
 													<Shield className="w-5 h-5 text-primary" />
-													{c.name}
+													{formatNameToCamelCase(c.name)}
 												</CardTitle>
 												<p className="text-sm text-muted-foreground mt-1">{c.email}</p>
 												<div className="mt-2 flex gap-2">
@@ -827,7 +828,7 @@ export default function Concierge() {
 					<AlertDialogHeader>
 						<AlertDialogTitle>Confirmar exclusão</AlertDialogTitle>
 						<AlertDialogDescription>
-							Tem certeza que deseja excluir o porteiro <strong>{selectedForDelete?.name}</strong>?
+							Tem certeza que deseja excluir o porteiro <strong>{formatNameToCamelCase(selectedForDelete?.name)}</strong>?
 							Esta ação não pode ser desfeita.
 						</AlertDialogDescription>
 					</AlertDialogHeader>
