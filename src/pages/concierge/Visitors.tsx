@@ -76,7 +76,7 @@ import {
 } from "@/services/api";
 import { apartmentsService, type Apartment } from "@/services/api";
 import { CameraCapture } from "@/components/ui/camera-capture";
-import { cn } from "@/lib/utils";
+import { cn, formatNameToCamelCase } from "@/lib/utils";
 
 export default function ConciergeVisitors() {
 	const [isLoading, setIsLoading] = useState(true);
@@ -948,7 +948,7 @@ export default function ConciergeVisitors() {
 															</div>
 															<div className="flex-1 min-w-0">
 																<h3 className="font-semibold text-base mb-1 truncate">
-																	{visitor.name}
+																	{formatNameToCamelCase(visitor.name)}
 																</h3>
 																<div className="flex items-center gap-3 text-sm text-muted-foreground">
 																	{visitor.apartmentNumber && (
@@ -1521,7 +1521,7 @@ export default function ConciergeVisitors() {
 										/>
 									</div>
 								)}
-								<p className="font-semibold text-lg mt-3">{selectedVisitor.name}</p>
+								<p className="font-semibold text-lg mt-3">{formatNameToCamelCase(selectedVisitor.name)}</p>
 							</div>
 
 							{/* Details View */}

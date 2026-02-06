@@ -34,6 +34,7 @@ import { apartmentsService, type Apartment } from "@/services/api";
 import InputMask from "react-input-mask";
 import { BR } from "country-flag-icons/react/3x2";
 import { residentsService, ApiClientError } from "@/services/api";
+import { formatNameToCamelCase } from "@/lib/utils";
 
 interface ResidentStatusData {
 	name: string;
@@ -386,16 +387,8 @@ export default function StatusTimeline() {
 			// Remover formatação do CPF
 			const documentDigits = formData.document.replace(/\D/g, "");
 
-			// Converter nome para snake_case
-			const nameSnakeCase = formData.name
-				.trim()
-				.normalize("NFD")
-				.replace(/[\u0300-\u036f]/g, "")
-				.toLowerCase()
-				.replace(/\s+/g, "_");
-
 			const updateData: any = {
-				name: nameSnakeCase,
+				name: formData.name.trim(),
 				email: formData.email.trim(),
 				document: documentDigits,
 				buildingId: formData.buildingId,
@@ -471,7 +464,7 @@ export default function StatusTimeline() {
 							<div className="mt-6 space-y-2">
 								<div className="flex items-center justify-center gap-2 text-lg">
 									<User className="w-5 h-5 text-primary" />
-									<span className="font-semibold">{residentData.name}</span>
+									<span className="font-semibold">{formatNameToCamelCase(residentData.name)}</span>
 								</div>
 								{residentData.apartmentNumber && (
 									<div className="flex items-center justify-center gap-2 text-muted-foreground">
