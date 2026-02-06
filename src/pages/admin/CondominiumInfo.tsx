@@ -104,6 +104,11 @@ export default function CondominiumInfo() {
 	const [buildingId, setBuildingId] = useState<string>("");
 	const [bookings, setBookings] = useState<Booking[]>([]);
 	const [isLoadingBookings, setIsLoadingBookings] = useState(false);
+	
+	// Cache para dados de amenity, resident e apartment
+	const [amenitiesCache, setAmenitiesCache] = useState<Map<string, Amenity>>(new Map());
+	const [residentsCache, setResidentsCache] = useState<Map<string, { name: string; apartmentNumber?: string }>>(new Map());
+	const [apartmentsCache, setApartmentsCache] = useState<Map<string, { number: string }>>(new Map());
 
 	// Estados para modal de calendário de reservas
 	const [isBookingsCalendarOpen, setIsBookingsCalendarOpen] = useState(false);
@@ -112,6 +117,7 @@ export default function CondominiumInfo() {
 	const [isLoadingAmenityBookings, setIsLoadingAmenityBookings] = useState(false);
 	const [selectedCalendarDate, setSelectedCalendarDate] = useState<Date | undefined>(undefined);
 	const [bookingDates, setBookingDates] = useState<Map<string, Booking[]>>(new Map());
+	const [calendarMonth, setCalendarMonth] = useState<Date>(new Date());
 
 	// Estados para itens da comodidade
 	const [hasItems, setHasItems] = useState(false);
@@ -262,6 +268,69 @@ export default function CondominiumInfo() {
 		loadData();
 	}, []);
 
+	// Função para buscar dados de amenity, resident e apartment
+	const fetchBookingDetails = async (booking: Booking) => {
+		const newAmenitiesCache = new Map(amenitiesCache);
+		const newResidentsCache = new Map(residentsCache);
+		const newApartmentsCache = new Map(apartmentsCache);
+
+		// Buscar amenity se não estiver no cache
+		if (booking.amenityId && !newAmenitiesCache.has(booking.amenityId)) {
+			try {
+				const amenity = await amenitiesService.getAmenityById(booking.amenityId);
+				if (amenity) {
+					newAmenitiesCache.set(booking.amenityId, amenity);
+				}
+			} catch (error) {
+				console.error(`Erro ao buscar amenity ${booking.amenityId}:`, error);
+			}
+		}
+
+		// Buscar resident se não estiver no cache
+		if (booking.residentId && !newResidentsCache.has(booking.residentId)) {
+			try {
+				const response = await adminService.getResidentById(booking.residentId);
+				if (response.success && response.data) {
+					const resident = response.data;
+					newResidentsCache.set(booking.residentId, {
+						name: resident.name,
+						apartmentNumber: resident.apartment?.number,
+					});
+					// Também cachear o apartment se disponível
+					if (resident.apartment?._id && !newApartmentsCache.has(resident.apartment._id)) {
+						newApartmentsCache.set(resident.apartment._id, {
+							number: resident.apartment.number || "",
+						});
+					}
+				}
+			} catch (error) {
+				console.error(`Erro ao buscar resident ${booking.residentId}:`, error);
+			}
+		}
+
+		// Buscar apartment diretamente se tiver apartmentId no booking
+		if (booking.apartmentId && !newApartmentsCache.has(booking.apartmentId)) {
+			try {
+				// Buscar todos os apartments e encontrar o correto
+				if (buildingId) {
+					const apartments = await apartmentsService.getApartmentsByBuildingId(buildingId);
+					const apartment = apartments.find((apt) => apt._id === booking.apartmentId);
+					if (apartment) {
+						newApartmentsCache.set(booking.apartmentId, {
+							number: apartment.number || "",
+						});
+					}
+				}
+			} catch (error) {
+				console.error(`Erro ao buscar apartment ${booking.apartmentId}:`, error);
+			}
+		}
+
+		setAmenitiesCache(newAmenitiesCache);
+		setResidentsCache(newResidentsCache);
+		setApartmentsCache(newApartmentsCache);
+	};
+
 	// Carregar reservas de comodidades
 	useEffect(() => {
 		const loadBookings = async () => {
@@ -269,7 +338,110 @@ export default function CondominiumInfo() {
 				setIsLoadingBookings(true);
 				const response = await bookingsService.getBookingsByBuilding();
 				if (response.success && response.data) {
-					setBookings(response.data.bookings || []);
+					const bookingsData = response.data.bookings || [];
+					setBookings(bookingsData);
+					
+					// Buscar dados de amenity, resident e apartment para cada booking
+					// Fazer em paralelo para melhor performance
+					const uniqueAmenityIds = [...new Set(bookingsData.map(b => b.amenityId).filter(Boolean))];
+					const uniqueResidentIds = [...new Set(bookingsData.map(b => b.residentId).filter(Boolean))];
+					const uniqueApartmentIds = [...new Set(bookingsData.map(b => b.apartmentId).filter(Boolean))];
+
+					// Buscar amenities (sempre buscar para garantir dados atualizados)
+					const amenitiesPromises = uniqueAmenityIds.map(async (id) => {
+						try {
+							const amenity = await amenitiesService.getAmenityById(id);
+							if (amenity) {
+								return { id, amenity };
+							}
+						} catch (error) {
+							console.error(`Erro ao buscar amenity ${id}:`, error);
+						}
+						return null;
+					});
+
+					// Buscar residents (sempre buscar para garantir dados atualizados)
+					const residentsPromises = uniqueResidentIds.map(async (id) => {
+						try {
+							const response = await adminService.getResidentById(id);
+							if (response.success && response.data) {
+								const resident = response.data;
+								return {
+									id,
+									resident: {
+										name: resident.name,
+										apartmentNumber: resident.apartment?.number,
+										apartmentId: resident.apartment?._id,
+									},
+								};
+							}
+						} catch (error) {
+							console.error(`Erro ao buscar resident ${id}:`, error);
+						}
+						return null;
+					});
+
+					// Buscar apartments (sempre buscar para garantir dados atualizados)
+					const apartmentsPromises = uniqueApartmentIds.map(async (id) => {
+						if (buildingId) {
+							try {
+								const apartments = await apartmentsService.getApartmentsByBuildingId(buildingId);
+								const apartment = apartments.find((apt) => apt._id === id);
+								if (apartment) {
+									return { id, apartment: { number: apartment.number || "" } };
+								}
+							} catch (error) {
+								console.error(`Erro ao buscar apartment ${id}:`, error);
+							}
+						}
+						return null;
+					});
+
+					// Aguardar todas as buscas
+					const [amenitiesResults, residentsResults, apartmentsResults] = await Promise.all([
+						Promise.all(amenitiesPromises),
+						Promise.all(residentsPromises),
+						Promise.all(apartmentsPromises),
+					]);
+
+					// Atualizar caches
+					const newAmenitiesCache = new Map(amenitiesCache);
+					amenitiesResults.forEach((result) => {
+						if (result) {
+							newAmenitiesCache.set(result.id, result.amenity);
+						}
+					});
+
+					const newResidentsCache = new Map(residentsCache);
+					const newApartmentsCache = new Map(apartmentsCache);
+					residentsResults.forEach((result) => {
+						if (result) {
+							newResidentsCache.set(result.id, {
+								name: result.resident.name,
+								apartmentNumber: result.resident.apartmentNumber,
+							});
+							// Também cachear apartment do resident se disponível
+							if (result.resident.apartmentId && !newApartmentsCache.has(result.resident.apartmentId)) {
+								// Tentar buscar o apartment do resident
+								const apartmentFromResident = apartmentsResults.find(
+									(apt) => apt?.id === result.resident.apartmentId,
+								);
+								if (apartmentFromResident) {
+									newApartmentsCache.set(result.resident.apartmentId, apartmentFromResident.apartment);
+								}
+							}
+						}
+					});
+
+					apartmentsResults.forEach((result) => {
+						if (result) {
+							newApartmentsCache.set(result.id, result.apartment);
+						}
+					});
+
+					setAmenitiesCache(newAmenitiesCache);
+					setResidentsCache(newResidentsCache);
+					setApartmentsCache(newApartmentsCache);
 				} else {
 					setBookings([]);
 				}
@@ -280,8 +452,10 @@ export default function CondominiumInfo() {
 				setIsLoadingBookings(false);
 			}
 		};
-		loadBookings();
-	}, []);
+		if (buildingId) {
+			loadBookings();
+		}
+	}, [buildingId]);
 
 	// Carregar condôminos quando houver busca ativa, filtro de status ou quando não houver filtros (carregar todos)
 	useEffect(() => {
@@ -1020,6 +1194,20 @@ export default function CondominiumInfo() {
 		return bookingDates.get(dateStr) || [];
 	};
 
+	// Obter reservas do mês visualizado no calendário
+	const getBookingsForCurrentMonth = (): Booking[] => {
+		if (!calendarMonth) return [];
+		
+		const year = calendarMonth.getFullYear();
+		const month = calendarMonth.getMonth();
+		
+		// Filtrar reservas que estão no mês visualizado
+		return amenityBookings.filter((booking) => {
+			const bookingDate = new Date(booking.startDate);
+			return bookingDate.getFullYear() === year && bookingDate.getMonth() === month;
+		});
+	};
+
 	// Formatar horário de uma reserva
 	const formatBookingTime = (booking: Booking): string => {
 		const start = new Date(booking.startDate);
@@ -1088,11 +1276,11 @@ export default function CondominiumInfo() {
 					{/* Reservas de Comodidades */}
 					<Card>
 						<CardHeader>
-							<CardTitle className="flex items-center gap-2">
-								<CalendarDays className="w-5 h-5 text-primary" />
-								Reservas de Comodidades
+							<CardTitle className="flex items-center gap-2 text-lg sm:text-xl">
+								<CalendarDays className="w-4 h-4 sm:w-5 sm:h-5 text-primary flex-shrink-0" />
+								<span className="break-words">Reservas de Comodidades</span>
 							</CardTitle>
-							<p className="text-sm text-muted-foreground mt-1">
+							<p className="text-xs sm:text-sm text-muted-foreground mt-1">
 								Visualize as reservas das comodidades do condomínio
 							</p>
 						</CardHeader>
@@ -1111,19 +1299,33 @@ export default function CondominiumInfo() {
 										bookings.map((booking, index) => {
 											const startDate = booking.startDate ? new Date(booking.startDate) : null;
 											const endDate = booking.endDate ? new Date(booking.endDate) : null;
-											const apartmentNumber = booking.apartmentId || "N/A";
-											const residentName = booking.residentId || "N/A";
-											const amenityName = booking.amenityId || "Comodidade";
+											
+											// Buscar dados do cache
+											const amenity = booking.amenityId ? amenitiesCache.get(booking.amenityId) : null;
+											const amenityName = amenity?.name || "Comodidade";
+											
+											const resident = booking.residentId ? residentsCache.get(booking.residentId) : null;
+											const residentName = resident?.name ? formatNameToCamelCase(resident.name) : "N/A";
+											
+											// Tentar obter apartment number do resident primeiro, depois do cache direto
+											let apartmentNumber = resident?.apartmentNumber;
+											if (!apartmentNumber && booking.apartmentId) {
+												const apartment = apartmentsCache.get(booking.apartmentId);
+												apartmentNumber = apartment?.number;
+											}
+											apartmentNumber = apartmentNumber || "N/A";
 
 											return (
 												<div
 													key={booking._id || `booking-${index}`}
-													className="flex items-center justify-between p-4 rounded-lg bg-muted/50 hover:bg-muted/80 transition-colors border"
+													className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-3 sm:p-4 rounded-lg bg-muted/50 hover:bg-muted/80 transition-colors border gap-3 sm:gap-0"
 												>
-													<div className="flex-1">
-														<div className="flex items-center gap-2 mb-2">
-															<MapPin className="w-4 h-4 text-primary" />
-															<span className="font-medium">{amenityName}</span>
+													<div className="flex-1 w-full min-w-0">
+														<div className="flex flex-col sm:flex-row sm:items-center gap-2 mb-2 sm:mb-2">
+															<div className="flex items-center gap-2 min-w-0">
+																<MapPin className="w-3 h-3 sm:w-4 sm:h-4 text-primary flex-shrink-0" />
+																<span className="font-medium text-sm sm:text-base truncate">{amenityName}</span>
+															</div>
 															<Badge
 																variant={
 																	booking.status === "AGENDADO"
@@ -1134,7 +1336,7 @@ export default function CondominiumInfo() {
 																				? "default"
 																				: "outline"
 																}
-																className="text-xs"
+																className="text-xs w-fit"
 															>
 																{booking.status === "AGENDADO"
 																	? "Confirmado"
@@ -1145,19 +1347,19 @@ export default function CondominiumInfo() {
 																			: booking.status}
 															</Badge>
 														</div>
-														<div className="flex items-center gap-4 text-sm text-muted-foreground">
+														<div className="flex flex-wrap items-center gap-2 sm:gap-4 text-xs sm:text-sm text-muted-foreground">
 															<div className="flex items-center gap-1">
-																<Users className="w-3 h-3" />
-																<span>{residentName}</span>
+																<Users className="w-3 h-3 flex-shrink-0" />
+																<span className="truncate">{residentName}</span>
 															</div>
-															<span className="text-muted-foreground/50">•</span>
-															<span>Apt {apartmentNumber}</span>
+															<span className="text-muted-foreground/50 hidden sm:inline">•</span>
+															<span className="whitespace-nowrap">Apt {apartmentNumber}</span>
 															{startDate && (
 																<>
-																	<span className="text-muted-foreground/50">•</span>
+																	<span className="text-muted-foreground/50 hidden sm:inline">•</span>
 																	<div className="flex items-center gap-1">
-																		<Calendar className="w-3 h-3" />
-																		<span>
+																		<Calendar className="w-3 h-3 flex-shrink-0" />
+																		<span className="whitespace-nowrap">
 																			{startDate.toLocaleDateString("pt-BR", {
 																				day: "2-digit",
 																				month: "2-digit",
@@ -1169,10 +1371,10 @@ export default function CondominiumInfo() {
 															)}
 															{startDate && endDate && (
 																<>
-																	<span className="text-muted-foreground/50">•</span>
+																	<span className="text-muted-foreground/50 hidden sm:inline">•</span>
 																	<div className="flex items-center gap-1">
-																		<Clock className="w-3 h-3" />
-																		<span>
+																		<Clock className="w-3 h-3 flex-shrink-0" />
+																		<span className="whitespace-nowrap">
 																			{startDate.toLocaleTimeString("pt-BR", {
 																				hour: "2-digit",
 																				minute: "2-digit",
@@ -1188,10 +1390,10 @@ export default function CondominiumInfo() {
 															)}
 															{booking.totalValue !== undefined && booking.totalValue > 0 && (
 																<>
-																	<span className="text-muted-foreground/50">•</span>
+																	<span className="text-muted-foreground/50 hidden sm:inline">•</span>
 																	<div className="flex items-center gap-1">
-																		<DollarSign className="w-3 h-3" />
-																		<span className="font-medium">
+																		<DollarSign className="w-3 h-3 flex-shrink-0" />
+																		<span className="font-medium whitespace-nowrap">
 																			R${" "}
 																			{booking.totalValue.toLocaleString("pt-BR", {
 																				minimumFractionDigits: 2,
@@ -2410,7 +2612,7 @@ export default function CondominiumInfo() {
 										)}
 										<img
 											src={selectedResident.photoUrl}
-											alt={`Foto de ${selectedResident.name}`}
+											alt={`Foto de ${formatNameToCamelCase(selectedResident.name)}`}
 											className="w-24 h-24 rounded-full object-cover border-4 border-primary/20"
 											style={{ display: imageLoading[selectedResident._id] ? "none" : "block" }}
 											onError={() => {
@@ -2670,7 +2872,7 @@ export default function CondominiumInfo() {
 					<DialogHeader>
 						<DialogTitle>Inativar Condômino</DialogTitle>
 						<DialogDescription>
-							Selecione o motivo da inativação do cadastro de {residentToDeactivate?.name}
+							Selecione o motivo da inativação do cadastro de {formatNameToCamelCase(residentToDeactivate?.name)}
 						</DialogDescription>
 					</DialogHeader>
 					<div className="space-y-4 py-4">
@@ -2729,7 +2931,7 @@ export default function CondominiumInfo() {
 					<DialogHeader>
 						<DialogTitle>Rejeitar Condômino</DialogTitle>
 						<DialogDescription>
-							Selecione o motivo da rejeição do cadastro de {residentToReject?.name}
+							Selecione o motivo da rejeição do cadastro de {formatNameToCamelCase(residentToReject?.name)}
 						</DialogDescription>
 					</DialogHeader>
 					<div className="space-y-4 py-4">
@@ -2814,6 +3016,7 @@ export default function CondominiumInfo() {
 						setAmenityBookings([]);
 						setSelectedCalendarDate(undefined);
 						setBookingDates(new Map());
+						setCalendarMonth(new Date());
 					}
 				}}
 			>
@@ -2842,6 +3045,8 @@ export default function CondominiumInfo() {
 									mode="single"
 									selected={selectedCalendarDate}
 									onSelect={setSelectedCalendarDate}
+									month={calendarMonth}
+									onMonthChange={setCalendarMonth}
 									locale={ptBR}
 									modifiers={{
 										hasBooking: (date) => {
@@ -2910,7 +3115,7 @@ export default function CondominiumInfo() {
 								<h4 className="font-medium">
 									{selectedCalendarDate
 										? `Reservas em ${format(selectedCalendarDate, "dd 'de' MMMM 'de' yyyy", { locale: ptBR })}`
-										: "Todas as reservas"}
+										: `Reservas de ${format(calendarMonth, "MMMM 'de' yyyy", { locale: ptBR })}`}
 								</h4>
 
 								{selectedCalendarDate ? (
@@ -2986,14 +3191,14 @@ export default function CondominiumInfo() {
 										</div>
 									)
 								) : (
-									// Mostrar todas as reservas quando nenhum dia está selecionado
-									amenityBookings.length === 0 ? (
+									// Mostrar reservas do mês visualizado quando nenhum dia está selecionado
+									getBookingsForCurrentMonth().length === 0 ? (
 										<p className="text-sm text-muted-foreground py-4">
-											Nenhuma reserva encontrada
+											Nenhuma reserva neste mês
 										</p>
 									) : (
 										<div className="space-y-3 max-h-[400px] overflow-y-auto">
-											{amenityBookings
+											{getBookingsForCurrentMonth()
 												.sort((a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime())
 												.map((booking) => (
 													<Card key={booking._id} className="p-3">
