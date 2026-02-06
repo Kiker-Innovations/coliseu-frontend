@@ -7,6 +7,7 @@ import { Package, User, ExternalLink, UserCheck, Calendar, Inbox, ChevronDown } 
 import DashboardSkeleton from "@/skeleton/concierge/DashboardSkeleton";
 import { toast } from "sonner";
 import { packageService, visitsService, type RecentVisit } from "@/services/api";
+import { formatNameToCamelCase } from "@/lib/utils";
 
 interface PackageData {
 	id: string;
@@ -141,7 +142,7 @@ export default function ConciergeDashboard() {
 													<Inbox className="w-4 h-4 text-amber-600" />
 												</div>
 												<div className="min-w-0">
-													<p className="font-medium text-sm truncate">{pkg.recipientName}</p>
+													<p className="font-medium text-sm truncate">{formatNameToCamelCase(pkg.recipientName)}</p>
 													<p className="text-xs text-muted-foreground">
 														{new Date(pkg.arrivalDate).toLocaleString("pt-BR", {
 															day: "2-digit",
@@ -226,7 +227,7 @@ export default function ConciergeDashboard() {
 													</div>
 												)}
 												<div className="min-w-0">
-													<p className="font-medium text-sm truncate">{visit.visitor.name}</p>
+													<p className="font-medium text-sm truncate">{formatNameToCamelCase(visit.visitor.name)}</p>
 													<p className="text-xs text-muted-foreground">
 														{new Date(visit.registeredAt).toLocaleString("pt-BR", {
 															day: "2-digit",

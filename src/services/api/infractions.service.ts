@@ -26,6 +26,7 @@ export interface Infraction {
 	confirmedAt?: string;
 	paidAt?: string;
 	canceledAt?: string;
+	deletedAt?: string;
 	residents?: Array<{
 		_id: string;
 		name: string;
@@ -297,6 +298,21 @@ class InfractionsService {
 			createdAt: string;
 			residentId: string;
 		}>(`${this.basePath}/${infractionId}/appeal/admin`);
+		return response.data!;
+	}
+
+	/**
+	 * Cancel notification (admin only)
+	 * POST /v1/infractions/:infractionId/cancel-notification
+	 */
+	async cancelNotification(infractionId: string): Promise<{
+		_id: string;
+		deletedAt: string;
+	}> {
+		const response = await apiClient.post<{
+			_id: string;
+			deletedAt: string;
+		}>(`${this.basePath}/${infractionId}/cancel-notification`, {});
 		return response.data!;
 	}
 }

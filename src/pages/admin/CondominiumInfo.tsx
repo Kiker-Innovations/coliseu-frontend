@@ -77,6 +77,7 @@ import CondominiumInfoSkeleton from "@/skeleton/admin/CondominiumInfoSkeleton";
 import { amenitiesService, type Amenity } from "@/services/api";
 import { adminService } from "@/services/api";
 import { apartmentsService } from "@/services/api";
+import { formatNameToCamelCase } from "@/lib/utils";
 import { bookingsService, type Booking } from "@/services/api";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { format } from "date-fns";
@@ -116,7 +117,7 @@ export default function CondominiumInfo() {
 	const [hasItems, setHasItems] = useState(false);
 	const [amenityItems, setAmenityItems] = useState<{ name: string; quantity: number }[]>([]);
 	const [newItemName, setNewItemName] = useState("");
-	const [newItemQuantity, setNewItemQuantity] = useState<number>(1);
+	const [newItemQuantity, setNewItemQuantity] = useState<string>("1");
 
 	// Estados para busca de condôminos
 	const [searchTerm, setSearchTerm] = useState("");
@@ -701,7 +702,17 @@ export default function CondominiumInfo() {
 				if (data.openingTime !== undefined) updateData.openingTime = data.openingTime || undefined;
 				if (data.closingTime !== undefined) updateData.closingTime = data.closingTime || undefined;
 				// Incluir itens se hasItems estiver marcado
-				updateData.items = hasItems && amenityItems.length > 0 ? amenityItems : undefined;
+				if (hasItems && amenityItems.length > 0) {
+					// Validar que todos os itens tenham quantidade > 0
+					const invalidItems = amenityItems.filter(item => !item.quantity || item.quantity <= 0);
+					if (invalidItems.length > 0) {
+						toast.error("Todos os itens devem ter quantidade maior que zero");
+						return;
+					}
+					updateData.items = amenityItems;
+				} else {
+					updateData.items = undefined;
+				}
 				if (data.status) updateData.status = data.status;
 
 				try {
@@ -797,6 +808,12 @@ export default function CondominiumInfo() {
 				if (data.closingTime) createData.closingTime = data.closingTime;
 				// Incluir itens se hasItems estiver marcado
 				if (hasItems && amenityItems.length > 0) {
+					// Validar que todos os itens tenham quantidade > 0
+					const invalidItems = amenityItems.filter(item => !item.quantity || item.quantity <= 0);
+					if (invalidItems.length > 0) {
+						toast.error("Todos os itens devem ter quantidade maior que zero");
+						return;
+					}
 					createData.items = amenityItems;
 				}
 
@@ -923,15 +940,16 @@ export default function CondominiumInfo() {
 		setHasItems(false);
 		setAmenityItems([]);
 		setNewItemName("");
-		setNewItemQuantity(1);
+		setNewItemQuantity("1");
 	};
 
 	// Funções para gerenciar itens da comodidade
 	const handleAddItem = () => {
-		if (newItemName.trim() && newItemQuantity >= 1) {
-			setAmenityItems([...amenityItems, { name: newItemName.trim(), quantity: newItemQuantity }]);
+		const quantity = parseInt(newItemQuantity);
+		if (newItemName.trim() && !isNaN(quantity) && quantity > 0) {
+			setAmenityItems([...amenityItems, { name: newItemName.trim(), quantity: quantity }]);
 			setNewItemName("");
-			setNewItemQuantity(1);
+			setNewItemQuantity("1");
 		}
 	};
 
@@ -939,11 +957,16 @@ export default function CondominiumInfo() {
 		setAmenityItems(amenityItems.filter((_, i) => i !== index));
 	};
 
-	const handleUpdateItemQuantity = (index: number, quantity: number) => {
-		if (quantity >= 1) {
+	const handleUpdateItemQuantity = (index: number, value: string) => {
+		// Permite apagar tudo, mas valida apenas números
+		if (value === "" || /^\d+$/.test(value)) {
 			const updatedItems = [...amenityItems];
-			updatedItems[index].quantity = quantity;
-			setAmenityItems(updatedItems);
+			const quantity = value === "" ? 0 : parseInt(value);
+			// Só atualiza se for um número válido e > 0, ou se estiver vazio (permitindo apagar)
+			if (value === "" || (!isNaN(quantity) && quantity > 0)) {
+				updatedItems[index].quantity = value === "" ? 0 : quantity;
+				setAmenityItems(updatedItems);
+			}
 		}
 	};
 
@@ -1088,9 +1111,9 @@ export default function CondominiumInfo() {
 										bookings.map((booking, index) => {
 											const startDate = booking.startDate ? new Date(booking.startDate) : null;
 											const endDate = booking.endDate ? new Date(booking.endDate) : null;
-											const apartmentNumber = booking.apartment?.number || "N/A";
-											const residentName = booking.resident?.name || "N/A";
-											const amenityName = booking.amenity?.name || "Comodidade";
+											const apartmentNumber = booking.apartmentId || "N/A";
+											const residentName = booking.residentId || "N/A";
+											const amenityName = booking.amenityId || "Comodidade";
 
 											return (
 												<div
@@ -1579,12 +1602,26 @@ export default function CondominiumInfo() {
 																			<div className="flex items-center gap-2">
 																				<Label className="text-sm text-muted-foreground">Qtd:</Label>
 																				<Input
-																					type="number"
-																					min={1}
-																					value={item.quantity}
-																					onChange={(e) =>
-																						handleUpdateItemQuantity(index, parseInt(e.target.value) || 1)
-																					}
+																					type="text"
+																					inputMode="numeric"
+																					value={item.quantity === 0 ? "" : item.quantity.toString()}
+																					onChange={(e) => {
+																						const value = e.target.value;
+																						// Permite apagar tudo ou apenas números
+																						if (value === "" || /^\d+$/.test(value)) {
+																							handleUpdateItemQuantity(index, value);
+																						}
+																					}}
+																					onBlur={(e) => {
+																						// Ao perder o foco, se estiver vazio ou <= 0, volta para 1
+																						const value = e.target.value;
+																						const quantity = parseInt(value);
+																						if (value === "" || isNaN(quantity) || quantity <= 0) {
+																							const updatedItems = [...amenityItems];
+																							updatedItems[index].quantity = 1;
+																							setAmenityItems(updatedItems);
+																						}
+																					}}
 																					className="w-20"
 																				/>
 																			</div>
@@ -1624,17 +1661,36 @@ export default function CondominiumInfo() {
 																	</Label>
 																	<Input
 																		id="newItemQuantity"
-																		type="number"
-																		min={1}
+																		type="text"
+																		inputMode="numeric"
 																		value={newItemQuantity}
-																		onChange={(e) => setNewItemQuantity(parseInt(e.target.value) || 1)}
+																		onChange={(e) => {
+																			const value = e.target.value;
+																			// Permite apagar tudo ou apenas números
+																			if (value === "" || /^\d+$/.test(value)) {
+																				setNewItemQuantity(value);
+																			}
+																		}}
+																		onBlur={(e) => {
+																			// Ao perder o foco, se estiver vazio ou <= 0, volta para 1
+																			const value = e.target.value;
+																			const quantity = parseInt(value);
+																			if (value === "" || isNaN(quantity) || quantity <= 0) {
+																				setNewItemQuantity("1");
+																			}
+																		}}
 																	/>
 																</div>
 																<Button
 																	type="button"
 																	variant="outline"
 																	onClick={handleAddItem}
-																	disabled={!newItemName.trim()}
+																	disabled={
+																		!newItemName.trim() ||
+																		!newItemQuantity ||
+																		isNaN(parseInt(newItemQuantity)) ||
+																		parseInt(newItemQuantity) <= 0
+																	}
 																>
 																	<Plus className="w-4 h-4 mr-1" />
 																	Adicionar
@@ -1741,36 +1797,41 @@ export default function CondominiumInfo() {
 															</Badge>
 														</div>
 														<div className="flex flex-wrap items-center gap-2 mt-2">
-															{area.value && area.value > 0 && (
+															{area.type !== "AREA_COMUM" && area.value && Number(area.value) > 0 && (
 																<span className="text-xs text-muted-foreground">
 																	Valor: R${" "}
-																	{area.value.toLocaleString("pt-BR", {
+																	{Number(area.value).toLocaleString("pt-BR", {
 																		minimumFractionDigits: 2,
 																		maximumFractionDigits: 2,
 																	})}
 																</span>
 															)}
-															{area.fineValue && area.fineValue > 0 && (
+															{area.type !== "AREA_COMUM" && area.fineValue && Number(area.fineValue) > 0 && (
 																<span className="text-xs text-muted-foreground">
 																	Multa Atraso: R${" "}
-																	{area.fineValue.toLocaleString("pt-BR", {
+																	{Number(area.fineValue).toLocaleString("pt-BR", {
 																		minimumFractionDigits: 2,
 																		maximumFractionDigits: 2,
 																	})}
 																</span>
 															)}
-															{area.nonComplianceFine && area.nonComplianceFine > 0 && (
+															{area.type !== "AREA_COMUM" && area.nonComplianceFine && Number(area.nonComplianceFine) > 0 && (
 																<span className="text-xs text-muted-foreground">
 																	Multa Conformidade: R${" "}
-																	{area.nonComplianceFine.toLocaleString("pt-BR", {
+																	{Number(area.nonComplianceFine).toLocaleString("pt-BR", {
 																		minimumFractionDigits: 2,
 																		maximumFractionDigits: 2,
 																	})}
 																</span>
 															)}
-															{area.maxResidents && (
+															{area.maxResidents && area.maxResidents > 0 && (
 																<span className="text-xs text-muted-foreground">
 																	Máx. Residentes: {area.maxResidents}
+																</span>
+															)}
+															{area.type !== "AREA_COMUM" && area.maxHours && area.maxHours > 0 && (
+																<span className="text-xs text-muted-foreground">
+																	Máx. Horas: {area.maxHours}
 																</span>
 															)}
 														</div>
@@ -2054,7 +2115,7 @@ export default function CondominiumInfo() {
 																</div>
 																<div className="flex-1 min-w-0">
 																	<h3 className="font-semibold text-base mb-1 truncate">
-																		{resident.name}
+																		{formatNameToCamelCase(resident.name)}
 																	</h3>
 																	<div className="flex flex-col gap-1">
 																		<div className="flex items-center gap-2 flex-wrap">
@@ -2363,7 +2424,7 @@ export default function CondominiumInfo() {
 										/>
 									</div>
 								)}
-								<p className="font-semibold text-lg mt-3">{selectedResident.name}</p>
+								<p className="font-semibold text-lg mt-3">{formatNameToCamelCase(selectedResident.name)}</p>
 								{selectedResident.status && (
 									<Badge
 										variant={

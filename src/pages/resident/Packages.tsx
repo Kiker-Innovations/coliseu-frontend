@@ -40,6 +40,7 @@ import PackagesSkeleton from "../../skeleton/resident/PackagesSkeleton";
 import { packageService } from "@/services/api";
 import type { ResidentPackage, ResidentPackageStats } from "@/services/api";
 import { toast } from "sonner";
+import { formatNameToCamelCase } from "@/lib/utils";
 
 export default function Packages() {
 	const [isLoading, setIsLoading] = useState(true);
@@ -331,7 +332,7 @@ export default function Packages() {
 															onClick={() => handleViewPackage(pkg)}
 														>
 															<TableCell>
-																<div className="font-medium">{pkg.ownerName || "-"}</div>
+																<div className="font-medium">{formatNameToCamelCase(pkg.ownerName) || "-"}</div>
 															</TableCell>
 															<TableCell>
 																<div className="font-medium mb-1">
@@ -340,7 +341,7 @@ export default function Packages() {
 																{pkg.courierName && (
 																	<div className="flex items-center gap-2 text-xs text-muted-foreground">
 																		<Truck className="w-3 h-3" />
-																		{pkg.courierName}
+																		{formatNameToCamelCase(pkg.courierName)}
 																	</div>
 																)}
 															</TableCell>
@@ -521,7 +522,7 @@ export default function Packages() {
 															onClick={() => handleViewPackage(pkg)}
 														>
 															<TableCell>
-																<div className="font-medium">{pkg.ownerName || "-"}</div>
+																<div className="font-medium">{formatNameToCamelCase(pkg.ownerName) || "-"}</div>
 															</TableCell>
 															<TableCell>
 																<div className="font-medium mb-1">
@@ -530,7 +531,7 @@ export default function Packages() {
 																{pkg.courierName && (
 																	<div className="flex items-center gap-2 text-xs text-muted-foreground">
 																		<Truck className="w-3 h-3" />
-																		{pkg.courierName}
+																		{formatNameToCamelCase(pkg.courierName)}
 																	</div>
 																)}
 															</TableCell>
@@ -542,7 +543,7 @@ export default function Packages() {
 															<TableCell>
 																<div className="flex items-center gap-1 text-sm font-medium">
 																	<User className="w-3 h-3" />
-																	{pkg.recipientName || "-"}
+																	{formatNameToCamelCase(pkg.recipientName) || "-"}
 																</div>
 															</TableCell>
 															<TableCell className="text-right">
@@ -669,7 +670,7 @@ export default function Packages() {
 									{viewingPackage.ownerName && (
 										<div>
 											<Label className="text-muted-foreground">Proprietário</Label>
-											<p className="font-semibold text-lg">{viewingPackage.ownerName}</p>
+											<p className="font-semibold text-lg">{formatNameToCamelCase(viewingPackage.ownerName)}</p>
 										</div>
 									)}
 
@@ -685,7 +686,7 @@ export default function Packages() {
 											<Label className="text-muted-foreground">Transportadora</Label>
 											<div className="flex items-center gap-2">
 												<Truck className="w-4 h-4 text-muted-foreground" />
-												<p className="font-medium">{viewingPackage.courierName}</p>
+												<p className="font-medium">{formatNameToCamelCase(viewingPackage.courierName)}</p>
 											</div>
 										</div>
 									)}
@@ -727,7 +728,7 @@ export default function Packages() {
 											<Label className="text-muted-foreground">Retirado por</Label>
 											<div className="flex items-center gap-2">
 												<User className="w-4 h-4 text-muted-foreground" />
-												<p className="font-medium">{viewingPackage.recipientName}</p>
+												<p className="font-medium">{formatNameToCamelCase(viewingPackage.recipientName)}</p>
 											</div>
 										</div>
 									)}

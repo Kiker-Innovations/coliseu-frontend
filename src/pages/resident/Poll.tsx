@@ -25,6 +25,7 @@ import {
 	type ActivePoll,
 	type FinishedCancelledPoll,
 } from "@/services/api";
+import { calculatePollStatus } from "@/lib/utils";
 
 export default function Poll() {
 	const [isLoading, setIsLoading] = useState(true);
@@ -207,7 +208,7 @@ export default function Poll() {
 
 	// Helper function to check if poll is active
 	const isPollActive = (poll: ActivePoll | FinishedCancelledPoll) => {
-		return poll.status.toUpperCase() === "ATIVO";
+		return calculatePollStatus(poll.startDate, poll.endDate, poll.cancelledAt) === "ATIVO";
 	};
 
 	// Helper function to check if poll is within voting period

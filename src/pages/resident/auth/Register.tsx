@@ -3,7 +3,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Link, useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
 import InputMask from "react-input-mask";
-import { Camera, Eye, EyeOff } from "lucide-react";
+import { Camera, Eye, EyeOff, Check, ChevronDown } from "lucide-react";
 import { BR } from "country-flag-icons/react/3x2";
 import { residentsService, ApiClientError } from "@/services/api";
 import { Button } from "@/components/ui/button";
@@ -16,6 +16,15 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+	Command,
+	CommandEmpty,
+	CommandGroup,
+	CommandInput,
+	CommandItem,
+	CommandList,
+} from "@/components/ui/command";
 import { CameraCapture } from "@/components/ui/camera-capture";
 import { toast } from "sonner";
 import coliseuIcon from "@/assets/coliseu-icon.png";
@@ -24,6 +33,7 @@ import RegisterSkeleton from "@/skeleton/resident/auth/RegisterSkeleton";
 import { buildingsService, type Building } from "@/services/api/buildings.service";
 import { apartmentsService, type Apartment } from "@/services/api";
 import { useAuth } from "@/hooks/use-auth";
+import { cn } from "@/lib/utils";
 
 export default function Register() {
 	const navigate = useNavigate();
@@ -37,6 +47,7 @@ export default function Register() {
 	const [isLoadingApartments, setIsLoadingApartments] = useState(false);
 	const [showPassword, setShowPassword] = useState(false);
 	const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+	const [apartmentPopoverOpen, setApartmentPopoverOpen] = useState(false);
 
 	// Redirect if already authenticated
 	useEffect(() => {
@@ -228,32 +239,78 @@ export default function Register() {
 
 						<div className="space-y-2">
 							<Label htmlFor="apartment">Apartamento</Label>
-							<Select
-								value={selectedApartmentId}
-								onValueChange={(value) => setValue("apartmentId", value)}
-								disabled={!selectedBuildingId || isLoadingApartments || isSubmitting}
-							>
-								<SelectTrigger className="h-12">
-									<SelectValue
-										placeholder={
-											!selectedBuildingId
+							<Popover open={apartmentPopoverOpen} onOpenChange={setApartmentPopoverOpen}>
+								<PopoverTrigger asChild>
+									<Button
+										variant="outline"
+										role="combobox"
+										className="w-full justify-between h-12"
+										disabled={!selectedBuildingId || isLoadingApartments || isSubmitting}
+									>
+										{selectedApartmentId
+											? (() => {
+													const selectedApt = apartments.find(
+														(apt) => apt._id === selectedApartmentId,
+													);
+													return selectedApt
+														? `${selectedApt.block ? `Bloco ${selectedApt.block} - ` : ""}Apartamento ${selectedApt.number}${selectedApt.floor ? ` (${selectedApt.floor}º andar)` : ""}`
+														: "Selecione o apartamento";
+												})()
+											: !selectedBuildingId
 												? "Selecione primeiro o prédio"
 												: isLoadingApartments
 													? "..."
-													: "Selecione o apartamento"
-										}
-									/>
-								</SelectTrigger>
-								<SelectContent>
-									{apartments.map((apartment) => (
-										<SelectItem key={apartment._id} value={apartment._id}>
-											{apartment.number}
-											{apartment.block ? ` - ${apartment.block}` : ""}
-											{apartment.floor ? ` (${apartment.floor}º andar)` : ""}
-										</SelectItem>
-									))}
-								</SelectContent>
-							</Select>
+													: "Selecione o apartamento"}
+										<ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+									</Button>
+								</PopoverTrigger>
+								<PopoverContent
+									className="w-[var(--radix-popover-trigger-width)] p-0"
+									align="start"
+								>
+									<Command>
+										<CommandInput placeholder="Buscar apartamento..." />
+										<CommandList>
+											<CommandEmpty>Nenhum apartamento encontrado.</CommandEmpty>
+											<CommandGroup>
+												{apartments
+													.sort((a, b) => {
+														if (a.block && b.block && a.block !== b.block) {
+															return a.block.localeCompare(b.block);
+														}
+														return a.number.localeCompare(b.number, undefined, {
+															numeric: true,
+															sensitivity: "base",
+														});
+													})
+													.map((apt) => {
+														const aptLabel = `${apt.block ? `Bloco ${apt.block} - ` : ""}Apartamento ${apt.number}${apt.floor ? ` (${apt.floor}º andar)` : ""}`;
+														return (
+															<CommandItem
+																key={apt._id}
+																value={`${apt.number} ${apt.block || ""} ${apt.floor || ""}`}
+																onSelect={() => {
+																	setValue("apartmentId", apt._id);
+																	setApartmentPopoverOpen(false);
+																}}
+															>
+																<Check
+																	className={cn(
+																		"mr-2 h-4 w-4",
+																		selectedApartmentId === apt._id
+																			? "opacity-100"
+																			: "opacity-0",
+																	)}
+																/>
+																{aptLabel}
+															</CommandItem>
+														);
+													})}
+											</CommandGroup>
+										</CommandList>
+									</Command>
+								</PopoverContent>
+							</Popover>
 							{errors.apartmentId && (
 								<p className="text-sm text-destructive">{errors.apartmentId.message}</p>
 							)}
