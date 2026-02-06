@@ -321,11 +321,11 @@ export default function ResidentsAndApartments() {
 	}
 
 	return (
-		<div className="space-y-6">
+		<div className="space-y-4 sm:space-y-6">
 			<div className="flex items-center justify-between">
 				<div>
-					<h1 className="text-3xl font-bold">Condôminos e Apartamentos</h1>
-					<p className="text-muted-foreground">
+					<h1 className="text-2xl sm:text-3xl font-bold">Condôminos e Apartamentos</h1>
+					<p className="text-sm sm:text-base text-muted-foreground">
 						Visualize e pesquise condôminos e apartamentos registrados
 					</p>
 				</div>
@@ -345,16 +345,16 @@ export default function ResidentsAndApartments() {
 						}}
 					>
 						<TabsList className="grid w-full max-w-md grid-cols-2">
-							<TabsTrigger value="residents">Condôminos</TabsTrigger>
-							<TabsTrigger value="apartments">Apartamentos</TabsTrigger>
+							<TabsTrigger value="residents" className="text-xs sm:text-sm">Condôminos</TabsTrigger>
+							<TabsTrigger value="apartments" className="text-xs sm:text-sm">Apartamentos</TabsTrigger>
 						</TabsList>
 
 						{/* Tab de Condôminos */}
-						<TabsContent value="residents" className="mt-6">
-							<div className="mb-6 space-y-4">
-								<div className="flex items-center gap-2">
+						<TabsContent value="residents" className="mt-4 sm:mt-6">
+							<div className="mb-4 sm:mb-6 space-y-3 sm:space-y-4">
+								<div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
 									<div className="relative flex-1">
-										<Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+										<Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground" />
 										<Input
 											placeholder="Digite para buscar..."
 											value={searchTerm}
@@ -364,16 +364,19 @@ export default function ResidentsAndApartments() {
 													handleSearch();
 												}
 											}}
-											className="pl-9 h-12 text-base"
+											className="pl-8 sm:pl-9 h-10 sm:h-12 text-sm sm:text-base"
 										/>
 									</div>
 									<DropdownMenu>
 										<DropdownMenuTrigger asChild>
-											<Button variant="outline" size="default" className="h-12">
-												{residentFilterBy === "name" && "Nome"}
-												{residentFilterBy === "phone" && "Telefone"}
-												{residentFilterBy === "email" && "Email"}
-												<ChevronDown className="ml-2 h-4 w-4" />
+											<Button variant="outline" size="default" className="h-10 sm:h-12 text-sm sm:text-base">
+												{residentFilterBy === "name" ? "Nome" : residentFilterBy === "phone" ? (
+													<>
+														<span className="hidden sm:inline">Telefone</span>
+														<span className="sm:hidden">Tel</span>
+													</>
+												) : "Email"}
+												<ChevronDown className="ml-2 h-3 w-3 sm:h-4 sm:w-4" />
 											</Button>
 										</DropdownMenuTrigger>
 										<DropdownMenuContent align="end">
@@ -400,15 +403,15 @@ export default function ResidentsAndApartments() {
 											</DropdownMenuItem>
 										</DropdownMenuContent>
 									</DropdownMenu>
-									<Button onClick={handleSearch} size="default" className="h-12">
+									<Button onClick={handleSearch} size="default" className="h-10 sm:h-12 text-sm sm:text-base">
 										Buscar
 									</Button>
 								</div>
 							</div>
 
 							<div className="space-y-4">
-								<div className="flex items-center justify-between">
-									<p className="text-sm text-muted-foreground">
+								<div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-0">
+									<p className="text-xs sm:text-sm text-muted-foreground">
 										Mostrando{" "}
 										{paginatedResidents.length > 0
 											? (currentResidentsPage - 1) * residentsItemsPerPage + 1
@@ -423,9 +426,10 @@ export default function ResidentsAndApartments() {
 									<div className="flex items-center gap-2">
 										<Label
 											htmlFor="residentsItemsPerPage"
-											className="text-sm text-muted-foreground"
+											className="text-xs sm:text-sm text-muted-foreground"
 										>
-											Itens por página:
+											<span className="hidden sm:inline">Itens por página:</span>
+											<span className="sm:hidden">Por página:</span>
 										</Label>
 										<Select
 											value={residentsItemsPerPage.toString()}
@@ -434,7 +438,7 @@ export default function ResidentsAndApartments() {
 												setCurrentResidentsPage(1);
 											}}
 										>
-											<SelectTrigger className="w-20">
+											<SelectTrigger className="w-16 sm:w-20 text-xs sm:text-sm">
 												<SelectValue />
 											</SelectTrigger>
 											<SelectContent>
@@ -463,47 +467,47 @@ export default function ResidentsAndApartments() {
 												{paginatedResidents.map((resident) => (
 													<div
 														key={resident._id}
-														className="flex items-center gap-4 p-4 hover:bg-accent/50 transition-colors cursor-pointer"
+														className="flex items-center gap-2 sm:gap-4 p-3 sm:p-4 hover:bg-accent/50 transition-colors cursor-pointer"
 														onClick={() => handleViewResident(resident)}
 													>
-														<div className="w-14 h-14 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0 border border-primary/20">
-															<User className="w-7 h-7 text-primary" />
+														<div className="w-10 h-10 sm:w-14 sm:h-14 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0 border border-primary/20">
+															<User className="w-5 h-5 sm:w-7 sm:h-7 text-primary" />
 														</div>
 														<div className="flex-1 min-w-0">
-															<h3 className="font-semibold text-base mb-1 truncate">
+															<h3 className="font-semibold text-sm sm:text-base mb-1 truncate">
 																{formatNameToCamelCase(resident.name)}
 															</h3>
-															<div className="flex items-center gap-3 text-sm text-muted-foreground">
+															<div className="flex flex-wrap items-center gap-2 sm:gap-3 text-xs sm:text-sm text-muted-foreground">
 																{resident.apartmentNumber && (
 																	<>
-																		<span>Apt: {resident.apartmentNumber}</span>
+																		<span className="whitespace-nowrap">Apt: {resident.apartmentNumber}</span>
 																		{(resident.phone || resident.email) && (
-																			<span className="text-muted-foreground/50">•</span>
+																			<span className="text-muted-foreground/50 hidden sm:inline">•</span>
 																		)}
 																	</>
 																)}
 																{resident.phone && (
 																	<>
-																		<span>{resident.phone}</span>
+																		<span className="whitespace-nowrap truncate max-w-[120px] sm:max-w-none">{resident.phone}</span>
 																		{resident.email && (
-																			<span className="text-muted-foreground/50">•</span>
+																			<span className="text-muted-foreground/50 hidden sm:inline">•</span>
 																		)}
 																	</>
 																)}
-																{resident.email && <span>{resident.email}</span>}
+																{resident.email && <span className="truncate">{resident.email}</span>}
 															</div>
 														</div>
 														<Button
 															variant="ghost"
 															size="icon"
-															className="h-8 w-8"
+															className="h-7 w-7 sm:h-8 sm:w-8 flex-shrink-0"
 															onClick={(e) => {
 																e.stopPropagation();
 																handleViewResident(resident);
 															}}
 															title="Ver detalhes"
 														>
-															<Eye className="h-4 w-4" />
+															<Eye className="h-3 w-3 sm:h-4 sm:w-4" />
 														</Button>
 													</div>
 												))}
@@ -521,10 +525,10 @@ export default function ResidentsAndApartments() {
 													size="sm"
 													onClick={() => setCurrentResidentsPage((prev) => Math.max(1, prev - 1))}
 													disabled={currentResidentsPage === 1}
-													className="gap-1"
+													className="gap-1 text-xs sm:text-sm"
 												>
-													<ChevronLeft className="h-4 w-4" />
-													Anterior
+													<ChevronLeft className="h-3 w-3 sm:h-4 sm:w-4" />
+													<span className="hidden sm:inline">Anterior</span>
 												</Button>
 											</PaginationItem>
 											{Array.from({ length: residentsTotalPages }, (_, i) => i + 1)
@@ -548,7 +552,7 @@ export default function ResidentsAndApartments() {
 																	variant={currentResidentsPage === page ? "default" : "outline"}
 																	size="sm"
 																	onClick={() => setCurrentResidentsPage(page)}
-																	className="min-w-[2.5rem]"
+																	className="min-w-[2rem] sm:min-w-[2.5rem] text-xs sm:text-sm"
 																>
 																	{page}
 																</Button>
@@ -566,10 +570,10 @@ export default function ResidentsAndApartments() {
 														)
 													}
 													disabled={currentResidentsPage === residentsTotalPages}
-													className="gap-1"
+													className="gap-1 text-xs sm:text-sm"
 												>
-													Próxima
-													<ChevronRight className="h-4 w-4" />
+													<span className="hidden sm:inline">Próxima</span>
+													<ChevronRight className="h-3 w-3 sm:h-4 sm:w-4" />
 												</Button>
 											</PaginationItem>
 										</PaginationContent>
@@ -579,11 +583,11 @@ export default function ResidentsAndApartments() {
 						</TabsContent>
 
 						{/* Tab de Apartamentos */}
-						<TabsContent value="apartments" className="mt-6">
-							<div className="mb-6 space-y-4">
-								<div className="flex items-center gap-2">
+						<TabsContent value="apartments" className="mt-4 sm:mt-6">
+							<div className="mb-4 sm:mb-6 space-y-3 sm:space-y-4">
+								<div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
 									<div className="relative flex-1">
-										<Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+										<Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground" />
 										<Input
 											placeholder="Digite para buscar..."
 											value={searchTerm}
@@ -593,16 +597,14 @@ export default function ResidentsAndApartments() {
 													handleSearch();
 												}
 											}}
-											className="pl-9 h-12 text-base"
+											className="pl-8 sm:pl-9 h-10 sm:h-12 text-sm sm:text-base"
 										/>
 									</div>
 									<DropdownMenu>
 										<DropdownMenuTrigger asChild>
-											<Button variant="outline" size="default" className="h-12">
-												{apartmentFilterBy === "number" && "Número"}
-												{apartmentFilterBy === "floor" && "Andar"}
-												{apartmentFilterBy === "block" && "Bloco"}
-												<ChevronDown className="ml-2 h-4 w-4" />
+											<Button variant="outline" size="default" className="h-10 sm:h-12 text-sm sm:text-base">
+												{apartmentFilterBy === "number" ? "Número" : apartmentFilterBy === "floor" ? "Andar" : "Bloco"}
+												<ChevronDown className="ml-2 h-3 w-3 sm:h-4 sm:w-4" />
 											</Button>
 										</DropdownMenuTrigger>
 										<DropdownMenuContent align="end">
@@ -629,15 +631,15 @@ export default function ResidentsAndApartments() {
 											</DropdownMenuItem>
 										</DropdownMenuContent>
 									</DropdownMenu>
-									<Button onClick={handleSearch} size="default" className="h-12">
+									<Button onClick={handleSearch} size="default" className="h-10 sm:h-12 text-sm sm:text-base">
 										Buscar
 									</Button>
 								</div>
 							</div>
 
 							<div className="space-y-4">
-								<div className="flex items-center justify-between">
-									<p className="text-sm text-muted-foreground">
+								<div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-0">
+									<p className="text-xs sm:text-sm text-muted-foreground">
 										Mostrando{" "}
 										{paginatedApartments.length > 0
 											? (currentApartmentsPage - 1) * apartmentsItemsPerPage + 1
@@ -652,9 +654,10 @@ export default function ResidentsAndApartments() {
 									<div className="flex items-center gap-2">
 										<Label
 											htmlFor="apartmentsItemsPerPage"
-											className="text-sm text-muted-foreground"
+											className="text-xs sm:text-sm text-muted-foreground"
 										>
-											Itens por página:
+											<span className="hidden sm:inline">Itens por página:</span>
+											<span className="sm:hidden">Por página:</span>
 										</Label>
 										<Select
 											value={apartmentsItemsPerPage.toString()}
@@ -663,7 +666,7 @@ export default function ResidentsAndApartments() {
 												setCurrentApartmentsPage(1);
 											}}
 										>
-											<SelectTrigger className="w-20">
+											<SelectTrigger className="w-16 sm:w-20 text-xs sm:text-sm">
 												<SelectValue />
 											</SelectTrigger>
 											<SelectContent>
@@ -694,39 +697,39 @@ export default function ResidentsAndApartments() {
 												{paginatedApartments.map((apartment) => (
 													<div
 														key={apartment._id}
-														className="flex items-center gap-4 p-4 hover:bg-accent/50 transition-colors cursor-pointer"
+														className="flex items-center gap-2 sm:gap-4 p-3 sm:p-4 hover:bg-accent/50 transition-colors cursor-pointer"
 														onClick={() => handleViewApartment(apartment)}
 													>
-														<div className="w-14 h-14 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0 border border-primary/20">
-															<Home className="w-7 h-7 text-primary" />
+														<div className="w-10 h-10 sm:w-14 sm:h-14 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0 border border-primary/20">
+															<Home className="w-5 h-5 sm:w-7 sm:h-7 text-primary" />
 														</div>
 														<div className="flex-1 min-w-0">
-															<h3 className="font-semibold text-base mb-1 truncate">
+															<h3 className="font-semibold text-sm sm:text-base mb-1 truncate">
 																Apartamento {apartment.number}
 															</h3>
-															<div className="flex items-center gap-3 text-sm text-muted-foreground">
+															<div className="flex flex-wrap items-center gap-2 sm:gap-3 text-xs sm:text-sm text-muted-foreground">
 																{apartment.block && (
 																	<>
-																		<span>Bloco: {apartment.block}</span>
+																		<span className="whitespace-nowrap">Bloco: {apartment.block}</span>
 																		{apartment.floor && (
-																			<span className="text-muted-foreground/50">•</span>
+																			<span className="text-muted-foreground/50 hidden sm:inline">•</span>
 																		)}
 																	</>
 																)}
-																{apartment.floor && <span>{apartment.floor}º andar</span>}
+																{apartment.floor && <span className="whitespace-nowrap">{apartment.floor}º andar</span>}
 															</div>
 														</div>
 														<Button
 															variant="ghost"
 															size="icon"
-															className="h-8 w-8"
+															className="h-7 w-7 sm:h-8 sm:w-8 flex-shrink-0"
 															onClick={(e) => {
 																e.stopPropagation();
 																handleViewApartment(apartment);
 															}}
 															title="Ver detalhes"
 														>
-															<Eye className="h-4 w-4" />
+															<Eye className="h-3 w-3 sm:h-4 sm:w-4" />
 														</Button>
 													</div>
 												))}
@@ -744,10 +747,10 @@ export default function ResidentsAndApartments() {
 													size="sm"
 													onClick={() => setCurrentApartmentsPage((prev) => Math.max(1, prev - 1))}
 													disabled={currentApartmentsPage === 1}
-													className="gap-1"
+													className="gap-1 text-xs sm:text-sm"
 												>
-													<ChevronLeft className="h-4 w-4" />
-													Anterior
+													<ChevronLeft className="h-3 w-3 sm:h-4 sm:w-4" />
+													<span className="hidden sm:inline">Anterior</span>
 												</Button>
 											</PaginationItem>
 											{Array.from({ length: apartmentsTotalPages }, (_, i) => i + 1)
@@ -771,7 +774,7 @@ export default function ResidentsAndApartments() {
 																	variant={currentApartmentsPage === page ? "default" : "outline"}
 																	size="sm"
 																	onClick={() => setCurrentApartmentsPage(page)}
-																	className="min-w-[2.5rem]"
+																	className="min-w-[2rem] sm:min-w-[2.5rem] text-xs sm:text-sm"
 																>
 																	{page}
 																</Button>
@@ -789,10 +792,10 @@ export default function ResidentsAndApartments() {
 														)
 													}
 													disabled={currentApartmentsPage === apartmentsTotalPages}
-													className="gap-1"
+													className="gap-1 text-xs sm:text-sm"
 												>
-													Próxima
-													<ChevronRight className="h-4 w-4" />
+													<span className="hidden sm:inline">Próxima</span>
+													<ChevronRight className="h-3 w-3 sm:h-4 sm:w-4" />
 												</Button>
 											</PaginationItem>
 										</PaginationContent>
