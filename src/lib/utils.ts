@@ -174,6 +174,25 @@ export function getMinDateTimeForInput(): string {
 }
 
 /**
+ * Retorna a data e hora mínima permitida para polls (5 minutos atrás de agora)
+ * Permite salvar enquetes com data de início até 5 minutos no passado
+ * no formato YYYY-MM-DDTHH:mm para input datetime-local
+ */
+export function getMinDateTimeForPollInput(): string {
+	const now = new Date();
+	now.setMinutes(now.getMinutes() - 5);
+
+	// Formato: YYYY-MM-DDTHH:mm
+	const year = now.getFullYear();
+	const month = String(now.getMonth() + 1).padStart(2, "0");
+	const day = String(now.getDate()).padStart(2, "0");
+	const hours = String(now.getHours()).padStart(2, "0");
+	const minutes = String(now.getMinutes()).padStart(2, "0");
+
+	return `${year}-${month}-${day}T${hours}:${minutes}`;
+}
+
+/**
  * Retorna a data mínima permitida (hoje)
  * no formato YYYY-MM-DD para input date
  */
@@ -196,6 +215,18 @@ export function isDateTimeAtLeast5MinutesInFuture(dateString: string): boolean {
 	const fiveMinutesFromNow = new Date(now.getTime() + 5 * 60 * 1000);
 
 	return date >= fiveMinutesFromNow;
+}
+
+/**
+ * Valida se uma data/hora está dentro do intervalo permitido para polls
+ * Permite até 5 minutos no passado
+ */
+export function isDateTimeValidForPoll(dateString: string): boolean {
+	const date = new Date(dateString);
+	const now = new Date();
+	const fiveMinutesAgo = new Date(now.getTime() - 5 * 60 * 1000);
+
+	return date >= fiveMinutesAgo;
 }
 
 /**
@@ -229,4 +260,69 @@ export function formatDateTimeBR(dateString: string): string {
 		hour: "2-digit",
 		minute: "2-digit",
 	});
+}
+
+// ============================================
+// Name Formatting Functions
+// ============================================
+
+/**
+ * Converte um nome de MAIÚSCULO para camelCase (primeira letra de cada palavra em maiúscula)
+ * Exemplo: "JOÃO DA SILVA" -> "João Da Silva"
+ */
+export function formatNameToCamelCase(name: string | null | undefined): string {
+	if (!name) return "";
+	
+	return name
+		.toLowerCase()
+		.split(" ")
+		.map((word) => {
+			if (word.length === 0) return word;
+			return word.charAt(0).toUpperCase() + word.slice(1);
+		})
+		.join(" ");
+}
+
+// ============================================
+// Poll Status Functions
+// ============================================
+
+/**
+ * Calcula o status de uma enquete baseado nas datas
+ * @param startDate Data de início da enquete (string ISO ou Date)
+ * @param endDate Data de fim da enquete (string ISO ou Date)
+ * @param cancelledAt Data de cancelamento (string ISO ou Date, opcional)
+ * @returns Status calculado: "CANCELADO" | "ATIVO" | "PROGRAMADO" | "FINALIZADO"
+ */
+export function calculatePollStatus(
+	startDate: string | Date,
+	endDate: string | Date,
+	cancelledAt?: string | Date | null,
+): "CANCELADO" | "ATIVO" | "PROGRAMADO" | "FINALIZADO" {
+	const now = new Date();
+	const start = startDate instanceof Date ? startDate : new Date(startDate);
+	const end = endDate instanceof Date ? endDate : new Date(endDate);
+	const cancelled = cancelledAt
+		? cancelledAt instanceof Date
+			? cancelledAt
+			: new Date(cancelledAt)
+		: null;
+
+	// Se tiver cancelledAt preenchido, retorna CANCELADO
+	if (cancelled) {
+		return "CANCELADO";
+	}
+
+	// Se startDate for posterior à data atual, retorna PROGRAMADO
+	if (start.getTime() > now.getTime()) {
+		return "PROGRAMADO";
+	}
+
+	// Se endDate for anterior à data atual, retorna FINALIZADO
+	if (end.getTime() < now.getTime()) {
+		return "FINALIZADO";
+	}
+
+	// Se estiver entre startDate e endDate, retorna ATIVO
+	return "ATIVO";
 }

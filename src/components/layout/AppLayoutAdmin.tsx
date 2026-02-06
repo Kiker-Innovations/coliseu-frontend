@@ -8,13 +8,13 @@ export const AppLayoutAdmin = () => {
 			<div className="min-h-screen flex w-full">
 				<AppSidebarAdmin />
 				<div className="flex-1 flex flex-col">
-					<header className="fixed top-0 left-0 right-0 z-50 flex h-12 items-center gap-3 border-b border-border bg-card px-3 sm:h-14 sm:px-4 sm:gap-4 shrink-0">
+					<header className="sticky top-0 z-50 flex h-12 items-center gap-3 border-b border-border bg-card px-3 sm:h-14 sm:px-4 sm:gap-4 shrink-0">
 						<SidebarTrigger />
 						<div className="flex items-center gap-2 text-sm text-muted-foreground">
 							<span className="font-medium truncate">Painel Administrativo</span>
 						</div>
 					</header>
-					<main className="flex-1 overflow-y-auto bg-background p-3 pt-[60px] sm:p-4 sm:pt-[72px] md:p-6 md:pt-[72px]">
+					<main className="flex-1 overflow-y-auto bg-background p-3 sm:p-4 md:p-6">
 						<Outlet />
 					</main>
 				</div>

@@ -10,9 +10,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import {
-	getMinDateTimeForInput,
-	isDateTimeAtLeast5MinutesInFuture,
+	getMinDateTimeForPollInput,
+	isDateTimeValidForPoll,
 	dateTimeLocalToISO,
+	calculatePollStatus,
 } from "@/lib/utils";
 import {
 	Dialog,
@@ -64,8 +65,8 @@ export default function Polls() {
 	const [activePolls, setActivePolls] = useState<ActivePoll[]>([]);
 	const [closedPolls, setClosedPolls] = useState<FinishedCancelledPoll[]>([]);
 
-	// Minimum datetime for inputs (5 minutes from now)
-	const minDateTime = useMemo(() => getMinDateTimeForInput(), []);
+	// Minimum datetime for inputs (5 minutes ago, permite até 5 minutos no passado)
+	const minDateTime = useMemo(() => getMinDateTimeForPollInput(), []);
 
 	// Load buildingId on mount
 	useEffect(() => {
@@ -265,9 +266,9 @@ export default function Polls() {
 				return;
 			}
 
-			// Validar data de início (deve ser pelo menos 5 minutos no futuro)
-			if (!isDateTimeAtLeast5MinutesInFuture(data.startDate)) {
-				toast.error("A data e hora de início deve ser pelo menos 5 minutos no futuro!");
+			// Validar data de início (pode ser até 5 minutos no passado)
+			if (!isDateTimeValidForPoll(data.startDate)) {
+				toast.error("A data e hora de início não pode ser mais de 5 minutos no passado!");
 				return;
 			}
 
@@ -523,8 +524,8 @@ export default function Polls() {
 													{poll.description}
 												</CardTitle>
 											</div>
-											<Badge className={getStatusBadge(poll.status).className}>
-												{getStatusBadge(poll.status).label}
+											<Badge className={getStatusBadge(calculatePollStatus(poll.startDate, poll.endDate, 'cancelledAt' in poll ? (poll as FinishedCancelledPoll).cancelledAt : undefined)).className}>
+												{getStatusBadge(calculatePollStatus(poll.startDate, poll.endDate, 'cancelledAt' in poll ? (poll as FinishedCancelledPoll).cancelledAt : undefined)).label}
 											</Badge>
 										</div>
 									</CardHeader>
@@ -579,8 +580,8 @@ export default function Polls() {
 											))}
 										</div>
 
-										{(poll.status.toUpperCase() === "ATIVO" ||
-											poll.status.toUpperCase() === "PROGRAMADO") && (
+										{(calculatePollStatus(poll.startDate, poll.endDate, 'cancelledAt' in poll ? (poll as FinishedCancelledPoll).cancelledAt : undefined) === "ATIVO" ||
+											calculatePollStatus(poll.startDate, poll.endDate, 'cancelledAt' in poll ? (poll as FinishedCancelledPoll).cancelledAt : undefined) === "PROGRAMADO") && (
 											<div className="pt-2 border-t flex justify-center">
 												<Button
 													type="button"
@@ -753,7 +754,7 @@ export default function Polls() {
 											</p>
 										)}
 										<p className="text-xs text-muted-foreground">
-											Mínimo de 5 minutos a partir de agora
+											Permite até 5 minutos no passado
 										</p>
 									</div>
 

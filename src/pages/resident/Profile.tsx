@@ -29,6 +29,7 @@ import { residentsService } from "@/services/api";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { CameraCapture } from "@/components/ui/camera-capture";
 import ProfileSkeleton from "@/skeleton/resident/ProfileSkeleton";
+import { formatNameToCamelCase } from "@/lib/utils";
 
 // Schema de validação para dados do perfil
 const profileSchema = z.object({
@@ -205,12 +206,14 @@ export default function Profile() {
 					setProfileData(data);
 					const formattedPhone = formatPhoneForDisplay(data.phone);
 					console.log("Telefone formatado para exibição:", formattedPhone);
+					// Converter nome para camelCase para exibição no formulário
+					const formattedName = formatNameToCamelCase(data.name);
 					// Usar setValue para garantir que o valor seja definido
-					setValue("name", data.name);
+					setValue("name", formattedName);
 					setValue("email", data.email);
 					setValue("phone", formattedPhone);
 					reset({
-						name: data.name,
+						name: formattedName,
 						email: data.email,
 						phone: formattedPhone,
 					});
@@ -237,12 +240,12 @@ export default function Profile() {
 				setProfileData(fallbackData);
 				const formattedPhone = formatPhoneForDisplay(fallbackData.phone);
 				console.log("Telefone formatado (fallback):", formattedPhone);
-				// Usar setValue para garantir que o valor seja definido
-				setValue("name", fallbackData.name);
+				const formattedName = formatNameToCamelCase(fallbackData.name);
+				setValue("name", formattedName);
 				setValue("email", fallbackData.email);
 				setValue("phone", formattedPhone);
 				reset({
-					name: fallbackData.name,
+					name: formattedName,
 					email: fallbackData.email,
 					phone: formattedPhone,
 				});
@@ -417,8 +420,10 @@ export default function Profile() {
 						setPhotoPreview(finalPhotoUrl);
 					}
 					// Atualizar o formulário com o telefone formatado
+					// Converter nome para camelCase para exibição no formulário
+					const formattedNameAfterUpdate = formatNameToCamelCase(updateResponse.data.name);
 					reset({
-						name: updateResponse.data.name,
+						name: formattedNameAfterUpdate,
 						email: updateResponse.data.email,
 						phone: formatPhoneForDisplay(updatedPhone),
 					});
@@ -529,7 +534,7 @@ export default function Profile() {
 								</DialogContent>
 							</Dialog>
 							<div className="text-center">
-								<CardTitle className="text-xl">{profileData?.name || "Morador"}</CardTitle>
+								<CardTitle className="text-xl">{formatNameToCamelCase(profileData?.name) || "Morador"}</CardTitle>
 							</div>
 						</div>
 					</CardHeader>

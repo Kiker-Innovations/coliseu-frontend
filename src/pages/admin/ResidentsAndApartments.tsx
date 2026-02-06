@@ -40,7 +40,7 @@ import {
 import { toast } from "sonner";
 import ResidentsAndApartmentsSkeleton from "@/skeleton/admin/ResidentsAndApartmentsSkeleton";
 import { apartmentsService, adminService, type Apartment } from "@/services/api";
-import { cn } from "@/lib/utils";
+import { cn, formatNameToCamelCase } from "@/lib/utils";
 
 // Tipos
 interface Resident {
@@ -471,7 +471,7 @@ export default function ResidentsAndApartments() {
 														</div>
 														<div className="flex-1 min-w-0">
 															<h3 className="font-semibold text-base mb-1 truncate">
-																{resident.name}
+																{formatNameToCamelCase(resident.name)}
 															</h3>
 															<div className="flex items-center gap-3 text-sm text-muted-foreground">
 																{resident.apartmentNumber && (
@@ -845,7 +845,7 @@ export default function ResidentsAndApartments() {
 											{selectedResident.name.charAt(0).toUpperCase()}
 										</span>
 									</div>
-									<p className="font-semibold text-lg mt-3">{selectedResident.name}</p>
+									<p className="font-semibold text-lg mt-3">{formatNameToCamelCase(selectedResident.name)}</p>
 								</div>
 
 								<div className="space-y-3">
@@ -952,7 +952,7 @@ export default function ResidentsAndApartments() {
 													<div className="space-y-2 mt-2">
 														{aptResidents.map((resident) => (
 															<div key={resident._id} className="p-2 bg-accent/30 rounded-lg">
-																<p className="font-medium">{resident.name}</p>
+																<p className="font-medium">{formatNameToCamelCase(resident.name)}</p>
 																{resident.email && (
 																	<p className="text-sm text-muted-foreground">{resident.email}</p>
 																)}

@@ -80,6 +80,7 @@ import {
 	type Apartment,
 	ApiClientError,
 } from "@/services/api";
+import { formatNameToCamelCase } from "@/lib/utils";
 import FinesSkeleton from "@/skeleton/admin/FinesSkeleton";
 
 interface ApartmentWithResidents extends Apartment {
@@ -253,7 +254,7 @@ export default function Fines() {
 					).length;
 
 					const aptNotifications = aptWithInfractions.infractions.filter(
-						(inf) => inf.type === "NOTIFICACAO",
+						(inf) => inf.type === "NOTIFICACAO" && !inf.deletedAt, // Filtrar notificações excluídas
 					);
 
 					const aptFines = aptWithInfractions.infractions.filter((inf) => inf.type === "MULTA");
@@ -348,15 +349,22 @@ export default function Fines() {
 			);
 		}
 
-		// Filtro de multas pendentes
-		if (filterPendingFines) {
+		// Filtro de multas pendentes e/ou em análise
+		// Se ambos estiverem marcados, mostrar apartamentos com qualquer um dos dois
+		// Se apenas um estiver marcado, mostrar apenas apartamentos com aquele tipo
+		if (filterPendingFines && filterFinesInReview) {
+			// Mostrar apartamentos que têm multas pendentes OU multas em análise
+			filtered = filtered.filter(
+				(apt) => apt.pendingFines > 0 || apt.finesInReview > 0
+			);
+		} else if (filterPendingFines) {
+			// Mostrar apenas apartamentos com multas pendentes
 			filtered = filtered.filter((apt) => apt.pendingFines > 0);
-		}
-
-		// Filtro de multas em análise
-		if (filterFinesInReview) {
+		} else if (filterFinesInReview) {
+			// Mostrar apenas apartamentos com multas em análise
 			filtered = filtered.filter((apt) => apt.finesInReview > 0);
 		}
+		// Se nenhum estiver marcado, mostrar todos (sem filtro)
 
 		return filtered;
 	}, [apartments, searchTerm, filterPendingFines, filterFinesInReview]);
@@ -653,6 +661,35 @@ export default function Fines() {
 		}
 	};
 
+	const handleDeleteNotification = async (notification: Infraction) => {
+		if (notification.status !== "ATIVO") {
+			toast.error("Apenas notificações ativas podem ser excluídas");
+			return;
+		}
+
+		try {
+			await infractionsService.cancelNotification(notification._id);
+			toast.success("Notificação excluída com sucesso!");
+			loadData();
+			// Atualizar o apartamento selecionado se estiver aberto - remover a notificação excluída
+			if (selectedApartment) {
+				const updatedNotifications = selectedApartment.notifications.filter(
+					(n) => n._id !== notification._id
+				);
+				setSelectedApartment({
+					...selectedApartment,
+					notifications: updatedNotifications,
+				});
+			}
+		} catch (error: any) {
+			if (error instanceof ApiClientError) {
+				toast.error(error.response.message || "Erro ao excluir notificação");
+			} else {
+				toast.error("Erro ao excluir notificação");
+			}
+		}
+	};
+
 	if (isLoading) {
 		return <FinesSkeleton />;
 	}
@@ -755,7 +792,7 @@ export default function Fines() {
 															) : (
 																apartment.residents.map((resident) => (
 																	<div key={resident._id} className="text-sm">
-																		<p className="font-medium">{resident.name}</p>
+																		<p className="font-medium">{formatNameToCamelCase(resident.name)}</p>
 																	</div>
 																))
 															)}
@@ -990,7 +1027,7 @@ export default function Fines() {
 									<p className="text-sm font-medium mb-2">Moradores:</p>
 									{selectedApartment.residents.map((resident) => (
 										<div key={resident._id} className="text-xs mb-1">
-											<p className="font-medium">{resident.name}</p>
+											<p className="font-medium">{formatNameToCamelCase(resident.name)}</p>
 											<p className="text-muted-foreground">{resident.email}</p>
 										</div>
 									))}
@@ -1498,7 +1535,7 @@ export default function Fines() {
 												className="flex items-start justify-between p-4 border rounded-lg"
 											>
 												<div className="space-y-1">
-													<p className="font-medium">{resident.name}</p>
+													<p className="font-medium">{formatNameToCamelCase(resident.name)}</p>
 													<p className="text-sm text-muted-foreground">{resident.email}</p>
 													{resident.phone && (
 														<p className="text-sm text-muted-foreground">{resident.phone}</p>
@@ -1752,20 +1789,21 @@ export default function Fines() {
 							<CardContent>
 								{selectedApartment &&
 								(!selectedApartment.notifications ||
-									selectedApartment.notifications.length === 0) ? (
+									selectedApartment.notifications.filter((n) => !n.deletedAt).length === 0) ? (
 									<p className="text-sm text-muted-foreground">
 										Nenhuma notificação enviada para este apartamento.
 									</p>
 								) : (
 									<div className="space-y-4">
 										{selectedApartment?.notifications
+											.filter((n) => !n.deletedAt) // Não exibir notificações excluídas
 											.sort(
 												(a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
 											)
 											.map((notification) => (
 												<div key={notification._id} className="p-4 border rounded-lg">
 													<div className="flex items-start justify-between">
-														<div className="space-y-1">
+														<div className="space-y-1 flex-1">
 															<p className="text-sm font-medium">
 																{new Date(notification.createdAt).toLocaleDateString("pt-BR", {
 																	day: "2-digit",
@@ -1784,11 +1822,24 @@ export default function Fines() {
 																})}
 															</p>
 														</div>
-														<Badge
-															variant={notification.status === "ATIVO" ? "default" : "secondary"}
-														>
-															{notification.status === "ATIVO" ? "Ativo" : "Inativo"}
-														</Badge>
+														<div className="flex items-center gap-2">
+															<Badge
+																variant={notification.status === "ATIVO" ? "default" : "secondary"}
+															>
+																{notification.status === "ATIVO" ? "Ativo" : "Inativo"}
+															</Badge>
+															{notification.status === "ATIVO" && (
+																<Button
+																	size="sm"
+																	variant="outline"
+																	onClick={() => handleDeleteNotification(notification)}
+																	title="Excluir notificação"
+																	className="text-destructive hover:text-destructive"
+																>
+																	<Trash2 className="w-4 h-4" />
+																</Button>
+															)}
+														</div>
 													</div>
 													<div className="mt-3 pt-3 border-t">
 														<p className="text-sm text-muted-foreground mb-2">Descrição:</p>
