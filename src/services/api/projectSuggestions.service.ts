@@ -43,7 +43,7 @@ export interface StartVotingRequest {
  * Create projects request
  */
 export interface CreateProjectsRequest {
-	top?: number;
+	suggestionIds: string[];
 }
 
 /**
@@ -54,6 +54,7 @@ export interface CreatedProjectFromSuggestion {
 	title: string;
 	description: string;
 	votes: number;
+	rank: number;
 }
 
 /**
@@ -74,17 +75,42 @@ export interface MyVote {
 }
 
 /**
- * Helper function to check if voting period is active
+ * Helper function to check if voting period is truly active (checks dates too).
+ * Returns false if the end date has passed even if the status is still EM_VOTACAO.
+ * Returns false if the start date hasn't arrived yet (scheduled state).
  */
 export function isVotingActive(suggestion: ProjectSuggestion): boolean {
-	return suggestion.status === "EM_VOTACAO";
+	if (suggestion.status !== "EM_VOTACAO") return false;
+
+	const now = new Date();
+
+	// If start date is in the future, voting hasn't started yet (scheduled)
+	if (suggestion.votingStartDate && now < new Date(suggestion.votingStartDate)) {
+		return false;
+	}
+
+	// If end date has passed, voting has expired
+	if (suggestion.votingEndDate && now > new Date(suggestion.votingEndDate)) {
+		return false;
+	}
+
+	return true;
 }
 
 /**
- * Helper function to check if voting period has ended
+ * Helper function to check if voting period has ended.
+ * Returns true if status is VOTACAO_ENCERRADA, OR if status is still EM_VOTACAO
+ * but the end date has already passed (time-expired).
  */
 export function isVotingEnded(suggestion: ProjectSuggestion): boolean {
-	return suggestion.status === "VOTACAO_ENCERRADA";
+	if (suggestion.status === "VOTACAO_ENCERRADA") return true;
+
+	// Also treat as ended if the voting end date has passed
+	if (suggestion.status === "EM_VOTACAO" && suggestion.votingEndDate) {
+		return new Date() > new Date(suggestion.votingEndDate);
+	}
+
+	return false;
 }
 
 /**
@@ -98,7 +124,24 @@ export function hasVotingStarted(suggestion: ProjectSuggestion): boolean {
  * Helper function to check if waiting for voting
  */
 export function isWaitingForVoting(suggestion: ProjectSuggestion): boolean {
-	return suggestion.status === "AGUARDANDO_VOTACAO";
+	if (suggestion.status === "AGUARDANDO_VOTACAO") return true;
+
+	// Also treat as waiting if status is EM_VOTACAO but start date is in the future (scheduled)
+	if (suggestion.status === "EM_VOTACAO" && suggestion.votingStartDate) {
+		return new Date() < new Date(suggestion.votingStartDate);
+	}
+
+	return false;
+}
+
+/**
+ * Helper function to check if voting is time-expired but status hasn't been updated yet.
+ * Useful for showing a distinct "expired" badge vs. officially "ended".
+ */
+export function isVotingTimeExpired(suggestion: ProjectSuggestion): boolean {
+	if (suggestion.status !== "EM_VOTACAO") return false;
+	if (!suggestion.votingEndDate) return false;
+	return new Date() > new Date(suggestion.votingEndDate);
 }
 
 /**

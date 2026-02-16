@@ -112,6 +112,7 @@ export type {
 	SuggestionWithOffer,
 	ChosenOffer,
 	Season,
+	RankingStatus,
 	CreateSeasonRequest,
 } from "./season.service";
 
@@ -168,6 +169,7 @@ export {
 	isVotingEnded,
 	hasVotingStarted,
 	isWaitingForVoting,
+	isVotingTimeExpired,
 } from "./projectSuggestions.service";
 export type {
 	ProjectSuggestion,

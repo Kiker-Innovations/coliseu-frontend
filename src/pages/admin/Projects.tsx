@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
 import { MaskedInput } from "@/components/ui/masked-input";
 import {
@@ -70,6 +71,7 @@ import {
 	isVotingActive,
 	isVotingEnded,
 	isWaitingForVoting,
+	isVotingTimeExpired,
 	type Season,
 	type Project,
 	type ProjectSuggestion,
@@ -120,15 +122,22 @@ export default function Projects() {
 	const [votingEndDate, setVotingEndDate] = useState("");
 
 	// Promote to projects form state
-	const [promoteTopCount, setPromoteTopCount] = useState(3);
+	const [selectedSuggestionIds, setSelectedSuggestionIds] = useState<string[]>([]);
 
 	// Offer poll form state
 	const [offerOptions, setOfferOptions] = useState<OfferFormOption[]>([
 		{ ...defaultOfferOption },
 		{ ...defaultOfferOption },
+		{ ...defaultOfferOption },
 	]);
 	const [offerPollStartDate, setOfferPollStartDate] = useState("");
 	const [offerPollEndDate, setOfferPollEndDate] = useState("");
+
+	// Timer tick for time-dependent re-evaluation
+	const [timeTick, setTimeTick] = useState(0);
+
+	// Ranking in progress state (for polling)
+	const [isRankingInProgress, setIsRankingInProgress] = useState(false);
 
 	// Minimum datetime for inputs (5 minutes from now)
 	const minDateTime = useMemo(() => getMinDateTimeForInput(), []);
@@ -136,6 +145,49 @@ export default function Projects() {
 	// Load seasons and projects data
 	useEffect(() => {
 		loadData();
+	}, []);
+
+	// Poll for ranking status when in_progress
+	useEffect(() => {
+		if (!isRankingInProgress || !activeSeason) return;
+
+		const interval = setInterval(async () => {
+			try {
+				const response = await seasonService.getSeasonById(activeSeason._id);
+				if (response.success && response.data) {
+					const season = response.data;
+					setActiveSeason(season);
+
+					if (season.rankingStatus === "done") {
+						setIsRankingInProgress(false);
+						toast.success("Sugestões processadas com sucesso!");
+						await loadProjectSuggestions();
+					} else if (season.rankingStatus === "error") {
+						setIsRankingInProgress(false);
+						toast.error("Erro ao processar sugestões. Tente novamente.");
+					}
+				}
+			} catch (error) {
+				console.error("Erro ao verificar status do ranking:", error);
+			}
+		}, 3000);
+
+		return () => clearInterval(interval);
+	}, [isRankingInProgress, activeSeason?._id]);
+
+	// Check if ranking is already in_progress on load
+	useEffect(() => {
+		if (activeSeason?.rankingStatus === "in_progress") {
+			setIsRankingInProgress(true);
+		}
+	}, [activeSeason?._id]);
+
+	// Auto-refresh timer: re-triggers filter recalculations for time-dependent helpers
+	useEffect(() => {
+		const interval = setInterval(() => {
+			setTimeTick((prev) => prev + 1);
+		}, 30_000);
+		return () => clearInterval(interval);
 	}, []);
 
 	const loadData = async () => {
@@ -266,9 +318,10 @@ export default function Projects() {
 			const response = await seasonService.rankSuggestions(activeSeason._id);
 
 			if (response.success) {
-				toast.success(`${response.data?.length || 0} sugestões de projeto criadas com sucesso!`);
+				toast.info("Processamento de sugestões iniciado. Aguarde a conclusão...");
 				setIsRankSuggestionsDialogOpen(false);
-				await loadData();
+				setIsRankingInProgress(true);
+				setActiveSeason({ ...activeSeason, rankingStatus: "in_progress" });
 			} else {
 				toast.error(response.message || "Erro ao processar sugestões");
 			}
@@ -349,17 +402,22 @@ export default function Projects() {
 	const handlePromoteToProjects = async () => {
 		if (!activeSeason) return;
 
+		if (selectedSuggestionIds.length === 0) {
+			toast.error("Selecione pelo menos uma sugestão para criar projeto");
+			return;
+		}
+
 		try {
 			setIsSubmitting(true);
 
 			const response = await seasonService.createProjectsFromSuggestions(activeSeason._id, {
-				top: promoteTopCount,
+				suggestionIds: selectedSuggestionIds,
 			});
 
 			if (response.success) {
 				toast.success(`${response.data?.length || 0} projetos criados com sucesso!`);
 				setIsPromoteDialogOpen(false);
-				setPromoteTopCount(3);
+				setSelectedSuggestionIds([]);
 				await loadData();
 			} else {
 				toast.error(response.message || "Erro ao criar projetos");
@@ -370,6 +428,14 @@ export default function Projects() {
 		} finally {
 			setIsSubmitting(false);
 		}
+	};
+
+	const toggleSuggestionSelection = (suggestionId: string) => {
+		setSelectedSuggestionIds((prev) =>
+			prev.includes(suggestionId)
+				? prev.filter((id) => id !== suggestionId)
+				: [...prev, suggestionId],
+		);
 	};
 
 	// Helper functions for project suggestions
@@ -426,7 +492,7 @@ export default function Projects() {
 		}
 
 		setSelectedProject(project);
-		setOfferOptions([{ ...defaultOfferOption }, { ...defaultOfferOption }]);
+		setOfferOptions([{ ...defaultOfferOption }, { ...defaultOfferOption }, { ...defaultOfferOption }]);
 		setOfferPollStartDate("");
 		setOfferPollEndDate("");
 		setIsOfferPollDialogOpen(true);
@@ -504,7 +570,7 @@ export default function Projects() {
 	};
 
 	const handleRemoveOfferOption = (index: number) => {
-		if (offerOptions.length > 2) {
+		if (offerOptions.length > 3) {
 			setOfferOptions(offerOptions.filter((_, i) => i !== index));
 		}
 	};
@@ -538,8 +604,8 @@ export default function Projects() {
 				opt.installmentsCount.trim() !== "",
 		);
 
-		if (validOptions.length < 2) {
-			toast.error("A enquete deve ter no mínimo 2 ofertas completas!");
+		if (validOptions.length < 3) {
+			toast.error("A enquete deve ter no mínimo 3 ofertas completas!");
 			return;
 		}
 
@@ -591,7 +657,7 @@ export default function Projects() {
 				toast.success(`Enquete de ofertas criada para "${selectedProject.title}"!`);
 				setIsOfferPollDialogOpen(false);
 				setSelectedProject(null);
-				setOfferOptions([{ ...defaultOfferOption }, { ...defaultOfferOption }]);
+				setOfferOptions([{ ...defaultOfferOption }, { ...defaultOfferOption }, { ...defaultOfferOption }]);
 				setOfferPollStartDate("");
 				setOfferPollEndDate("");
 				await loadProjects();
@@ -756,11 +822,20 @@ export default function Projects() {
 						<div className="flex flex-wrap gap-4">
 							<Button
 								onClick={() => setIsRankSuggestionsDialogOpen(true)}
-								disabled={projectSuggestions.length > 0}
+								disabled={projectSuggestions.length > 0 || isRankingInProgress}
 								className="gap-2"
 							>
-								<Sparkles className="w-4 h-4" />
-								Processar Sugestões (IA)
+								{isRankingInProgress ? (
+									<>
+										<RefreshCw className="w-4 h-4 animate-spin" />
+										Processando Sugestões...
+									</>
+								) : (
+									<>
+										<Sparkles className="w-4 h-4" />
+										Processar Sugestões (IA)
+									</>
+								)}
 							</Button>
 							<Button
 								onClick={() => setIsStartVotingDialogOpen(true)}
@@ -807,45 +882,51 @@ export default function Projects() {
 							</p>
 
 							<div className="space-y-4">
-								{suggestionsWithEndedVoting.map((suggestion) => (
-									<Card
-										key={suggestion._id}
-										className="border-2 border-green-500/50 bg-green-500/5"
-									>
-										<CardHeader>
-											<div className="flex items-start justify-between">
-												<div className="flex-1">
-													<CardTitle className="flex items-center gap-2">
-														<Lightbulb className="w-5 h-5 text-green-600" />
-														{suggestion.title}
-													</CardTitle>
-													<p className="text-sm text-muted-foreground mt-2">
-														{suggestion.description}
-													</p>
-												</div>
-												{getRankBadge(suggestion.rank)}
+							{suggestionsWithEndedVoting.map((suggestion) => (
+								<Card
+									key={suggestion._id}
+									className="border-2 border-green-500/50 bg-green-500/5"
+								>
+									<CardHeader>
+										<div className="flex items-start justify-between">
+											<div className="flex-1">
+												<CardTitle className="flex items-center gap-2">
+													<Lightbulb className="w-5 h-5 text-green-600" />
+													{suggestion.title}
+													{isVotingTimeExpired(suggestion) && (
+														<Badge variant="outline" className="ml-2 text-orange-600 border-orange-600">
+															<Clock className="w-3 h-3 mr-1" />
+															Período expirado
+														</Badge>
+													)}
+												</CardTitle>
+												<p className="text-sm text-muted-foreground mt-2">
+													{suggestion.description}
+												</p>
 											</div>
-										</CardHeader>
-										<CardContent>
-											<div className="flex items-center gap-4 text-sm text-muted-foreground">
-												<div className="flex items-center gap-1">
-													<Users className="w-4 h-4" />
-													<span>{suggestion.votes} votos</span>
-												</div>
-												<div className="flex items-center gap-1">
-													<Hash className="w-4 h-4" />
-													<span>{suggestion.duplicateCount} duplicatas</span>
-												</div>
-												{suggestion.votingEndDate && (
-													<div className="flex items-center gap-1">
-														<Calendar className="w-4 h-4" />
-														<span>Encerrada em {formatDate(suggestion.votingEndDate)}</span>
-													</div>
-												)}
+											{getRankBadge(suggestion.rank)}
+										</div>
+									</CardHeader>
+									<CardContent>
+										<div className="flex items-center gap-4 text-sm text-muted-foreground">
+											<div className="flex items-center gap-1">
+												<Users className="w-4 h-4" />
+												<span>{suggestion.votes} votos</span>
 											</div>
-										</CardContent>
-									</Card>
-								))}
+											<div className="flex items-center gap-1">
+												<Hash className="w-4 h-4" />
+												<span>{suggestion.duplicateCount} duplicatas</span>
+											</div>
+											{suggestion.votingEndDate && (
+												<div className="flex items-center gap-1">
+													<Calendar className="w-4 h-4" />
+													<span>Encerrada em {formatDate(suggestion.votingEndDate)}</span>
+												</div>
+											)}
+										</div>
+									</CardContent>
+								</Card>
+							))}
 							</div>
 						</div>
 					)}
@@ -965,22 +1046,34 @@ export default function Projects() {
 						</Card>
 					)}
 
-					{activeSeason && projectSuggestions.length === 0 && (
-						<Card>
-							<CardContent className="flex flex-col items-center justify-center h-48 text-center">
-								<Lightbulb className="w-12 h-12 text-muted-foreground/50 mb-4" />
-								<p className="text-muted-foreground mb-2">Nenhuma sugestão processada ainda</p>
-								<p className="text-sm text-muted-foreground mb-4">
-									Aguarde os moradores cadastrarem suas sugestões e então clique em "Processar
-									Sugestões" para gerar a lista de sugestões elegíveis.
-								</p>
-								<Button onClick={() => setIsRankSuggestionsDialogOpen(true)} className="gap-2">
-									<Sparkles className="w-4 h-4" />
-									Processar Sugestões (IA)
-								</Button>
-							</CardContent>
-						</Card>
-					)}
+				{activeSeason && projectSuggestions.length === 0 && (
+					<Card>
+						<CardContent className="flex flex-col items-center justify-center h-48 text-center">
+							{isRankingInProgress ? (
+								<>
+									<RefreshCw className="w-12 h-12 text-primary animate-spin mb-4" />
+									<p className="text-muted-foreground mb-2">Processando sugestões...</p>
+									<p className="text-sm text-muted-foreground">
+										A inteligência artificial está analisando e agrupando as sugestões dos moradores. Isso pode levar alguns minutos.
+									</p>
+								</>
+							) : (
+								<>
+									<Lightbulb className="w-12 h-12 text-muted-foreground/50 mb-4" />
+									<p className="text-muted-foreground mb-2">Nenhuma sugestão processada ainda</p>
+									<p className="text-sm text-muted-foreground mb-4">
+										Aguarde os moradores cadastrarem suas sugestões e então clique em "Processar
+										Sugestões" para gerar a lista de sugestões elegíveis.
+									</p>
+									<Button onClick={() => setIsRankSuggestionsDialogOpen(true)} className="gap-2">
+										<Sparkles className="w-4 h-4" />
+										Processar Sugestões (IA)
+									</Button>
+								</>
+							)}
+						</CardContent>
+					</Card>
+				)}
 				</TabsContent>
 
 				{/* Aba de Projetos */}
@@ -1585,7 +1678,7 @@ export default function Projects() {
 					setIsOfferPollDialogOpen(open);
 					if (!open) {
 						setSelectedProject(null);
-						setOfferOptions([{ ...defaultOfferOption }, { ...defaultOfferOption }]);
+						setOfferOptions([{ ...defaultOfferOption }, { ...defaultOfferOption }, { ...defaultOfferOption }]);
 						setOfferPollStartDate("");
 						setOfferPollEndDate("");
 					}
@@ -1616,14 +1709,14 @@ export default function Projects() {
 						<div className="space-y-4">
 							<Label className="text-base font-semibold">Ofertas das Empresas</Label>
 							<p className="text-sm text-muted-foreground">
-								Cadastre pelo menos 2 ofertas de empresas diferentes
+								Cadastre pelo menos 3 ofertas de empresas diferentes
 							</p>
 
 							{offerOptions.map((option, index) => (
 								<div key={index} className="p-4 border rounded-lg space-y-3">
 									<div className="flex items-center justify-between">
 										<Label className="font-medium">Oferta {index + 1}</Label>
-										{offerOptions.length > 2 && (
+										{offerOptions.length > 3 && (
 											<Button
 												type="button"
 												variant="ghost"
@@ -2076,7 +2169,7 @@ export default function Projects() {
 				onOpenChange={(open) => {
 					setIsPromoteDialogOpen(open);
 					if (!open) {
-						setPromoteTopCount(3);
+						setSelectedSuggestionIds([]);
 					}
 				}}
 			>
@@ -2087,46 +2180,82 @@ export default function Projects() {
 							Criar Projetos a partir das Sugestões
 						</DialogTitle>
 						<DialogDescription>
-							As sugestões mais votadas serão transformadas em projetos oficiais do condomínio.
+							Selecione as sugestões que deseja transformar em projetos oficiais do condomínio. Não é
+							obrigatório selecionar apenas as mais votadas.
 						</DialogDescription>
 					</DialogHeader>
 
 					<div className="space-y-4 py-4">
 						<div className="p-4 bg-muted rounded-lg space-y-2">
-							<p className="text-sm font-medium">Sugestões com votação encerrada:</p>
-							<p className="text-2xl font-bold text-primary">{suggestionsWithEndedVoting.length}</p>
-						</div>
-
-						<div className="space-y-2">
-							<Label htmlFor="promote-count">Quantidade de projetos a criar</Label>
-							<Input
-								id="promote-count"
-								type="number"
-								min={1}
-								max={Math.min(10, suggestionsWithEndedVoting.length)}
-								value={promoteTopCount}
-								onChange={(e) => setPromoteTopCount(Number(e.target.value))}
-							/>
-							<p className="text-xs text-muted-foreground">
-								As {promoteTopCount} sugestões mais votadas serão promovidas a projetos
-							</p>
+							<div className="flex items-center justify-between">
+								<p className="text-sm font-medium">Sugestões com votação encerrada:</p>
+								<p className="text-lg font-bold text-primary">
+									{suggestionsWithEndedVoting.length}
+								</p>
+							</div>
+							<div className="flex items-center justify-between">
+								<p className="text-sm font-medium">Selecionadas:</p>
+								<p className="text-lg font-bold text-primary">
+									{selectedSuggestionIds.length}
+								</p>
+							</div>
 						</div>
 
 						{suggestionsWithEndedVoting.length > 0 && (
 							<div className="space-y-2">
-								<p className="text-sm font-medium">Sugestões que serão promovidas:</p>
-								<div className="space-y-2 max-h-48 overflow-y-auto">
-									{suggestionsWithEndedVoting.slice(0, promoteTopCount).map((s, index) => (
-										<div
+								<div className="flex items-center justify-between">
+									<p className="text-sm font-medium">
+										Selecione as sugestões para criar projetos:
+									</p>
+									<Button
+										type="button"
+										variant="ghost"
+										size="sm"
+										onClick={() => {
+											if (
+												selectedSuggestionIds.length ===
+												suggestionsWithEndedVoting.length
+											) {
+												setSelectedSuggestionIds([]);
+											} else {
+												setSelectedSuggestionIds(
+													suggestionsWithEndedVoting.map((s) => s._id),
+												);
+											}
+										}}
+									>
+										{selectedSuggestionIds.length ===
+										suggestionsWithEndedVoting.length
+											? "Desmarcar todos"
+											: "Selecionar todos"}
+									</Button>
+								</div>
+								<div className="space-y-2 max-h-64 overflow-y-auto">
+									{suggestionsWithEndedVoting.map((s, index) => (
+										<button
+											type="button"
 											key={s._id}
-											className="flex items-center justify-between p-2 bg-muted/50 rounded"
+											className={`flex items-center gap-3 p-2 rounded cursor-pointer transition-colors w-full text-left ${
+												selectedSuggestionIds.includes(s._id)
+													? "bg-primary/10 border border-primary/30"
+													: "bg-muted/50 hover:bg-muted"
+											}`}
+											onClick={() => toggleSuggestionSelection(s._id)}
 										>
-											<div className="flex items-center gap-2">
+											<Checkbox
+												checked={selectedSuggestionIds.includes(s._id)}
+												onCheckedChange={() =>
+													toggleSuggestionSelection(s._id)
+												}
+											/>
+											<div className="flex items-center gap-2 flex-1">
 												{getRankBadge(index + 1)}
 												<span className="text-sm">{s.title}</span>
 											</div>
-											<span className="text-sm text-muted-foreground">{s.votes} votos</span>
-										</div>
+											<span className="text-sm text-muted-foreground">
+												{s.votes} votos
+											</span>
+										</button>
 									))}
 								</div>
 							</div>
@@ -2141,7 +2270,10 @@ export default function Projects() {
 						>
 							Cancelar
 						</Button>
-						<Button onClick={handlePromoteToProjects} disabled={isSubmitting}>
+						<Button
+							onClick={handlePromoteToProjects}
+							disabled={isSubmitting || selectedSuggestionIds.length === 0}
+						>
 							{isSubmitting ? (
 								<>
 									<RefreshCw className="w-4 h-4 mr-2 animate-spin" />
@@ -2150,8 +2282,8 @@ export default function Projects() {
 							) : (
 								<>
 									<ArrowUpCircle className="w-4 h-4 mr-2" />
-									Criar {promoteTopCount} Projeto
-									{promoteTopCount > 1 ? "s" : ""}
+									Criar {selectedSuggestionIds.length} Projeto
+									{selectedSuggestionIds.length !== 1 ? "s" : ""}
 								</>
 							)}
 						</Button>
