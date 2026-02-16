@@ -14,6 +14,11 @@ import type {
 } from "./projectSuggestions.service";
 
 /**
+ * Ranking status for AI processing
+ */
+export type RankingStatus = "idle" | "in_progress" | "done" | "error";
+
+/**
  * Season data structure from API
  * Note: endDate === null means the season is active
  */
@@ -22,6 +27,7 @@ export interface Season {
 	buildingId: string;
 	seasonNumber: number;
 	reusedSuggestions: boolean;
+	rankingStatus: RankingStatus | null;
 	createdAt: string;
 	updatedAt: string;
 	endDate: string | null;
@@ -149,11 +155,12 @@ class SeasonService {
 	}
 
 	/**
-	 * Process and rank all suggestions from a season
+	 * Start async processing and ranking of suggestions from a season
 	 * POST /v1/seasons/:seasonId/rank-suggestions
+	 * Returns immediately with 202 Accepted. Poll season for rankingStatus updates.
 	 */
-	async rankSuggestions(seasonId: string): Promise<ApiResponse<ProjectSuggestion[]>> {
-		return apiClient.post<ProjectSuggestion[]>(`${this.basePath}/${seasonId}/rank-suggestions`, {
+	async rankSuggestions(seasonId: string): Promise<ApiResponse<null>> {
+		return apiClient.post<null>(`${this.basePath}/${seasonId}/rank-suggestions`, {
 			body: {},
 		});
 	}
@@ -184,12 +191,12 @@ class SeasonService {
 	}
 
 	/**
-	 * Create projects from top voted suggestions
+	 * Create projects from selected suggestions
 	 * POST /v1/seasons/:seasonId/project-suggestions/create-projects
 	 */
 	async createProjectsFromSuggestions(
 		seasonId: string,
-		data?: CreateProjectsRequest,
+		data: CreateProjectsRequest,
 	): Promise<ApiResponse<CreatedProjectFromSuggestion[]>> {
 		return apiClient.post<CreatedProjectFromSuggestion[]>(
 			`${this.basePath}/${seasonId}/project-suggestions/create-projects`,

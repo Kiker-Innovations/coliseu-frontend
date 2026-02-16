@@ -70,8 +70,20 @@ export default function Vote() {
 	}>({});
 	const [isVotingOffer, setIsVotingOffer] = useState(false);
 
+	// Timer tick to force re-evaluation of time-dependent voting status
+	const [timeTick, setTimeTick] = useState(0);
+
 	useEffect(() => {
 		loadData();
+	}, []);
+
+	// Auto-refresh timer: re-triggers useMemo recalculations for time-dependent helpers
+	useEffect(() => {
+		const interval = setInterval(() => {
+			setTimeTick((prev) => prev + 1);
+		}, 30_000);
+
+		return () => clearInterval(interval);
 	}, []);
 
 	const loadData = async () => {
@@ -157,12 +169,12 @@ export default function Vote() {
 
 	const activeSuggestions = useMemo(
 		() => projectSuggestions.filter((s) => isVotingActive(s)).sort((a, b) => a.rank - b.rank),
-		[projectSuggestions],
+		[projectSuggestions, timeTick],
 	);
 
 	const endedSuggestions = useMemo(
 		() => projectSuggestions.filter((s) => isVotingEnded(s)).sort((a, b) => b.votes - a.votes),
-		[projectSuggestions],
+		[projectSuggestions, timeTick],
 	);
 
 	const pendingVotesUsed = useMemo(() => {
