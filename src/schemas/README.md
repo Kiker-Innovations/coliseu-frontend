@@ -14,11 +14,10 @@ schemas/
 │   ├── recurring-expense.schema.ts
 │   └── voting.schema.ts
 └── resident/
-    ├── auth/
-    │   ├── login.schema.ts
-    │   ├── register.schema.ts
-    │   └── reset-password.schema.ts
-    └── suggestions.schema.ts
+    └── auth/
+        ├── login.schema.ts
+        ├── register.schema.ts
+        └── reset-password.schema.ts
 ```
 
 ## Princípio

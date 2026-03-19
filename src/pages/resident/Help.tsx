@@ -13,8 +13,6 @@ import {
 } from "@/components/ui/collapsible";
 import { Input } from "@/components/ui/input";
 import {
-	Lightbulb,
-	Vote,
 	TrendingUp,
 	MessageSquare,
 	FileText,
@@ -39,81 +37,6 @@ interface HelpSection {
 }
 
 const helpSections: HelpSection[] = [
-	{
-		url: "/suggestions",
-		title: "Sugestões",
-		icon: Lightbulb,
-		items: [
-			{
-				question: "Como criar uma sugestão?",
-				answer: (
-					<ol className="list-decimal list-inside space-y-2 text-muted-foreground">
-						<li>Acesse a página "Sugestões" no menu lateral</li>
-						<li>Clique no botão "Nova Sugestão"</li>
-						<li>Preencha o título da sua sugestão (máximo 100 caracteres)</li>
-						<li>Descreva sua sugestão em detalhes no campo de descrição (máximo 1000 caracteres)</li>
-						<li>Clique em "Criar" para enviar sua sugestão</li>
-						<li>
-							<strong>Importante:</strong> Você pode criar até 5 sugestões por temporada
-						</li>
-					</ol>
-				),
-			},
-			{
-				question: "Como editar ou excluir uma sugestão?",
-				answer: (
-					<ol className="list-decimal list-inside space-y-2 text-muted-foreground">
-						<li>Na página "Sugestões", localize a sugestão que deseja modificar</li>
-						<li>Clique no ícone de lápis para editar ou no ícone de lixeira para excluir</li>
-						<li>Para editar: modifique os campos e clique em "Atualizar"</li>
-						<li>Para excluir: confirme a exclusão</li>
-						<li>
-							<strong>Nota:</strong> Você só pode editar/excluir sugestões da temporada atual
-						</li>
-					</ol>
-				),
-			},
-		],
-	},
-	{
-		url: "/vote",
-		title: "Votar",
-		icon: Vote,
-		items: [
-			{
-				question: "Como votar em projetos?",
-				answer: (
-					<ol className="list-decimal list-inside space-y-2 text-muted-foreground">
-						<li>Acesse a página "Votar" no menu lateral</li>
-						<li>Visualize os projetos disponíveis para votação</li>
-						<li>Leia as informações de cada projeto (título, descrição, valor, etc.)</li>
-						<li>Selecione até 3 projetos que você deseja aprovar</li>
-						<li>Clique no botão "+" para adicionar seu voto ao projeto</li>
-						<li>Você pode remover um voto clicando no botão "-"</li>
-						<li>Após selecionar seus projetos, clique em "Confirmar Votos"</li>
-						<li>
-							<strong>Importante:</strong> Você só pode votar durante o período de votação ativo
-						</li>
-					</ol>
-				),
-			},
-			{
-				question: "Como escolher uma proposta (oferta)?",
-				answer: (
-					<ol className="list-decimal list-inside space-y-2 text-muted-foreground">
-						<li>Após a votação, se um projeto tiver múltiplas propostas, você poderá escolher</li>
-						<li>Visualize todas as propostas disponíveis para o projeto</li>
-						<li>Compare valores, prazos e condições de cada proposta</li>
-						<li>Selecione a proposta que você considera melhor</li>
-						<li>Confirme sua escolha</li>
-						<li>
-							<strong>Nota:</strong> Você só pode escolher uma proposta por projeto
-						</li>
-					</ol>
-				),
-			},
-		],
-	},
 	{
 		url: "/progress",
 		title: "Acompanhar Progresso",
