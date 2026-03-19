@@ -15,7 +15,6 @@ import { Input } from "@/components/ui/input";
 import {
 	LayoutDashboard,
 	BarChart3,
-	FolderKanban,
 	Vote,
 	MessageSquare,
 	Building2,
@@ -84,61 +83,6 @@ const helpSections: HelpSection[] = [
 						<li>Preencha os dados: descrição, valor, categoria, data</li>
 						<li>Para despesas recorrentes, configure a periodicidade</li>
 						<li>Clique em "Salvar" para registrar a despesa</li>
-					</ol>
-				),
-			},
-		],
-	},
-	{
-		url: "/admin/projects",
-		title: "Projetos",
-		icon: FolderKanban,
-		items: [
-			{
-				question: "Como gerenciar projetos?",
-				answer: (
-					<ol className="list-decimal list-inside space-y-2 text-muted-foreground">
-						<li>Acesse a página "Projetos" no menu lateral</li>
-						<li>Visualize todos os projetos (sugestões, aprovados, em andamento)</li>
-						<li>Gerencie o ciclo de vida dos projetos</li>
-						<li>Acompanhe o progresso de pagamento</li>
-					</ol>
-				),
-			},
-			{
-				question: "Como aprovar um projeto?",
-				answer: (
-					<ol className="list-decimal list-inside space-y-2 text-muted-foreground">
-						<li>Na página "Projetos", localize a sugestão que deseja aprovar</li>
-						<li>Clique em "Aprovar" ou "Ver Detalhes"</li>
-						<li>Configure os dados do projeto: valor total, número de parcelas, valor mensal</li>
-						<li>Defina a data de início</li>
-						<li>Clique em "Confirmar Aprovação"</li>
-						<li>
-							<strong>Importante:</strong> O projeto só pode ser aprovado após a votação e escolha de proposta
-						</li>
-					</ol>
-				),
-			},
-			{
-				question: "Como iniciar ou finalizar um projeto?",
-				answer: (
-					<ol className="list-decimal list-inside space-y-2 text-muted-foreground">
-						<li>Na página "Projetos", localize o projeto desejado</li>
-						<li>Para iniciar: clique em "Iniciar Projeto" quando estiver pronto para começar</li>
-						<li>Para finalizar: clique em "Finalizar Projeto" quando estiver concluído</li>
-						<li>Confirme a ação</li>
-					</ol>
-				),
-			},
-			{
-				question: "Como gerenciar propostas de projetos?",
-				answer: (
-					<ol className="list-decimal list-inside space-y-2 text-muted-foreground">
-						<li>Na página "Projetos", localize o projeto com propostas</li>
-						<li>Visualize todas as propostas recebidas</li>
-						<li>Compare valores, prazos e condições</li>
-						<li>Gerencie o status das propostas (aceita, rejeitada, pendente)</li>
 					</ol>
 				),
 			},

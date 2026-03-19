@@ -34,7 +34,7 @@ export default function FinancialSkeleton() {
 						))}
 					</div>
 
-					{/* Approved Suggestions */}
+					{}
 					<Card>
 						<CardHeader>
 							<Skeleton className="h-6 w-64" />
