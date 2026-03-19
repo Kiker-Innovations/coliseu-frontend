@@ -17,6 +17,7 @@ import { toast } from "sonner";
 import ConciergeSkeleton from "@/skeleton/admin/ConciergeSkeleton";
 import { conciergeSchema, type ConciergeSchema } from "@/schemas/admin/concierge.schema";
 import { getConcierge, updateConcierge } from "@/services/concierge.service";
+import { formatNameToCamelCase } from "@/lib/utils";
 
 export default function ConciergeEdit() {
 	const { id } = useParams();
@@ -32,8 +33,10 @@ export default function ConciergeEdit() {
 		const load = async () => {
 			try {
 				const data = await getConcierge(id as string);
+				// Converter nome para camelCase para exibição no formulário
+				const formattedName = formatNameToCamelCase(data.name);
 				form.reset({
-					name: data.name,
+					name: formattedName,
 					email: data.email,
 					phone: data.phone,
 					shift: data.shift,

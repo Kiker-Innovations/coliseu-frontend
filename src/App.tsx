@@ -26,8 +26,6 @@ const ResetPassword = lazy(() => import("./pages/resident/auth/ResetPassword"));
 const UpdatePassword = lazy(() => import("./pages/resident/auth/UpdatePassword"));
 const StatusTimeline = lazy(() => import("./pages/resident/auth/StatusTimeline"));
 const Dashboard = lazy(() => import("./pages/resident/Dashboard"));
-const Suggestions = lazy(() => import("./pages/resident/Suggestions"));
-const Vote = lazy(() => import("./pages/resident/Vote"));
 const Progress = lazy(() => import("./pages/resident/Progress"));
 const Poll = lazy(() => import("./pages/resident/Poll"));
 const Fines = lazy(() => import("./pages/resident/Fines"));
@@ -54,7 +52,6 @@ const AdminNotices = lazy(() => import("./pages/admin/Notices"));
 const AdminConcierge = lazy(() => import("./pages/admin/Concierge"));
 const AdminConciergeEdit = lazy(() => import("./pages/admin/ConciergeEdit"));
 const AdminConciergeView = lazy(() => import("./pages/admin/ConciergeView"));
-const AdminProjects = lazy(() => import("./pages/admin/Projects"));
 const AdminDocuments = lazy(() => import("./pages/admin/Documents"));
 const AdminProfile = lazy(() => import("./pages/admin/Profile"));
 const AdminHelp = lazy(() => import("./pages/admin/Help"));
@@ -110,22 +107,6 @@ const App = () => (
 									element={
 										<ProtectedPageRoute>
 											<Dashboard />
-										</ProtectedPageRoute>
-									}
-								/>
-								<Route
-									path="/suggestions"
-									element={
-										<ProtectedPageRoute>
-											<Suggestions />
-										</ProtectedPageRoute>
-									}
-								/>
-								<Route
-									path="/vote"
-									element={
-										<ProtectedPageRoute>
-											<Vote />
 										</ProtectedPageRoute>
 									}
 								/>
@@ -227,14 +208,6 @@ const App = () => (
 									element={
 										<ProtectedPageRoute>
 											<AdminFinancial />
-										</ProtectedPageRoute>
-									}
-								/>
-								<Route
-									path="/admin/projects"
-									element={
-										<ProtectedPageRoute>
-											<AdminProjects />
 										</ProtectedPageRoute>
 									}
 								/>
