@@ -52,10 +52,34 @@ function decodeToken(token: string): any {
 /**
  * Mapeamento de nomes de ícones para componentes do Lucide
  */
-const discontinuedPages = new Set([
-	"/suggestions",
-	"/vote",
-	"/admin/projects",
+const validRoutes = new Set([
+	"/dashboard",
+	"/progress",
+	"/poll",
+	"/fines",
+	"/documents",
+	"/packages",
+	"/bookings",
+	"/notices",
+	"/profile",
+	"/help",
+	"/admin/dashboard",
+	"/admin/financial",
+	"/admin/voting",
+	"/admin/polls",
+	"/admin/condominium-info",
+	"/admin/fines",
+	"/admin/notices",
+	"/admin/documents",
+	"/admin/concierge",
+	"/admin/profile",
+	"/admin/help",
+	"/concierge/dashboard",
+	"/concierge/packages",
+	"/concierge/fines",
+	"/concierge/visitors",
+	"/concierge/contacts",
+	"/concierge/help",
 ]);
 
 const iconMap: Record<string, keyof typeof LucideIcons> = {
@@ -117,7 +141,7 @@ export function useAccessiblePages() {
 
 		// Mapear as páginas e adicionar os componentes de ícone
 		return decoded.accessiblePages
-			.filter((page: any) => !discontinuedPages.has(page.url))
+			.filter((page: any) => validRoutes.has(page.url))
 			.map((page: any) => ({
 				...page,
 				icon: getIconComponent(page.icon),
