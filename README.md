@@ -1,102 +1,75 @@
-# Coliseu Condo Voice
+# Coliseu Frontend
 
-Sistema de gestão de condomínios com interface moderna e intuitiva.
+App web para moradores, administradores e porteiros de condomínios.
 
-## Tecnologias Utilizadas
+## Tech Stack
 
-Este projeto foi construído com:
+- React 18 + TypeScript + Vite 6
+- Tailwind CSS + shadcn/ui
+- React Router 6 + React Query 5
+- React Hook Form + Zod
+- PWA (Workbox, offline support)
 
-- **Vite** - Build tool e dev server ultra-rápido
-- **TypeScript** - Superset JavaScript com tipagem estática
-- **React** - Biblioteca para construção de interfaces
-- **shadcn/ui** - Componentes UI de alta qualidade
-- **Tailwind CSS** - Framework CSS utility-first
-- **React Router** - Navegação entre páginas
-- **React Query** - Gerenciamento de estado assíncrono
+## Setup
 
-## Estrutura do Projeto
-
-```
-coliseu-condo-voice/
-├── src/
-│   ├── components/      # Componentes reutilizáveis
-│   │   ├── layout/      # Componentes de layout
-│   │   └── ui/          # Componentes UI do shadcn
-│   ├── pages/           # Páginas da aplicação
-│   │   └── auth/        # Páginas de autenticação
-│   ├── services/        # Serviços e lógica de negócio
-│   ├── hooks/           # Custom React hooks
-│   ├── lib/             # Utilitários e helpers
-│   └── assets/          # Imagens e recursos estáticos
-├── public/              # Arquivos públicos
-└── ...
-```
-
-## Requisitos
-
-- Node.js (versão 18 ou superior)
-- npm ou yarn
-
-## Instalação
-
-1. Clone o repositório:
-```bash
-git clone <URL_DO_REPOSITORIO>
-cd coliseu-condo-voice
-```
-
-2. Instale as dependências:
 ```bash
 npm install
-# ou
-yarn install
-```
-
-3. Inicie o servidor de desenvolvimento:
-```bash
 npm run dev
-# ou
-yarn dev
 ```
 
-4. Abra o navegador em `http://localhost:5173`
+## Variável de Ambiente
 
-## Scripts Disponíveis
+```
+VITE_API_URL=http://localhost:3000/api/coliseu
+```
 
-- `npm run dev` - Inicia o servidor de desenvolvimento
-- `npm run build` - Cria a versão de produção
-- `npm run build:dev` - Cria a versão de desenvolvimento
-- `npm run preview` - Preview da build de produção
-- `npm run lint` - Executa o linter
+## Scripts
+
+| Comando | Descrição |
+|---------|-----------|
+| `npm run dev` | Dev server |
+| `npm run build` | Build produção |
+| `npm run build:dev` | Build desenvolvimento |
+| `npm run preview` | Preview da build |
+| `npm run lint` | Formatar com Biome |
+| `npm run lint:check` | Checar regras Biome |
 
 ## Funcionalidades
 
-- ✅ Sistema de autenticação (Login/Registro/Recuperação de senha)
-- ✅ Dashboard do condomínio
-- ✅ Gerenciamento de documentos
-- ✅ Sistema de votação
-- ✅ Controle de visitantes e encomendas
-- ✅ Acompanhamento de progresso
-- ✅ Sugestões e enquetes
-- ✅ Interface responsiva
+### Morador
+- Dashboard com resumo financeiro
+- Enquetes e votação
+- Acompanhamento de progresso de projetos
+- Documentos, avisos, encomendas
+- Reservas de áreas comuns
+- Multas e infrações
+- Perfil e ajuda
 
-## Backend e Dados
+### Administrador
+- Dashboard com estatísticas
+- Gestão financeira (receitas, despesas recorrentes e pontuais)
+- Criação de enquetes e votações
+- Gestão de porteiros, documentos, avisos
+- Multas e infrações
+- Informações do condomínio
 
-Atualmente, o projeto utiliza **mocks locais** para simulação de dados e autenticação. Os serviços mockados estão localizados em `src/services/`.
+### Porteiro
+- Dashboard com resumo de encomendas e visitantes
+- Registro e entrega de encomendas
+- Registro de visitantes
+- Contatos úteis
+- Multas (visualização)
 
-Para conectar a um backend real:
-1. Implemente os serviços reais substituindo os mocks em `src/services/`
-2. Configure as variáveis de ambiente necessárias
-3. Atualize as chamadas de API conforme necessário
+## Estrutura
 
-## Contribuindo
-
-1. Faça um fork do projeto
-2. Crie uma branch para sua feature (`git checkout -b feature/MinhaFeature`)
-3. Commit suas mudanças (`git commit -m 'Adiciona MinhaFeature'`)
-4. Push para a branch (`git push origin feature/MinhaFeature`)
-5. Abra um Pull Request
-
-## Licença
-
-Este projeto é privado e proprietário.
+```
+src/
+├── components/     # UI components (shadcn/ui, layout, auth guards)
+├── config/         # API configuration
+├── contexts/       # Auth, Network
+├── hooks/          # Custom hooks
+├── pages/          # Páginas por role (resident, admin, concierge)
+├── schemas/        # Validação Zod (espelha pages/)
+├── services/       # API client e services por domínio
+└── skeleton/       # Loading skeletons (espelha pages/)
+```

@@ -101,21 +101,6 @@ export type {
 	ConciergePackage,
 } from "./package.service";
 
-// Season service
-export {
-	seasonService,
-	isSeasonActive,
-	isSeasonFinished,
-} from "./season.service";
-export type {
-	TopSuggestion,
-	SuggestionWithOffer,
-	ChosenOffer,
-	Season,
-	RankingStatus,
-	CreateSeasonRequest,
-} from "./season.service";
-
 // Visitor service
 export { visitorService } from "./visitor.service";
 export type {
@@ -126,14 +111,6 @@ export type {
 	GetVisitorsResponse,
 } from "./visitor.service";
 
-// Resident Suggestion service
-export { residentSuggestionService } from "./residentSuggestion.service";
-export type {
-	ResidentSuggestion,
-	CreateSuggestionRequest,
-	UpdateSuggestionRequest,
-} from "./residentSuggestion.service";
-
 // Visits service
 export { visitsService } from "./visits.service";
 export type {
@@ -143,43 +120,6 @@ export type {
 	GetVisitsResponse,
 	GetVisitsParams,
 } from "./visits.service";
-
-// Project service
-export {
-	projectService,
-	hasChosenOffer,
-	hasActiveOfferPoll,
-	isOfferPollEnded,
-} from "./project.service";
-export type {
-	Project,
-	ProjectOffer,
-	FullProjectOffer,
-	CreateOfferOption,
-	CreateOfferPollRequest,
-	CreatedOffer,
-	VoteOfferResponse,
-	MyOfferVote,
-} from "./project.service";
-
-// Project Suggestions service
-export {
-	projectSuggestionsService,
-	isVotingActive,
-	isVotingEnded,
-	hasVotingStarted,
-	isWaitingForVoting,
-	isVotingTimeExpired,
-} from "./projectSuggestions.service";
-export type {
-	ProjectSuggestion,
-	ProjectSuggestionStatus,
-	StartVotingRequest,
-	CreateProjectsRequest,
-	CreatedProjectFromSuggestion,
-	VoteResponse,
-	MyVote,
-} from "./projectSuggestions.service";
 
 // Financial service
 export { financialService } from "./financial.service";
