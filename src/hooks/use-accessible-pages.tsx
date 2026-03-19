@@ -52,6 +52,12 @@ function decodeToken(token: string): any {
 /**
  * Mapeamento de nomes de ícones para componentes do Lucide
  */
+const discontinuedPages = new Set([
+	"/suggestions",
+	"/vote",
+	"/admin/projects",
+]);
+
 const iconMap: Record<string, keyof typeof LucideIcons> = {
 	LayoutDashboard: "LayoutDashboard",
 	Lightbulb: "Lightbulb",
@@ -111,6 +117,7 @@ export function useAccessiblePages() {
 
 		// Mapear as páginas e adicionar os componentes de ícone
 		return decoded.accessiblePages
+			.filter((page: any) => !discontinuedPages.has(page.url))
 			.map((page: any) => ({
 				...page,
 				icon: getIconComponent(page.icon),
